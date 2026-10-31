@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>素材管理器</title>
+<script>
+/* 主题要在样式生效前定下来，否则会先闪一帧浅色 */
+(function(){
+  try{
+    var t = localStorage.getItem("mm.theme");
+    if(t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  }catch(e){}
+})();
+</script>
+<style>
+/* ── 变量：与 sites/costume、sites/pose、sites/shisei 同一套 ── */
+:root{
+  --r:14px;
+  --f:system-ui,-apple-system,"Segoe UI","Hiragino Sans","Noto Sans SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --imgbg:#eef1f5;
+}
+html[data-theme="dark"]{
+  --bg:#0d0f12;--bg2:#14171c;--panel:#1a1e24;--line:#272c34;--line2:#343a44;
+  --tx:#e9ecf1;--tx2:#a3abb8;--tx3:#6c7482;
+  --ac:#8fb4ff;--ac2:#c3d5ff;--on-ac:#0b1220;
+  --hover:#232831;--hover-border:#3b4350;
+  --sh:0 10px 30px rgba(0,0,0,.45);
+  --tools-bg:rgba(13,15,18,.86);
+  --title-grad:linear-gradient(90deg,var(--ac2),#e3c8ff);
+  --badge-bg:rgba(13,15,18,.78);
+  --glow1:#1b2433;--glow2:#211a2b;
+  --panel-sh:0 18px 44px rgba(0,0,0,.55);
+  --imgbg:#0b0e12;
+}
+html[data-theme="light"]{
+  --bg:#f4f6f9;--bg2:#ffffff;--panel:#ffffff;--line:#e3e7ed;--line2:#ccd4e0;
+  --tx:#16191f;--tx2:#525b6a;--tx3:#8a93a3;
+  --ac:#2563eb;--ac2:#1e40af;--on-ac:#ffffff;
+  --hover:#eef1f6;--hover-border:#b9c3d2;
+  --sh:0 8px 24px rgba(16,24,40,.10);
+  --tools-bg:rgba(255,255,255,.9);
+  --title-grad:linear-gradient(90deg,#2563eb,#7c3aed);
+  --badge-bg:rgba(22,25,31,.78);
+  --glow1:#e6eefc;--glow2:#f0e9fb;
+  --panel-sh:0 18px 44px rgba(16,24,40,.18);
+  --imgbg:#eef1f5;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;display:grid;grid-template-columns:208px minmax(0,1fr) 316px;grid-template-rows:auto minmax(0,1fr);
+  height:100vh;overflow:hidden;
+  background:var(--bg);color:var(--tx);font:13.5px/1.6 var(--f);-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(1200px 500px at 12% -10%,var(--glow1) 0,transparent 60%),
+                   radial-gradient(900px 400px at 100% 0,var(--glow2) 0,transparent 55%);
+  transition:background-color .22s ease,color .22s ease;
+}
+button,select,input,textarea{font:inherit;color:inherit}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ── 顶部工具条 ───────────────────────────────── */
+.topbar{grid-column:1/-1;z-index:30;background:var(--tools-bg);backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line);transition:background-color .22s ease}
+.topbar-in{max-width:1680px;margin:0 auto;padding:9px clamp(14px,2.4vw,30px) 0}
+.heroline{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.eyebrow{font-size:10px;letter-spacing:.22em;color:var(--tx3);text-transform:uppercase;margin:0;line-height:1.4}
+.topbar h1{margin:0;font-size:17px;font-weight:700;letter-spacing:.02em;line-height:1.25}
+.topbar h1 span{background:var(--title-grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sp{flex:1}
+
+.search{position:relative;display:flex;align-items:center}
+.search svg{position:absolute;left:11px;color:var(--tx3);pointer-events:none}
+.search input{width:290px;max-width:46vw;height:36px;padding:0 12px 0 34px;border:1px solid var(--line2);
+  border-radius:10px;background:var(--bg2);font-size:13px;outline:none;transition:.15s}
+.search input::placeholder{color:var(--tx3)}
+.search input:focus{border-color:var(--ac);box-shadow:0 0 0 3px color-mix(in srgb,var(--ac) 18%,transparent)}
+
+.switch{display:flex;border:1px solid var(--line2);border-radius:10px;overflow:hidden;background:var(--bg2)}
+.switch button{height:34px;min-width:34px;padding:0 9px;border:0;background:transparent;color:var(--tx2);
+  font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:.13s}
+.switch button+button{border-left:1px solid var(--line2)}
+.switch button:hover{background:var(--hover);color:var(--tx)}
+.switch button[aria-pressed="true"]{background:var(--ac);color:var(--on-ac);font-weight:700}
+.switch svg{width:14px;height:14px;display:block}
+
+/* 集合：胶囊 tab，与站点的集合切换一致 */
+.tabs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:8px 0 9px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;display:flex;align-items:center;gap:8px;height:34px;padding:0 14px;border:1px solid var(--line2);
+  border-radius:10px;background:transparent;color:var(--tx2);font-size:13px;cursor:pointer;white-space:nowrap;transition:.15s}
+.tab:hover{background:var(--hover);color:var(--tx)}
+.tab[aria-selected="true"]{background:var(--ac);border-color:var(--ac);color:var(--on-ac);font-weight:700}
+.tab .n{font-size:11px;opacity:.62;font-variant-numeric:tabular-nums;flex:none}
+.tab[aria-selected="true"] .n{opacity:.8}
+
+/* ── 侧栏 ─────────────────────────────────────── */
+aside{border-right:1px solid var(--line);background:var(--panel);overflow:auto;padding:16px 13px 48px}
+aside.left{display:flex;flex-direction:column;overflow:hidden;padding-bottom:0}
+aside.left > h2,aside.left > #addBox{flex:none}
+#facets{flex:1;overflow:auto;min-height:0;padding-bottom:44px}
+aside.right{border-right:0;border-left:1px solid var(--line);padding:16px 14px 40px}
+aside h2, .detail .sechead{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);
+  font-weight:700;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+aside h2::after{content:'';flex:1;height:1px;background:var(--line)}
+#facets h2{margin-top:18px}
+#facets h2:first-child{margin-top:0}
+#facets details{margin-top:18px}
+#facets details:first-child{margin-top:0}
+#facets summary{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);
+  font-weight:700;margin:0 0 10px;display:flex;align-items:center;gap:7px;cursor:pointer;list-style:none}
+#facets summary::-webkit-details-marker{display:none}
+#facets summary::before{content:'▸';font-size:9px;line-height:1}
+#facets details[open] summary::before{content:'▾'}
+#facets summary::after{content:'';flex:1;height:1px;background:var(--line)}
+#addBox{margin-bottom:20px}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:5px 11px;border:1px solid var(--line2);border-radius:99px;background:var(--bg2);
+  font-size:12px;color:var(--tx2);cursor:pointer;transition:.13s;white-space:nowrap}
+.chip:hover{border-color:var(--ac);color:var(--ac)}
+.chip[aria-pressed="true"]{background:var(--ac);border-color:var(--ac);color:var(--on-ac);font-weight:700}
+.chip .c{opacity:.6;font-size:10.5px;margin-left:4px;font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"] .c{opacity:.8}
+
+/* ── 网格 ─────────────────────────────────────── */
+main{overflow:auto;padding:18px clamp(14px,2.4vw,30px) 90px}
+.bar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.bar .count{margin-left:0;flex:1;font-size:12.5px;color:var(--tx3);font-variant-numeric:tabular-nums}
+.bar .count b{color:var(--tx);font-weight:700}
+.bar button{height:32px;padding:0 12px;border:1px solid var(--line2);border-radius:9px;background:transparent;
+  color:var(--tx2);font-size:12.5px;cursor:pointer;transition:.15s}
+.bar button:hover{border-color:var(--ac);color:var(--ac)}
+.bar button[hidden]{display:none}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(166px,1fr));gap:13px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;cursor:pointer;
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s;outline:none;display:flex;flex-direction:column}
+.card:hover,.card:focus-visible{transform:translateY(-4px);box-shadow:var(--sh);border-color:var(--hover-border)}
+.card:focus-visible{box-shadow:0 0 0 2px var(--ac)}
+.ph{position:relative;aspect-ratio:2/3;background:var(--imgbg);overflow:hidden;display:block}
+.ph img{width:100%;height:100%;object-fit:contain;display:block;opacity:0;transition:opacity .32s ease}
+.ph img.ld{opacity:1}
+.badge{position:absolute;top:9px;left:9px;display:flex;gap:6px;flex-wrap:wrap}
+.badge span{background:var(--badge-bg);color:#fff;font-size:10.5px;padding:3px 8px;border-radius:99px;
+  backdrop-filter:blur(4px);font-variant-numeric:tabular-nums;letter-spacing:.03em}
+.badge span.cat{background:var(--ac);color:var(--on-ac);font-weight:700}
+.badge span.fav{background:rgba(200,137,43,.92);color:#fff}
+.card .meta{padding:8px 11px 9px;display:flex;align-items:center;gap:8px;border-top:1px solid var(--line)}
+.card .ttl{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.empty{grid-column:1/-1;padding:90px 0;text-align:center;color:var(--tx3);font-size:14px;line-height:1.9}
+.empty b{display:block;color:var(--tx2);font-size:15px;margin-bottom:6px}
+
+.loadmore{display:block;margin:34px auto 0;height:46px;padding:0 30px;border:1px solid var(--line2);
+  border-radius:12px;background:var(--panel);color:var(--tx2);font-size:13.5px;cursor:pointer;transition:.15s}
+.loadmore:hover{border-color:var(--ac);color:var(--ac)}
+.loadmore[hidden]{display:none}
+
+/* ── 右栏详情 ─────────────────────────────────── */
+.detail{display:flex;flex-direction:column}
+.detail .big{background:var(--imgbg);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;margin-bottom:13px}
+.detail .big img{width:100%;height:auto;max-height:46vh;object-fit:contain;display:block}
+/* 一条提示词的成图切换条（图1/图2/图3） */
+.detail .shots{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 11px}
+.detail .shots img{width:54px;height:54px;object-fit:cover;border-radius:7px;cursor:pointer;
+  opacity:.55;border:2px solid transparent;transition:.12s}
+.detail .shots img:hover{opacity:.85}
+.detail .shots img.on{opacity:1;border-color:var(--ac)}
+/* 自己挂上去的图用虚线边，和采集来的原图一眼分开 */
+.detail .shots img.own{border-style:dashed;border-color:var(--line2)}
+.detail .shots img.own.on{border-color:var(--ac)}
+.detail h3{margin:0 0 4px;font-size:14px;line-height:1.45;font-weight:700}
+.detail .sub{color:var(--tx3);font-size:11.5px;margin-bottom:12px;font-family:var(--mono);letter-spacing:.03em;word-break:break-all}
+.mkv{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:0 0 12px;font-size:12px}
+.mkv dt{color:var(--tx3);white-space:nowrap}
+.mkv dd{margin:0;text-align:right;word-break:break-all}
+.mkv dd a{color:var(--ac);text-decoration:none}
+.mkv dd a:hover{text-decoration:underline}
+.mtags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:13px}
+.mtags button{font-size:11px;padding:4px 9px;border-radius:6px;border:1px solid var(--line2);background:var(--bg2);
+  color:var(--tx2);cursor:default;transition:.13s}
+.mtags button.manual{cursor:pointer}
+.mtags button.manual:hover{border-color:var(--ac);color:var(--ac)}
+.macts{display:flex;flex-direction:column;gap:8px}
+.macts .row{display:flex;gap:8px;margin:0}
+.macts button,.srcbar button{height:38px;display:flex;align-items:center;justify-content:center;border-radius:10px;
+  border:1px solid var(--line2);background:var(--panel);color:var(--tx);font-size:13px;cursor:pointer;transition:.15s}
+.macts button{flex:1 1 auto}
+.macts button:hover,.srcbar button:hover{border-color:var(--ac);color:var(--ac)}
+.macts .primary{background:var(--ac);color:var(--on-ac);border-color:var(--ac);font-weight:600}
+.macts .primary:hover{opacity:.88;color:var(--on-ac)}
+
+.srcbar{display:flex;flex-direction:column;gap:6px}
+.srcbar .row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0}
+.srcbar .row button:nth-child(3){grid-column:1/-1}
+.srcbar .row[hidden]{display:none}
+.srcbar input{height:34px;min-width:0;padding:0 10px;border:1px solid var(--line2);border-radius:9px;
+  background:var(--bg2);font-size:12px;outline:none}
+.srcbar input:focus{border-color:var(--ac)}
+.srcbar .urlrow{grid-template-columns:1fr auto}
+
+.detail textarea{width:100%;min-height:96px;padding:9px 10px;border:1px solid var(--line2);border-radius:10px;
+  background:var(--bg2);font:12px/1.55 var(--mono);resize:vertical;outline:none}
+.detail textarea:focus{border-color:var(--ac)}
+.detail .sechead{margin:16px 0 8px}
+.detail .sechead::after{content:'';flex:1;height:1px;background:var(--line)}
+.hint{color:var(--tx3);font-size:11.5px;line-height:1.75;margin:0 0 10px}
+#detail > .hint:first-child{margin-top:14px;padding:15px 13px;border:1px dashed var(--line2);border-radius:12px;background:var(--bg2)}
+.hint kbd{font-family:var(--mono);font-size:10px;padding:1px 5px;border:1px solid var(--line2);border-radius:4px;
+  background:var(--bg2);color:var(--tx2)}
+
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--tx);color:var(--bg2);
+  padding:9px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:70;
+  box-shadow:var(--sh);max-width:min(560px,88vw);text-align:center}
+.toast.on{opacity:.95}
+
+@media(max-width:1180px){body{grid-template-columns:212px minmax(0,1fr) 308px}}
+@media(max-width:980px){
+  body{grid-template-columns:minmax(0,1fr) 300px}
+  aside.left{display:none}
+}
+@media(max-width:760px){
+  body{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto}
+  aside.right{border-left:0;border-top:1px solid var(--line);max-height:38vh}
+  .grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .search input{width:100%;max-width:none}
+  .search{flex:1 1 100%;order:9}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-in">
+    <div class="heroline">
+      <div>
+        <p class="eyebrow">local library</p>
+        <h1>素材<span>管理器</span></h1>
+      </div>
+      <span class="sp"></span>
+      <label class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="标题 / 分类 / 提示词，中英日都行" autocomplete="off">
+      </label>
+      <div class="switch" id="themeSw" role="group" aria-label="主题">
+        <button data-t="light" title="浅色" aria-label="浅色" aria-pressed="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
+        </button>
+        <button data-t="dark" title="深色" aria-label="深色" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="tabs" id="collections" role="tablist"></div>
+  </div>
+</div>
+
+<aside class="left">
+  <h2>添加素材</h2>
+  <div id="addBox"></div>
+  <h2 id="facetTitle">分面</h2>
+  <div id="facets"><span class="hint">选一个集合后显示它自己的分面</span></div>
+</aside>
+
+<main>
+  <div class="bar">
+    <span class="count" id="count"></span>
+    <button id="hideAll" hidden>隐藏已加载的这批</button>
+  </div>
+  <div class="grid" id="grid"></div>
+  <button class="loadmore" id="more" hidden>加载更多</button>
+</main>
+
+<aside class="right detail" id="detail">
+  <p class="hint">点一张图看详情。<br>拖图片或文件夹进来、或直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 贴图，都能导入。</p>
+</aside>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const state = {collection:null, q:"", facets:[], page:1, size:120, total:0, items:[], includeHidden:false, current:null, names:{}};
+
+const $ = (id) => document.getElementById(id);
+const el = (tag, props={}) => Object.assign(document.createElement(tag), props);
+const collName = (slug) => state.names[slug] || slug;
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("on");
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove("on"), 1800);
+}
+
+async function api(path, opts){
+  const resp = await fetch(path, opts);
+  const body = await resp.json().catch(()=>({}));
+  if(!resp.ok) throw new Error(body.detail || body.error || resp.status);
+  return body;
+}
+
+function post(path, payload){
+  return api(path, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload||{})});
+}
+
+/* ── 主题：与站点一致，选完记进 localStorage ───── */
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  try{ localStorage.setItem("mm.theme", t); }catch(e){}
+  for(const b of $("themeSw").querySelectorAll("button")){
+    b.setAttribute("aria-pressed", b.dataset.t === t ? "true" : "false");
+  }
+}
+$("themeSw").addEventListener("click", (e)=>{
+  const b = e.target.closest("button[data-t]");
+  if(b) applyTheme(b.dataset.t);
+});
+applyTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+
+/* ── 图片来源：本地文件 / 剪贴板 / 链接 ─────────
+   三个入口最后都归成一个 File 或一个 url，交给同一个发送函数。
+   替换和新增只是目标端点不同，取图的交互完全一样。          */
+
+const IMG_ACCEPT = ".png,.jpg,.jpeg,.webp,.gif,.bmp";
+
+function stamp(){
+  const d = new Date(), p = (n)=>String(n).padStart(2,"0");
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+function namePasted(blob){
+  const ext = ((blob.type || "image/png").split("/")[1] || "png").replace("jpeg", "jpg");
+  return `paste-${stamp()}.${ext}`;
+}
+
+function pickLocalFiles(multi){
+  return new Promise((resolve)=>{
+    const input = el("input", {type:"file", accept: IMG_ACCEPT, multiple: !!multi});
+    input.style.display = "none";
+    document.body.append(input);
+    input.onchange = ()=>{ const fs = [...(input.files || [])]; input.remove(); resolve(fs); };
+    input.click();
+  });
+}
+
+async function pickLocalFile(){
+  return (await pickLocalFiles(false))[0] || null;
+}
+
+async function clipboardImage(){
+  if(!navigator.clipboard || !navigator.clipboard.read){
+    throw new Error("这个浏览器不给读剪贴板，改成 Ctrl+V 直接贴到页面");
+  }
+  for(const item of await navigator.clipboard.read()){
+    for(const type of item.types){
+      if(type.startsWith("image/")){
+        const blob = await item.getType(type);
+        return new File([blob], namePasted(blob), {type});
+      }
+    }
+  }
+  throw new Error("剪贴板里没有图片");
+}
+
+async function sendSource(path, src){
+  let resp;
+  if(src.file || (src.files && src.files.length)){
+    /* 同名字段 `file` 重复 append 是合法的，后端按出现顺序逐个收 */
+    const fd = new FormData();
+    for(const f of (src.files || [src.file])) fd.append("file", f, f.name);
+    resp = await fetch(path, {method:"POST", body:fd});
+  }else{
+    resp = await fetch(path, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({url: src.url})});
+  }
+  const body = await resp.json().catch(()=>({}));
+  if(!resp.ok){
+    if(body.error === "duplicate") throw new Error("这张已经导入过了：" + body.existing_id);
+    throw new Error(body.detail || body.error || ("HTTP " + resp.status));
+  }
+  return body;
+}
+
+/** 三个来源按钮。拿到图就调 handler({file}) 或 handler({url})。
+ *  opts.multi 为真时「选本地图片」允许多选，一次交给 handler({files})。 */
+function sourceBar(handler, opts){
+  const multi = !!(opts && opts.multi);
+  const wrap = el("div", {className: "srcbar"});
+  const row = el("div", {className:"row"});
+
+  async function run(fn){
+    try{ await fn(); }catch(e){ toast(e.message || String(e)); }
+  }
+
+  const fileBtn = el("button", {textContent: multi ? "选图片（可多选）" : "选本地图片"});
+  fileBtn.onclick = async ()=>{
+    if(multi){
+      const fs = await pickLocalFiles(true);
+      if(fs.length) await run(()=>handler({files: fs}));
+      return;
+    }
+    const f = await pickLocalFile();
+    if(f) await run(()=>handler({file: f}));
+  };
+
+  const pasteBtn = el("button", {textContent:"粘贴图片"});
+  pasteBtn.onclick = ()=>run(async ()=>handler({file: await clipboardImage()}));
+
+  const urlRow = el("div", {className:"row urlrow"});
+  urlRow.hidden = true;
+  const urlInput = el("input", {placeholder:"https://…/x.png", autocomplete:"off"});
+  const urlGo = el("button", {textContent:"取回"});
+  const urlBtn = el("button", {textContent:"粘贴图片链接"});
+  urlBtn.onclick = ()=>{ urlRow.hidden = !urlRow.hidden; if(!urlRow.hidden) urlInput.focus(); };
+  urlGo.onclick = async ()=>{
+    const url = urlInput.value.trim();
+    if(!url) return toast("先贴一个链接");
+    await run(async ()=>{
+      await handler({url});
+      urlInput.value = "";
+      urlRow.hidden = true;
+    });
+  };
+  urlInput.onkeydown = (e)=>{ if(e.key === "Enter"){ e.preventDefault(); urlGo.click(); } };
+
+  row.append(fileBtn, pasteBtn, urlBtn);
+  urlRow.append(urlInput, urlGo);
+  wrap.append(row, urlRow);
+  return wrap;
+}
+
+/* ── 顶部：集合胶囊 ─────────────────────────── */
+async function loadCollections(){
+  const {collections} = await api("/api/collections");
+  state.names = {};
+  for(const c of collections) state.names[c.slug] = c.name;
+  const tabs = $("collections");
+  tabs.innerHTML = "";
+  const mk = (slug, name, n)=>{
+    const b = el("button", {className:"tab"});
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", state.collection === slug ? "true" : "false");
+    b.innerHTML = `${esc(name)}<span class="n">${n}</span>`;
+    b.onclick = ()=>selectCollection(slug);
+    return b;
+  };
+  tabs.append(mk(null, "全部", collections.reduce((s,c)=>s+c.items, 0)));
+  for(const c of collections){
+    if(!c.items) continue;
+    tabs.append(mk(c.slug, c.name, c.items));
+  }
+}
+
+/* ── 左栏：分面 ─────────────────────────────── */
+async function loadFacets(){
+  const box = $("facets");
+  if(!state.collection){
+    box.innerHTML = '<span class="hint">选一个集合后显示它自己的分面</span>';
+    $("facetTitle").textContent = "分面";
+    return;
+  }
+  const {facets} = await api(`/api/facets?collection=${encodeURIComponent(state.collection)}`).catch((e)=>{
+    box.innerHTML = `<span class="hint">分面加载失败：${esc(e.message)}</span>`;
+    return {facets: []};
+  });
+  box.innerHTML = "";
+  $("facetTitle").textContent = "分面 · 可叠加";
+  const byNs = {};
+  for(const f of facets) (byNs[f.ns] ||= []).push(f);
+  /* 模型是最上层的筛选维度，排在最前；否则会被 41 个分类挤到左栏最底部 */
+  const NS_ORDER = ["模型", "分类", "标记"];
+  const nsList = Object.keys(byNs).sort((a, b)=>{
+    const ia = NS_ORDER.indexOf(a), ib = NS_ORDER.indexOf(b);
+    return (ia < 0 ? NS_ORDER.length : ia) - (ib < 0 ? NS_ORDER.length : ib);
+  });
+  for(const ns of nsList){
+    const list = byNs[ns];
+    const wrap = el("div", {className:"chips"});
+    for(const f of list.slice(0, 400)){
+      const key = `${f.ns}:${f.name}`;
+      const b = el("button", {className:"chip"});
+      b.innerHTML = `${esc(f.name_zh || f.name)}<span class="c">${f.count}</span>`;
+      b.setAttribute("aria-pressed", state.facets.includes(key) ? "true" : "false");
+      b.onclick = ()=>toggleFacet(key);
+      wrap.append(b);
+    }
+    /* 值特别多的分面（如「编号」有 288 个 Pxxx）更像标识而不是分类，
+       默认折叠，免得把左栏整个撑满。 */
+    if(list.length > 48){
+      const det = el("details");
+      det.append(el("summary", {textContent: `${ns} · ${list.length} 项`}));
+      det.append(wrap);
+      box.append(det);
+    }else{
+      box.append(el("h2", {textContent: ns}), wrap);
+    }
+  }
+}
+
+function toggleFacet(key){
+  const i = state.facets.indexOf(key);
+  if(i >= 0) state.facets.splice(i,1); else state.facets.push(key);
+  loadFacets();
+  loadItems(true);
+}
+
+function selectCollection(slug){
+  state.collection = slug;
+  state.facets = [];
+  // 右栏跟着换集合清空，免得对着旧集合的条目点「复制 prompt」
+  state.current = null;
+  $("detail").innerHTML = '<p class="hint">点一张图看详情。<br>拖图片或文件夹进来、或直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 贴图，都能导入。</p>';
+  loadCollections();
+  loadFacets();
+  loadItems(true);
+  document.querySelector("main").scrollTop = 0;
+}
+
+/* ── 中间：网格 ─────────────────────────────── */
+async function loadItems(reset){
+  if(reset){
+    state.page = 1; state.items = []; $("grid").innerHTML = "";
+    document.querySelector("main").scrollTop = 0;
+  }
+  const params = new URLSearchParams();
+  if(state.collection) params.set("collection", state.collection);
+  if(state.q) params.set("q", state.q);
+  for(const f of state.facets) params.append("facet", f);
+  if(state.includeHidden) params.set("include_hidden","1");
+  params.set("page", state.page);
+  params.set("size", state.size);
+  const data = await api("/api/items?" + params.toString());
+  state.total = data.total;
+  state.items = state.items.concat(data.items);
+  renderCards(data.items);
+  $("count").innerHTML = `<b>${data.total}</b> 条` + (state.q ? ` · 关键词「${esc(state.q)}」` : "");
+  const more = $("more");
+  more.hidden = state.items.length >= data.total;
+  more.textContent = `加载更多（已显示 ${state.items.length} / ${data.total}）`;
+  const hideAll = $("hideAll");
+  hideAll.hidden = state.items.length === 0;
+  hideAll.textContent = `隐藏已加载的 ${state.items.length} 条`;
+  if(!data.items.length){
+    $("grid").innerHTML = '<div class="empty"><b>这里没有素材</b>换个关键词，或者先导入一张。</div>';
+  }
+}
+
+function renderCards(items){
+  const grid = $("grid");
+  const frag = document.createDocumentFragment();
+  for(const it of items){
+    const card = el("div", {className:"card", tabIndex:0});
+    const ph = el("div", {className:"ph"});
+
+    const img = el("img", {loading:"lazy", alt: it.title || it.id});
+    img.onload = ()=>img.classList.add("ld");
+    img.onerror = ()=>{ img.style.opacity = .18; };
+    img.src = it.thumb || "";
+    if(img.complete) img.classList.add("ld");
+
+    const badge = el("div", {className:"badge"});
+    badge.innerHTML = `<span class="cat">${esc(collName(it.collection))}</span>` + (it.fav ? '<span class="fav">★</span>' : "");
+    ph.append(img, badge);
+
+    const meta = el("div", {className:"meta"});
+    const shown = it.title || it.id;
+    meta.innerHTML = `<span class="ttl" title="${esc(shown)} · ${esc(it.id)}">${esc(shown)}</span>`;
+
+    card.append(ph, meta);
+    card.onclick = ()=>openDetail(it.id);
+    card.onkeydown = (e)=>{ if(e.key === "Enter") openDetail(it.id); };
+    frag.append(card);
+  }
+  grid.append(frag);
+}
+
+/* ── 右栏：详情 ─────────────────────────────── */
+async function openDetail(id){
+  const d = await api(`/api/items/${encodeURIComponent(id)}`);
+  state.current = d;
+  const box = $("detail");
+  box.innerHTML = "";
+  const it = d.item;
+
+  const wrap = el("div", {className:"big"});
+  const img = el("img", {alt: it.title});
+  /* 一个资产有多个档位（thumb/mid/full），取最大的那一档 */
+  const bigOf = (a)=>{
+    const fs = (a && a.files) || [];
+    const f = fs.find(x=>x.kind === "full" || x.kind === "img") || fs[fs.length-1];
+    return (f && f.path) || (a && a.primary) || "";
+  };
+  img.src = bigOf(d.assets[0]);
+  wrap.append(img);
+  box.append(wrap);
+
+  /* 多图：一条提示词配多张成图，这里直接选图1/图2/图3 */
+  let shots = null;
+  if(d.assets.length > 1){
+    shots = el("div", {className:"shots"});
+    d.assets.forEach((a, i)=>{
+      const mine = a.role === "user";
+      const t = el("img", {alt: `图${i+1}`, title: mine ? `图${i+1}（自己加的）` : `图${i+1}`});
+      const fs = a.files || [];
+      const th = fs.find(x=>x.kind === "thumb") || fs[0];
+      t.src = (th && th.path) || bigOf(a);
+      /* 少数缩略图在上游就是 404，回退到原图 */
+      t.onerror = ()=>{ t.onerror = null; t.src = bigOf(a); };
+      t.className = (i === 0 ? "on" : "") + (mine ? " own" : "");
+      t.onclick = ()=>{
+        img.src = bigOf(a);
+        [...shots.children].forEach(c=>c.classList.remove("on"));
+        t.classList.add("on");
+        const sv = $("sizeVal");
+        if(sv) sv.textContent = a.width && a.height ? `${a.width} × ${a.height}` : "";
+        const cap = $("shotCap");
+        if(cap) cap.textContent = `图 ${i+1} / ${d.assets.length}`;
+      };
+      shots.append(t);
+    });
+    box.append(shots);
+  }
+
+  box.append(el("h3", {textContent: it.title || it.id}));
+
+  const sub = el("div", {className:"sub"});
+  sub.textContent = `${collName(it.collection)} · ${it.id}`;
+  box.append(sub);
+
+  /* 多图与「替换版本」是两件事：prompts 站一个提示词本来就可能配多张图，
+     只有 role=replaced 的才是被替换进来的新版本。 */
+  const replaced = d.assets.filter(a=>a.role === "replaced");
+  if(replaced.length){
+    box.append(el("p", {className:"hint",
+      textContent: `这张被替换过 ${replaced.length} 次，上面显示的是最新版本；原图都还在盘上，没删。`}));
+  }else if(d.assets.length > 1){
+    box.append(el("p", {className:"hint", id:"shotCap",
+      textContent: `图 1 / ${d.assets.length}`}));
+  }
+
+  const a0 = d.assets[0] || {};
+  const kv = el("dl", {className:"mkv"});
+  const addKv = (k, v)=>{
+    if(v === undefined || v === null || v === "") return;
+    kv.append(el("dt", {textContent:k}), el("dd", {textContent:v}));
+  };
+  const sizeTxt = a0.width && a0.height ? `${a0.width} × ${a0.height}` : "";
+  if(sizeTxt){
+    kv.append(el("dt", {textContent:"尺寸"}), el("dd", {id:"sizeVal", textContent:sizeTxt}));
+  }
+  /* 模型不放这里：它已经作为「模型」分面标签显示（值已中文化），这里再显示原始 slug 会打架 */
+  addKv("作者", it.author);
+  addKv("发布", it.published_at);
+  addKv("标题原文", it.title_alt && it.title_alt !== it.title ? it.title_alt : "");
+  if(kv.children.length) box.append(kv);
+
+  const tags = el("div", {className:"mtags"});
+  for(const [ns, name, zh, src] of d.tags){
+    const chip = el("button", {textContent: ns === name ? name : `${ns}: ${zh || name}`});
+    if(src === "manual"){
+      chip.className = "manual";
+      chip.textContent += " ×";
+      chip.title = "点一下删掉这个标签";
+      chip.onclick = async ()=>{
+        await post(`/api/items/${encodeURIComponent(it.id)}/tags`, {op:"del", ns, name});
+        openDetail(it.id); loadItems(true);
+      };
+    }
+    tags.append(chip);
+  }
+  if(tags.children.length) box.append(tags);
+
+  const acts = el("div", {className:"macts"});
+  const copy = el("button", {className:"primary", textContent:"复制 prompt"});
+  copy.onclick = async ()=>{
+    const text = it.prompt_raw || it.prompt || "";
+    if(!text) return toast("这条没有 prompt");
+    try{ await navigator.clipboard.writeText(text); toast("已复制 " + text.length + " 字符"); }
+    catch(e){
+      const ta = el("textarea", {value:text}); document.body.append(ta); ta.select();
+      document.execCommand("copy"); ta.remove(); toast("已复制");
+    }
+  };
+  const send = el("button", {textContent:"送到 ComfyUI input"});
+  send.onclick = async ()=>{
+    try{
+      const r = await post("/api/send", {item_id: it.id, target:"input"});
+      toast((r.method === "hardlink" ? "已硬链接到 " : "已复制到 ") + r.path);
+    }catch(e){ toast("送出失败：" + e.message); }
+  };
+  const rowA = el("div", {className:"row"});
+  const favBtn = el("button", {textContent: it.fav ? "★ 已收藏" : "☆ 收藏"});
+  favBtn.onclick = async ()=>{
+    try{
+      const r = await post(`/api/items/${encodeURIComponent(it.id)}/fav`, {on: !it.fav});
+      toast(r.fav ? "已收藏" : "已取消收藏");
+      openDetail(it.id); loadItems(true);
+    }catch(e){ toast("操作失败：" + e.message); }
+  };
+  const hideBtn = el("button", {textContent: it.hidden ? "恢复显示" : "从视图隐藏"});
+  hideBtn.onclick = async ()=>{
+    try{
+      await post(`/api/items/${encodeURIComponent(it.id)}/tags`, {op: it.hidden ? "del" : "add", ns:"状态", name:"隐藏"});
+      toast(it.hidden ? "已恢复" : "已隐藏（文件没动）");
+      openDetail(it.id); loadItems(true); loadFacets();
+    }catch(e){ toast("操作失败：" + e.message); }
+  };
+  rowA.append(favBtn, hideBtn);
+  acts.append(copy, send, rowA);
+  box.append(acts);
+
+  /* 给这条素材追加自己的图：可多选，排在原图后面，主图不动、原图不删 */
+  box.append(el("div", {className:"sechead", textContent:"添加图片"}));
+  box.append(sourceBar(async (src)=>{
+    const r = await sendSource(`/api/items/${encodeURIComponent(it.id)}/attach`, src);
+    const bits = [`加了 ${r.added} 张`];
+    if(r.skipped) bits.push(`${r.skipped} 张重复跳过`);
+    if((r.failed || []).length) bits.push(`${r.failed.length} 张失败：${r.failed[0].reason}`);
+    toast(bits.join("，"));
+    openDetail(it.id);
+    loadItems(true);
+  }, {multi: true}));
+
+  box.append(el("div", {className:"sechead", textContent:"替换这张图"}));
+  box.append(sourceBar(async (src)=>{
+    await sendSource(`/api/items/${encodeURIComponent(it.id)}/replace`, src);
+    toast("已替换。原图还在，只是不再是第一张");
+    openDetail(it.id);
+    loadItems(true);
+  }));
+
+  const tagRow = el("div", {className:"macts"});
+  const tagLine = el("div", {className:"row"});
+  const nsInput = el("input", {placeholder:"命名空间", value:"状态"});
+  const nameInput = el("input", {placeholder:"新标签名"});
+  const addTag = el("button", {textContent:"加标签"});
+  addTag.onclick = async ()=>{
+    const name = nameInput.value.trim();
+    if(!name) return toast("先写一个标签名");
+    try{
+      await post(`/api/items/${encodeURIComponent(it.id)}/tags`, {op:"add", ns: nsInput.value.trim() || "状态", name});
+      nameInput.value = "";
+      openDetail(it.id); loadItems(true);
+    }catch(e){ toast("加标签失败：" + e.message); }
+  };
+  tagLine.append(nsInput, nameInput, addTag);
+  tagRow.append(tagLine);
+  tagRow.querySelectorAll("input").forEach(i=>{
+    i.style.height = "34px";
+    i.style.minWidth = "0";
+    i.style.padding = "0 9px";
+    i.style.border = "1px solid var(--line2)";
+    i.style.borderRadius = "9px";
+    i.style.background = "var(--bg2)";
+    i.style.fontSize = "12px";
+  });
+  box.append(tagRow);
+
+  if(it.prompt_raw || it.prompt){
+    box.append(el("div", {className:"sechead", textContent:"Prompt"}));
+    box.append(el("textarea", {readOnly:true, value: it.prompt_raw || it.prompt}));
+  }
+  if(it.generator_meta && Object.keys(it.generator_meta).length){
+    box.append(el("p", {className:"hint", textContent: "生成参数：" + Object.keys(it.generator_meta).join(" / ")}));
+  }
+  if(it.source_url){
+    const p = el("p", {className:"hint"});
+    p.innerHTML = `来源：<a href="${esc(it.source_url)}" target="_blank" rel="noreferrer">${esc(it.source_url)}</a>`;
+    p.querySelector("a").style.color = "var(--ac)";
+    box.append(p);
+  }
+}
+
+/* ── 拖拽导入 ───────────────────────────────── */
+async function importFile(file){
+  const fd = new FormData();
+  fd.append("file", file, file.name);
+  const resp = await fetch("/api/import", {method:"POST", body:fd});
+  const body = await resp.json().catch(()=>({}));
+  if(!resp.ok) throw new Error(body.error === "duplicate" ? "已存在：" + body.existing_id : (body.detail || body.error));
+  return body;
+}
+
+document.addEventListener("dragover", (e)=>{ e.preventDefault(); });
+
+function readAllEntries(dirEntry){
+  return new Promise((resolve, reject)=>{
+    const reader = dirEntry.createReader();
+    const all = [];
+    const next = ()=>reader.readEntries((batch)=>{
+      if(!batch.length) return resolve(all);
+      all.push(...batch);
+      next();
+    }, reject);
+    next();
+  });
+}
+
+async function collectFiles(entry, out){
+  if(entry.isFile){
+    out.push(await new Promise((resolve)=>entry.file(resolve)));
+  }else if(entry.isDirectory){
+    for(const child of await readAllEntries(entry)) await collectFiles(child, out);
+  }
+}
+
+async function filesFromDrop(dt){
+  const entries = [];
+  for(const item of [...(dt.items || [])]){
+    const entry = item.webkitGetAsEntry && item.webkitGetAsEntry();
+    if(entry) entries.push(entry);
+  }
+  if(!entries.length) return [...(dt.files || [])];
+  const out = [];
+  for(const e of entries) await collectFiles(e, out);
+  return out;
+}
+
+document.addEventListener("drop", async (e)=>{
+  e.preventDefault();
+  const files = (await filesFromDrop(e.dataTransfer)).filter(f=>/\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name));
+  if(!files.length) return toast("没找到可导入的图片");
+  let ok = 0, failed = 0, lastError = "";
+  for(const f of files){
+    try{ await importFile(f); ok++; }catch(err){ failed++; lastError = err.message; }
+  }
+  toast(`导入 ${ok} 张${failed ? `，失败 ${failed}（${lastError}）` : ""}`);
+  selectCollection("own");
+});
+
+/* ── 添加素材：三个来源都落到 own 集合 ────────── */
+async function importSource(src){
+  const r = await sendSource("/api/import", src);
+  toast("已导入 " + (r.item_id || (r.imported + " 张")));
+  loadCollections();
+  selectCollection("own");
+  return r;
+}
+
+$("addBox").append(sourceBar((src)=>importSource(src)));
+
+// 直接 Ctrl+V：当成「新增素材」。替换必须点详情里的按钮，免得手一抖改掉已有素材。
+document.addEventListener("paste", async (e)=>{
+  const items = [...((e.clipboardData && e.clipboardData.items) || [])];
+  const hit = items.find(i=>i.kind === "file" && (i.type || "").startsWith("image/"));
+  if(!hit) return;
+  e.preventDefault();
+  const raw = hit.getAsFile();
+  if(!raw) return;
+  try{
+    await importSource({file: new File([raw], namePasted(raw), {type: raw.type})});
+  }catch(err){ toast(err.message); }
+});
+
+/* ── 启动 ───────────────────────────────────── */
+let timer;
+$("q").addEventListener("input", (e)=>{
+  clearTimeout(timer);
+  timer = setTimeout(()=>{ state.q = e.target.value.trim(); loadItems(true); }, 250);
+});
+$("more").onclick = ()=>{ state.page += 1; loadItems(false); };
+
+$("hideAll").onclick = async ()=>{
+  const n = state.items.length;
+  if(!confirm(`把这 ${n} 条从视图里隐藏？图片文件不会被删除，随时可以恢复。`)) return;
+  let done = 0;
+  for(const it of state.items){
+    try{
+      await post(`/api/items/${encodeURIComponent(it.id)}/tags`, {op:"add", ns:"状态", name:"隐藏"});
+      done++;
+    }catch(err){ toast(err.message); break; }
+  }
+  toast(`已隐藏 ${done} 条（文件没动）`);
+  loadFacets();
+  loadItems(true);
+};
+
+(async () => {
+  try{
+    await loadCollections();
+    await loadItems(true);
+  }catch(e){
+    $("count").textContent = "接口不可用：" + e.message;
+  }
+})();
+</script>
+</body>
+</html>
