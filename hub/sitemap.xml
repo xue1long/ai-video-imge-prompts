@@ -193,4 +193,18 @@
   <url><loc>https://example.com/shisei/series/全身・標準/しゃがみ/</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://example.com/shisei/series/全身・標準/前かがみ/</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://example.com/shisei/series/上半身/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/prompts/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/prompts/browse/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/prompts/cat/photography/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/prompts/cat/social-media-post/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/prompts/cat/portrait-selfie/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/prompts/cat/character/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/prompts/cat/poster-flyer/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/prompts/cat/illustration/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/prompts/cat/product-marketing/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/prompts/cat/text-typography/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/prompts/cat/cinematic-film-still/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/prompts/cat/anime-manga/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/prompts/cat/influencer-model/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/prompts/cat/minimalism/</loc><changefreq>weekly</changefreq></url>
 </urlset>

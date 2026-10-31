@@ -1,0 +1,21 @@
+{
+ "dirs": [
+  "browse",
+  "cat"
+ ],
+ "pages": [
+  "browse",
+  "cat/photography",
+  "cat/social-media-post",
+  "cat/portrait-selfie",
+  "cat/character",
+  "cat/poster-flyer",
+  "cat/illustration",
+  "cat/product-marketing",
+  "cat/text-typography",
+  "cat/cinematic-film-still",
+  "cat/anime-manga",
+  "cat/influencer-model",
+  "cat/minimalism"
+ ]
+}

@@ -1,0 +1,5 @@
+{
+ "version": 1,
+ "note": "站主自己挂到提示词下的成图。由 sync_user_assets.py 从 gallery.db 导出，构建时按 originId 合并进分片；版权归本站，不在 CC BY 4.0 范围内。",
+ "items": {}
+}

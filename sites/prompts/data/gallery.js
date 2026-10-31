@@ -1,0 +1,1 @@
+window.__GALLERY__=JSON.parse("{\"models\":[{\"key\":\"gpt2\",\"m\":\"imge-2\",\"label\":\"Imge-2\",\"n\":22268,\"p\":15103},{\"key\":\"nbpro\",\"m\":\"nanobanana\",\"label\":\"Nano Banana\",\"n\":18993,\"p\":11355}],\"total\":41261,\"prompts\":26458,\"default\":\"gpt2\"}");

@@ -281,6 +281,65 @@
         "url": "https://github.com/wquguru"
       },
       "imageBase": "https://raw.githubusercontent.com/wquguru/shisei/v0.3.0/"
+    },
+    {
+      "id": "prompts",
+      "code": "PROMPTS-DB-01",
+      "name": {
+        "zh": "提示词生图集",
+        "ja": "プロンプト素材集"
+      },
+      "desc": {
+        "zh": "AI 生图提示词与成图对照集。覆盖 Imge-2 与 Nano Banana 两个模型，展示中文提示词、复制英文原文，可按模型、分类与标签筛选。",
+        "ja": "AI画像生成プロンプトと成果物の対照集。Imge-2 と Nano Banana の2モデルを収録。表示は中国語、コピーは英文原文。モデル・カテゴリ・タグで絞り込めます。"
+      },
+      "stats": [
+        {
+          "v": "41261",
+          "l": {
+            "zh": "图片",
+            "ja": "画像"
+          }
+        },
+        {
+          "v": "26458",
+          "l": {
+            "zh": "提示词",
+            "ja": "プロンプト"
+          }
+        },
+        {
+          "v": "2",
+          "l": {
+            "zh": "模型",
+            "ja": "モデル"
+          }
+        },
+        {
+          "v": "41",
+          "l": {
+            "zh": "分类",
+            "ja": "カテゴリ"
+          }
+        }
+      ],
+      "license": "conditional",
+      "source": "https://youmind.com/gpt-image-2-prompts/explore",
+      "cover": "thumbs/gpt2/i36759_2.jpg",
+      "coverPos": "center 35%",
+      "tiers": [
+        "thumb",
+        "full"
+      ],
+      "imageDirs": [
+        "thumbs",
+        "img"
+      ],
+      "author": {
+        "name": "YouMind OpenLab 社区",
+        "url": "https://github.com/YouMind-OpenLab/awesome-gpt-image-2"
+      },
+      "imageBase": "https://cms-assets.youmind.com/media/"
     }
   ]
 }

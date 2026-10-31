@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>提示词生图集</title>
+<meta name="description" content="4 万+ 张 AI 生图参考与提示词对照，覆盖 Imge-2 与 Nano Banana 两个模型，可按模型、分类、标签与画幅筛选；一条提示词的全部成图归为一条素材，展示中文提示词，一键复制英文原文。">
+<link rel="canonical" href="https://example.com/prompts/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="photoai.life · 提示词生图集">
+<meta property="og:title" content="提示词生图集">
+<meta property="og:description" content="4 万+ 张 AI 生图参考与提示词对照，覆盖 Imge-2 与 Nano Banana 两个模型，可按模型、分类、标签与画幅筛选；一条提示词的全部成图归为一条素材，展示中文提示词，一键复制英文原文。">
+<meta property="og:url" content="https://example.com/prompts/">
+<meta property="og:image" content="https://example.com/prompts/og-cover.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json"><script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"这些提示词可以直接用吗？","acceptedAnswer":{"@type":"Answer","text":"可以。每张图附带完整提示词，灯箱里一键复制英文原文；部分提示词带 Raycast 占位符，复制后把「默认值」替换成你想要的描述即可。"}},{"@type":"Question","name":"提示词是中文还是英文？","acceptedAnswer":{"@type":"Answer","text":"两者都有：页面上展示中文翻译方便浏览，复制到剪贴板的是英文原文（生图模型对原文的还原度更高）。"}},{"@type":"Question","name":"素材可以商用吗？","acceptedAnswer":{"@type":"Answer","text":"素材采用 CC BY 4.0 授权，允许商用，但必须保留作者署名。每条素材的作者与来源链接在灯箱内可见。"}},{"@type":"Question","name":"「需参考图」是什么意思？","acceptedAnswer":{"@type":"Answer","text":"该提示词是图生图（image-to-image）工作流，需要你另外提供参考图（人物、产品或风格图）才能复现效果。"}}]}</script></script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='#7c5cff'/%3E%3Ctext x='16' y='23' font-size='17' font-family='sans-serif' font-weight='700' text-anchor='middle' fill='%23fff'%3EAI%3C/text%3E%3C/svg%3E">
+<script>
+(function(){try{
+  var t=localStorage.getItem('mj.theme'); if(t==='light'||t==='dark') document.documentElement.dataset.theme=t;
+}catch(e){}})();
+</script>
+<style>
+:root{
+  --accent:#7c5cff;
+  --bg:#f6f7f9; --fg:#1c1f24; --muted:#6b7280;
+  --card:#ffffff; --line:#e4e7ec; --chip:#f0f2f5; --chip-on:#ece7ff;
+  --shadow:0 1px 3px rgba(0,0,0,.07);
+}
+[data-theme=dark]{
+  --bg:#14161a; --fg:#e8eaed; --muted:#9aa1ab;
+  --card:#1d2026; --line:#2c313a; --chip:#262b33; --chip-on:#37305c;
+  --shadow:0 1px 3px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font:15px/1.6 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 60px}
+header{padding:34px 0 10px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:.5px}
+.sub{color:var(--muted);font-size:13.5px;margin:0}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:22px 0 10px}
+#q{flex:1;min-width:220px;padding:9px 14px;border:1px solid var(--line);border-radius:10px;
+  background:var(--card);color:var(--fg);font-size:14px;outline:none}
+#q:focus{border-color:var(--accent)}
+#arSel{padding:9px 10px;border:1px solid var(--line);border-radius:10px;
+  background:var(--card);color:var(--fg);font-size:13.5px}
+#count{color:var(--muted);font-size:13px;white-space:nowrap}
+.tagbar{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 20px}
+.chip{padding:4px 12px;border-radius:999px;border:1px solid var(--line);
+  background:var(--chip);color:var(--muted);font-size:12.5px;cursor:pointer;
+  user-select:none;transition:.15s}
+.chip:hover{color:var(--fg)}
+.chip.on{background:var(--chip-on);border-color:var(--accent);color:var(--fg);font-weight:600}
+.chip b{opacity:.55;font-weight:400;margin-left:3px}
+#langBtn{margin-left:auto;padding:6px 14px;border:1px solid var(--line);border-radius:10px;
+  background:var(--card);color:var(--fg);font-size:13px;cursor:pointer}
+#langBtn:hover{border-color:var(--accent)}
+#themeBtn{padding:6px 14px;border:1px solid var(--line);border-radius:10px;
+  background:var(--card);color:var(--fg);font-size:13px;cursor:pointer}
+#themeBtn:hover{border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  cursor:pointer;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s;
+  display:flex;flex-direction:column;position:relative}
+.card:hover{transform:translateY(-3px);box-shadow:0 6px 18px rgba(0,0,0,.12)}
+.favbtn{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;
+  border:none;background:rgba(15,17,21,.45);color:#fff;font-size:16px;line-height:1;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:.15s;backdrop-filter:blur(2px)}
+.card:hover .favbtn{opacity:1}
+.favbtn.on{opacity:1;color:#ffd24d}
+.favbtn:hover{transform:scale(1.12)}
+.delbtn{position:absolute;top:8px;left:8px;width:32px;height:32px;border-radius:50%;
+  border:none;background:rgba(15,17,21,.45);color:#fff;font-size:14px;line-height:1;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:.15s;backdrop-filter:blur(2px)}
+.card:hover .delbtn{opacity:1}
+.delbtn:hover{background:#e5484d;transform:scale(1.12)}
+.card.trashed{opacity:.55}
+.card.trashed img{filter:grayscale(.7)}
+/* 一条素材多张成图：卡片内切换 图1/图2/图3 */
+.thumbwrap{position:relative;display:block;line-height:0}
+.fnav{position:absolute;left:8px;bottom:8px;display:flex;gap:4px;padding:3px 5px;
+  border-radius:999px;background:rgba(15,17,21,.5);backdrop-filter:blur(4px)}
+.fnum{min-width:18px;text-align:center;font-size:11px;line-height:1.5;color:#fff;
+  border-radius:999px;cursor:pointer;opacity:.7;transition:.12s}
+.fnum:hover{opacity:1;background:rgba(255,255,255,.18)}
+.fnum.on{background:var(--accent);opacity:1;font-weight:600}
+.fcount{font-size:11px;color:#fff;padding:1px 4px;opacity:.85}
+.restorebtn{position:absolute;top:8px;right:8px;padding:6px 12px;border-radius:999px;border:none;
+  background:rgba(15,17,21,.55);color:#fff;font-size:12px;cursor:pointer;
+  opacity:0;transition:.15s;backdrop-filter:blur(2px)}
+.card:hover .restorebtn{opacity:1}
+.restorebtn:hover{background:var(--accent);transform:scale(1.05)}
+#delBtn{padding:6px 14px;border-radius:9px;border:1px solid var(--line);
+  background:var(--chip);color:var(--fg);font-size:13px;cursor:pointer}
+#delBtn:hover{border-color:#e5484d;color:#e5484d}
+.chip.trashchip{color:#b3584e}
+.chip.trashchip.on{background:#f5e0dc;border-color:#e5484d;color:#8f2f26;font-weight:600}
+[data-theme=dark] .chip.trashchip.on{background:#4a2622;border-color:#e5484d;color:#ffb4a8}
+.thumb{width:100%;object-fit:cover;display:block;background:var(--chip)}
+.cbody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px}
+.ctitle{font-weight:600;font-size:14.5px}
+.cprompt{color:var(--muted);font-size:12.5px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cmeta{display:flex;flex-wrap:wrap;gap:5px}
+.mini{padding:2px 8px;border-radius:6px;background:var(--chip);color:var(--muted);font-size:11px}
+.mini.acc{background:var(--chip-on);color:var(--fg)}
+.mini.mdl{color:var(--accent);font-weight:600}
+.mini.srclink{color:var(--accent);text-decoration:none}
+.empty{display:none;text-align:center;color:var(--muted);padding:70px 0}
+.empty h3{margin:0 0 6px;color:var(--fg)}
+footer{margin-top:36px;color:var(--muted);font-size:12px;text-align:center}
+kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11px;background:var(--chip)}
+/* 灯箱 */
+#lb{position:fixed;inset:0;background:rgba(10,12,16,.72);display:none;z-index:50;
+  align-items:center;justify-content:center;padding:24px}
+#lb.open{display:flex}
+.lbbox{background:var(--card);border-radius:16px;max-width:960px;width:100%;
+  max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.lbimg{width:100%;object-fit:contain;max-height:56vh;background:#0c0e12;display:block}
+.lbbody{padding:16px 20px 20px;overflow:auto}
+.lbrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.lbtitle{font-size:17px;font-weight:700;margin:0}
+#copyBtn{margin-left:auto;padding:6px 14px;border-radius:9px;border:1px solid var(--line);
+  background:var(--chip);color:var(--fg);font-size:13px;cursor:pointer}
+#copyBtn:hover{border-color:var(--accent)}
+#copyBtn.ok{background:var(--chip-on);border-color:var(--accent)}
+.lbprompt{white-space:pre-wrap;background:var(--chip);border-radius:10px;padding:12px 14px;
+  font-size:13.5px;line-height:1.7;margin:0 0 10px}
+/* 灯箱里的成图切换条 */
+.lbfiles{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.lbfiles img{width:62px;height:62px;object-fit:cover;border-radius:8px;cursor:pointer;
+  opacity:.55;border:2px solid transparent;transition:.12s}
+.lbfiles img:hover{opacity:.85}
+.lbfiles img.on{opacity:1;border-color:var(--accent)}
+/* 站主自己挂的图：虚线框，和上游素材一眼分开 */
+.lbfiles img.own{outline:1.5px dashed var(--muted);outline-offset:1px}
+.mini.self{background:transparent;border:1px dashed var(--accent);color:var(--accent)}
+.tagedit{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px}
+.tagedit .mini{display:inline-flex;align-items:center;gap:4px}
+.tagedit .mini .rm{cursor:pointer;opacity:.5;font-style:normal}
+.tagedit .mini .rm:hover{opacity:1;color:#e5484d}
+.tagedit .mini.own{border:1px dashed var(--accent);background:transparent;color:var(--accent)}
+#taginput{border:1px dashed var(--line);border-radius:6px;background:transparent;color:var(--fg);
+  font-size:11.5px;padding:3px 8px;min-width:150px;outline:none}
+#taginput:focus{border-color:var(--accent)}
+#favBtn{padding:6px 14px;border-radius:9px;border:1px solid var(--line);
+  background:var(--chip);color:var(--fg);font-size:13px;cursor:pointer}
+#favBtn:hover{border-color:var(--accent)}
+#favBtn.on{background:var(--chip-on);border-color:var(--accent);color:var(--accent);font-weight:600}
+#sentinel{height:2px}
+#morehint{text-align:center;color:var(--muted);font-size:12.5px;padding:18px 0 0}
+#morehint button{border:1px solid var(--line);border-radius:9px;background:var(--card);
+  color:var(--fg);font-size:13px;padding:8px 20px;cursor:pointer}
+#morehint button:hover{border-color:var(--accent)}
+@media (max-width:640px){.grid{grid-template-columns:1fr 1fr}.thumb{height:auto}}
+.seo-intro{--si-tx:var(--tx,var(--fg,#16191f));--si-tx2:var(--tx2,var(--muted,#525b6a));--si-tx3:var(--tx3,var(--muted,#8a93a3));--si-line:var(--line,#e3e7ed);--si-bg:var(--panel,var(--paper,#fff));--si-ac:var(--ac,var(--fg,#2563eb));max-width:var(--si-max,1180px);margin:0 auto;padding:0 clamp(16px,4vw,48px) 56px}.seo-card{border:1px solid var(--si-line);border-radius:16px;background:var(--si-bg);padding:22px clamp(18px,3vw,28px);font-size:13.5px;line-height:1.75;color:var(--si-tx2)}.seo-eyebrow{margin:0 0 6px;font-size:11px;font-weight:600;letter-spacing:.14em;color:var(--si-tx3)}.seo-lead{margin:0 0 14px;color:var(--si-tx);font-size:14.5px;max-width:880px}.seo-facts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px;padding:0;list-style:none}.seo-facts li{border:1px solid var(--si-line);border-radius:999px;padding:3px 11px;font-size:12px;color:var(--si-tx)}.seo-facts li span{color:var(--si-tx3);margin-right:6px}.seo-links{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0 0 4px;font-size:13px}.seo-links a{color:var(--si-tx2);text-decoration:none;border-bottom:1px solid transparent}.seo-links a:hover{color:var(--si-ac);border-bottom-color:currentColor}.seo-links .seo-all{color:var(--si-ac);font-weight:600}.seo-more{margin-top:12px;border-top:1px dashed var(--si-line);padding-top:10px}.seo-more summary{cursor:pointer;color:var(--si-tx3);font-size:12.5px;list-style:none}.seo-more summary::-webkit-details-marker{display:none}.seo-more summary::before{content:'＋';margin-right:6px}.seo-more[open] summary::before{content:'－'}.seo-more p{margin:10px 0 0;max-width:880px}.seo-more dl{margin:6px 0 0;max-width:880px}.seo-more dt{margin-top:12px;color:var(--si-tx);font-weight:600}.seo-more dd{margin:3px 0 0}@media(max-width:600px){.seo-card{border-radius:12px;padding:18px 16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1 id="pagetitle">提示词生图集</h1>
+  <p class="sub" id="pagesub">AI 生图提示词与成图对照 · 展示中文、复制英文原文</p>
+</header>
+
+<div class="toolbar">
+  <input id="q" type="search" placeholder="搜索提示词 / 标题 / 标签" autocomplete="off">
+  <select id="arSel"></select>
+  <span id="count"></span>
+  <button id="langBtn"></button>
+  <button id="themeBtn" title="切换主题"></button>
+</div>
+<div class="tagbar" id="modelbar"></div>
+<div class="tagbar" id="tagbar"></div>
+
+<div class="grid" id="grid"></div>
+<div id="sentinel"></div>
+<div id="morehint"></div>
+<div class="empty" id="empty">
+  <h3>没有匹配的结果</h3>
+  <p>换个关键词，或把标签筛选放宽一些。</p>
+</div>
+
+<section class="seo-intro" aria-label="关于本站"><div class="seo-card"><p class="seo-eyebrow">关于本站</p><p class="seo-lead">提示词生图集收录 YouMind 社区的 AI 生图参考，覆盖 Imge-2、Nano Banana：共 41,261 张成图、26,458 条提示词，每条附英文原文与中文翻译。</p><ul class="seo-facts"><li><span>图片</span>41,261</li><li><span>提示词</span>26,458</li><li><span>模型</span>2</li><li><span>提示词语言</span>双语（展示中文 / 复制英文原文）</li></ul><nav class="seo-links" aria-label="按分类浏览"><a href="cat/photography/">摄影 (23843)</a><a href="cat/social-media-post/">社交媒体帖子 (18404)</a><a href="cat/portrait-selfie/">人像·自拍 (14775)</a><a href="cat/character/">角色 (10493)</a><a href="cat/poster-flyer/">海报·传单 (8593)</a><a href="cat/illustration/">插画 (9414)</a><a href="cat/product-marketing/">产品营销 (12774)</a><a href="cat/text-typography/">文本·排版 (6610)</a><a href="cat/cinematic-film-still/">电影·电影剧照 (10048)</a><a href="cat/anime-manga/">动漫·漫画 (3611)</a><a href="cat/influencer-model/">网红·模特 (9390)</a><a href="cat/minimalism/">极简主义 (4286)</a><a class="seo-all" href="browse/">全部分类与标签 →</a></nav><details class="seo-more"><summary>更多介绍与常见问题</summary><p>可按模型、官方分类、标签、画幅与关键词筛选；灯箱内一键复制英文原文提示词，并保留原作者与来源链接（CC BY 4.0，使用须署名）。</p><dl><dt>这些提示词可以直接用吗？</dt><dd>可以。每张图附带完整提示词，灯箱里一键复制英文原文；部分提示词带 Raycast 占位符，复制后把「默认值」替换成你想要的描述即可。</dd><dt>提示词是中文还是英文？</dt><dd>两者都有：页面上展示中文翻译方便浏览，复制到剪贴板的是英文原文（生图模型对原文的还原度更高）。</dd><dt>素材可以商用吗？</dt><dd>素材采用 CC BY 4.0 授权，允许商用，但必须保留作者署名。每条素材的作者与来源链接在灯箱内可见。</dd><dt>「需参考图」是什么意思？</dt><dd>该提示词是图生图（image-to-image）工作流，需要你另外提供参考图（人物、产品或风格图）才能复现效果。</dd></dl></details></div></section>
+<footer id="foot">共 41,261 张图 · <kbd>Esc</kbd> 关闭 · 静态单页 · 零依赖</footer>
+</div>
+
+<div id="lb">
+  <div class="lbbox">
+    <img class="lbimg" id="lbimg" alt="">
+    <div class="lbbody">
+      <div class="lbrow">
+        <h2 class="lbtitle" id="lbtitle"></h2>
+        <button id="favBtn"></button>
+        <button id="delBtn"></button>
+        <button id="copyBtn">复制提示词</button>
+      </div>
+      <div class="lbfiles" id="lbfiles"></div>
+      <pre class="lbprompt" id="lbprompt"></pre>
+      <div class="tagedit" id="lbtags"></div>
+      <div class="cmeta" id="lbmeta"></div>
+    </div>
+  </div>
+</div>
+
+<script src="data/gallery.js"></script>
+<script>
+/* 索引只有模型清单与总数；各模型的数据是独立分片，切换模型时才按需加载 */
+var IDX = window.__GALLERY__;
+var SHARDS = window.__SHARDS__ || {};
+var DATA = { items: [], tags: [], ars: [] };
+var UISET = { zh: {"search": "搜索提示词 / 标题 / 标签", "all": "全部", "loading": "加载中…", "tags": "标签", "aspect": "画幅", "model": "模型", "prompt": "提示词", "params": "参数", "copy": "复制提示词", "copied": "已复制", "copyFail": "复制失败", "close": "关闭", "emptyTitle": "没有匹配的结果", "emptyDesc": "换个关键词，或把标签筛选放宽一些。", "count": "<b>{n}</b> 条素材", "countImgs": "共 {n} 张图", "figure": "图", "themeLight": "浅色", "themeDark": "深色", "hint": "<kbd>Esc</kbd> 关闭", "fav": "收藏", "favTip": "收藏", "addTag": "+ 输入标签，回车添加", "del": "删除", "restore": "恢复", "trash": "回收站", "delConfirm": "确定删除这条素材？\n进入回收站，可随时恢复。", "remove": "移除", "viewSource": "查看来源 ↗", "shownMore": "已显示 {a} / {b} · 继续滚动加载", "allShown": "共 {n} 条 · 已全部显示", "escHint": "关闭", "own": "自制", "ownTip": "站主自己挂上去的成图，版权归本站，不在 CC BY 4.0 范围内", "footer": "静态单页 · 零依赖"}, ja: {"search": "プロンプト / タイトル / タグを検索", "all": "すべて", "loading": "読み込み中…", "tags": "タグ", "aspect": "比率", "model": "モデル", "prompt": "プロンプト", "params": "パラメータ", "copy": "プロンプトをコピー", "copied": "コピーしました", "copyFail": "コピー失敗", "close": "閉じる", "emptyTitle": "該当する結果がありません", "emptyDesc": "キーワードを変えるか、タグの絞り込みを緩めてください。", "count": "<b>{n}</b> 件", "countImgs": "全 {n} 枚", "figure": "図", "themeLight": "ライト", "themeDark": "ダーク", "hint": "<kbd>Esc</kbd> で閉じる", "fav": "お気に入り", "favTip": "お気に入り", "addTag": "+ タグを入力して Enter", "del": "削除", "restore": "復元", "trash": "ゴミ箱", "delConfirm": "この素材を削除しますか？\nゴミ箱に入るので、いつでも復元できます。", "remove": "削除", "viewSource": "出典を見る ↗", "shownMore": "{a} / {b} 表示 · スクロールで続きを読み込む", "allShown": "全 {n} 件 · すべて表示済み", "escHint": "閉じる", "own": "自作", "ownTip": "運営者が追加した画像。著作権は当サイトに帰属し、CC BY 4.0 の対象外です", "footer": "静的シングルページ · 依存ゼロ"} };
+var METASET = { zh: {"title": "提示词生图集", "subtitle": "AI 生图提示词与成图对照 · 展示中文、复制英文原文", "desc": "4 万+ 张 AI 生图参考与提示词对照，覆盖 Imge-2 与 Nano Banana 两个模型，可按模型、分类、标签与画幅筛选；一条提示词的全部成图归为一条素材，展示中文提示词，一键复制英文原文。", "brand": "AI"}, ja: {"title": "プロンプト素材集", "subtitle": "AI画像生成プロンプトと成果物の対照 · 表示は中国語、コピーは英文原文", "desc": "4万点超のAI生成画像とプロンプトの対照集。Imge-2 と Nano Banana の2モデルに対応し、モデル・カテゴリ・タグ・比率で絞り込めます。"} };
+var lang = "zh";
+try { lang = localStorage.getItem("mj.lang") || "zh"; } catch(e){}
+if (!UISET[lang]) lang = "zh";
+var UI = UISET[lang];
+function setLang(l){
+  lang = l; UI = UISET[l];
+  try { localStorage.setItem("mj.lang", l); } catch(e){}
+  applyStatic(); themeLabel(); render();
+}
+function applyStatic(){
+  var m = METASET[lang];
+  document.title = m.title;
+  $("#pagetitle").textContent = m.title;
+  $("#pagesub").textContent = m.subtitle;
+  $("#q").placeholder = UI.search;
+  $("#langBtn").textContent = lang === "zh" ? "日本語" : "中文";
+  var cnt = UI.count.replace(/<[^>]*>/g, "").replace("{n}", String(IDX.prompts));
+  var imgs = UI.countImgs.replace("{n}", String(IDX.total));
+  $("#foot").textContent = cnt + " · " + imgs + " · Esc " + UI.escHint + " · " + UI.footer;
+}
+var state = { q: "", tags: [], ar: "", model: IDX["default"] || "", fav: false, trash: false, shown: 0 };
+var PAGE_SIZE = 240;   /* 增量渲染：每次渲染的张数 */
+var $ = function(s){ return document.querySelector(s); };
+
+/* —— 模型分片：进站只加载默认模型，切模型时才拉另一份 ——
+   一条素材 = 一条提示词 + 它的全部成图（files），卡片与灯箱里可以选图1/图2/图3。
+   分片里图片存 [文件名,宽,高,比例]，路径在加载时拼出。 */
+var _loaded = {};      /* key → { items, tags, ars } */
+var _loading = {};     /* key → Promise */
+function normalizeShard(key, sh){
+  var label = sh.label || key, out = [];
+  (sh.items || []).forEach(function(it){
+    var files = (it.f || []).map(function(f){
+      /* f[4]/f[5] 只有自制图才有：它在 userimg/ 下，不跟 img/<key>/ 的约定走 */
+      var o = { name: f[0], file: f[4] || ("img/" + key + "/" + f[0]),
+                thumb: f[5] || ("thumbs/" + key + "/" + f[0]),
+                w: f[1] || 0, h: f[2] || 0, ar: f[3] || "" };
+      if (f[6]) o.own = 1;
+      return o;
+    });
+    if (!files.length) return;
+    var rec = {
+      id: it.i || (key + ":" + files[0].name),  /* 素材级 id：收藏/删除/手动标签都按它 */
+      key: key, model: sh.m || key, modelLabel: label,
+      title: it.t || "", prompt: it.p || "", promptRaw: it.r || it.p || "",
+      tags: it.g || [], author: it.a || "", sourceUrl: it.u || "", published: it.d || "",
+      files: files, cover: 0
+    };
+    adoptLegacy(rec);
+    out.push(rec);
+  });
+  if (_legacyDirty) saveLegacy();
+  return { items: out, tags: sh.tags || [], ars: sh.ars || [] };
+}
+function loadShard(key){
+  if (_loaded[key]) return Promise.resolve();
+  if (_loading[key]) return _loading[key];
+  _loading[key] = new Promise(function(resolve, reject){
+    var s = document.createElement("script");
+    s.src = "data/gallery_" + key + ".js";
+    s.async = true;
+    s.onload = function(){
+      var sh = (window.__SHARDS__ || {})[key];
+      if (!sh) return reject(new Error("分片为空: " + key));
+      _loaded[key] = normalizeShard(key, sh);
+      resolve();
+    };
+    s.onerror = function(){ reject(new Error("分片加载失败: " + key)); };
+    document.head.appendChild(s);
+  });
+  return _loading[key];
+}
+function activeKeys(){
+  return state.model ? [state.model] : IDX.models.map(function(m){ return m.key; });
+}
+function rebuild(){
+  var items = [], tagN = {}, arN = {};
+  activeKeys().forEach(function(k){
+    var sh = _loaded[k]; if (!sh) return;
+    items = items.concat(sh.items);
+    sh.tags.forEach(function(x){ tagN[x.t] = (tagN[x.t] || 0) + x.n; });
+    sh.ars.forEach(function(x){ arN[x.a] = (arN[x.a] || 0) + x.n; });
+  });
+  DATA.items = items;
+  DATA.tags = Object.keys(tagN).map(function(t){ return { t: t, n: tagN[t] }; })
+                    .sort(function(a, b){ return b.n - a.n || (a.t < b.t ? -1 : 1); });
+  DATA.ars = Object.keys(arN).map(function(a){ return { a: a, n: arN[a] }; })
+                   .sort(function(a, b){ return b.n - a.n || (a.a < b.a ? -1 : 1); });
+}
+function setBusy(on, msg){
+  document.body.classList.toggle("busy", !!on);
+  if (on) $("#count").textContent = msg || UI.loading;
+}
+function ensureData(){
+  var todo = activeKeys().filter(function(k){ return !_loaded[k]; });
+  if (!todo.length){ rebuild(); render(); return; }
+  setBusy(true);
+  Promise.all(todo.map(loadShard)).then(function(){
+    setBusy(false);
+    rebuild();
+    render();
+  }).catch(function(e){
+    setBusy(false);
+    $("#foot").textContent = String((e && e.message) || e);
+  });
+}
+function switchModel(key){
+  if (state.model === key) return;
+  state.model = key;
+  state.tags = [];          /* 各模型的标签体系不同，跨模型保留标签会筛出空集 */
+  state.ar = "";
+  ensureData();
+}
+
+/* —— 收藏 & 手动标签 & 回收站（localStorage 持久化，按图片路径为键，重建页面不丢）—— */
+function lsGet(k, d){
+  try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch(e){ return d; }
+}
+function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+var favs = lsGet("mj.favs", {});          /* { "<file>": true } */
+var userTags = lsGet("mj.usertags", {});  /* { "<file>": ["标签", ...] } */
+var trash = lsGet("mj.trash", {});        /* { "<file>": true } */
+function keyOf(r){ return r.id || (r.files && r.files[0] ? r.files[0].file : ""); }
+/* 旧版是「一图一条」，收藏/标签/回收站都以图片路径为键；现在按素材存。
+   加载分片时把旧键迁到素材 id，否则升级后用户的收藏会凭空消失。 */
+var _legacyDirty = false;
+function adoptLegacy(rec){
+  rec.files.forEach(function(f){
+    var p = f.file;
+    if (trash[p]){ trash[rec.id] = true; delete trash[p]; _legacyDirty = true; }
+    if (favs[p]){ favs[rec.id] = true; delete favs[p]; _legacyDirty = true; }
+    var t = userTags[p];
+    if (t && t.length){
+      userTags[rec.id] = (userTags[rec.id] || []).concat(t);
+      delete userTags[p];
+      _legacyDirty = true;
+    }
+  });
+}
+function saveLegacy(){
+  lsSet("mj.favs", favs); lsSet("mj.trash", trash); lsSet("mj.usertags", userTags);
+  _legacyDirty = false;
+}
+function isFav(r){ return !!favs[keyOf(r)]; }
+function isTrashed(r){ return !!trash[keyOf(r)]; }
+function toggleFav(r){
+  var k = keyOf(r);
+  if (favs[k]) delete favs[k]; else favs[k] = true;
+  lsSet("mj.favs", favs);
+}
+function delItem(r){
+  trash[keyOf(r)] = true;
+  lsSet("mj.trash", trash);
+}
+function restoreItem(r){
+  delete trash[keyOf(r)];
+  lsSet("mj.trash", trash);
+}
+function tagsOf(r){
+  var base = (r.tags || []).slice();
+  (userTags[keyOf(r)] || []).forEach(function(t){
+    if (base.indexOf(t) < 0) base.push(t);
+  });
+  return base;
+}
+
+function esc(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+function curFile(r){
+  return r.files[r.cover] || r.files[0] || {};
+}
+function paramsOf(r){
+  var f = curFile(r), out = [];
+  if (f && f.ar) out.push({k: "ar", v: f.ar});
+  return out;
+}
+function ratioOf(r){
+  var f = curFile(r);
+  if (f.ar && /^\d+:\d+$/.test(f.ar)){
+    var a = f.ar.split(":"); return a[0] + "/" + a[1];
+  }
+  if (f.w && f.h) return f.w + "/" + f.h;
+  return "4/3";
+}
+function baseMatch(r){
+  /* 基础匹配：画幅 + 标签 + 关键词（不含视图/收藏过滤） */
+  if (state.ar && !r.files.some(function(f){ return f.ar === state.ar; })) return false;
+  var ts = tagsOf(r);
+  for (var i = 0; i < state.tags.length; i++){
+    if (ts.indexOf(state.tags[i]) < 0) return false;
+  }
+  if (state.q){
+    var hay = ((r.title||"") + " " + (r.rawPrompt||r.prompt||"") + " " + tagsOf(r).join(" ")
+             + " " + (r.modelLabel||"") + " " + (r.model||"") + " " + (r.promptRaw||"")
+             + " " + (r.author||"")).toLowerCase();
+    if (hay.indexOf(state.q) < 0) return false;
+  }
+  return true;
+}
+function coreMatch(r){
+  /* 视图感知：正常视图隐藏已删除，回收站视图只显示已删除 */
+  if (isTrashed(r) !== state.trash) return false;
+  if (state.fav && !isFav(r)) return false;
+  return baseMatch(r);
+}
+function matches(r){
+  return coreMatch(r) && (!state.model || (r.key||"") === state.model);
+}
+function renderFacets(){
+  var tb = $("#tagbar");
+  tb.innerHTML = "";
+  /* 收藏过滤 chip（置顶） */
+  var favN = 0;
+  DATA.items.forEach(function(r){ if (coreMatchNoFav(r) && isFav(r)) favN++; });
+  var favChip = document.createElement("span");
+  favChip.className = "chip" + (state.fav ? " on" : "");
+  favChip.innerHTML = "★ " + UI.fav + "<b>" + favN + "</b>";
+  favChip.onclick = function(){ state.fav = !state.fav; render(); };
+  tb.appendChild(favChip);
+  /* 回收站 chip（计数与视图无关：当前关键词/标签/画幅下的已删除总数） */
+  var trashN = 0;
+  DATA.items.forEach(function(r){ if (baseMatch(r) && isTrashed(r)) trashN++; });
+  var trashChip = document.createElement("span");
+  trashChip.className = "chip trashchip" + (state.trash ? " on" : "");
+  trashChip.innerHTML = "🗑 " + UI.trash + "<b>" + trashN + "</b>";
+  trashChip.onclick = function(){
+    state.trash = !state.trash;
+    state.fav = false; state.tags = []; state.ar = ""; state.q = ""; $("#q").value = "";
+    render();
+  };
+  tb.appendChild(trashChip);
+  /* 标签计数（含手动标签） */
+  var counts = {};
+  DATA.items.forEach(function(r){
+    if (!coreMatch(r)) return;
+    tagsOf(r).forEach(function(t){ counts[t] = (counts[t]||0) + 1; });
+  });
+  /* 标签全集 = 构建时标签 + 手动新增标签 */
+  var seen = {}, universe = [];
+  DATA.tags.forEach(function(f){ seen[f.t] = 1; universe.push(f.t); });
+  Object.keys(userTags).forEach(function(k){
+    (userTags[k] || []).forEach(function(t){
+      if (!seen[t]){ seen[t] = 1; universe.push(t); }
+    });
+  });
+  universe.sort(function(a, b){
+    var ca = counts[a]||0, cb = counts[b]||0;
+    return ca !== cb ? cb - ca : (a < b ? -1 : 1);
+  });
+  universe.forEach(function(t){
+    var n = counts[t] || 0;
+    if (!n && state.tags.indexOf(t) < 0) return;
+    var el = document.createElement("span");
+    el.className = "chip" + (state.tags.indexOf(t) >= 0 ? " on" : "");
+    el.innerHTML = esc(t) + "<b>" + n + "</b>";
+    el.onclick = function(){
+      var i = state.tags.indexOf(t);
+      if (i >= 0) state.tags.splice(i, 1); else state.tags.push(t);
+      render();
+    };
+    tb.appendChild(el);
+  });
+  if (state.tags.length){
+    var clear = document.createElement("span");
+    clear.className = "chip";
+    clear.textContent = "× " + UI.all;
+    clear.onclick = function(){ state.tags = []; render(); };
+    tb.appendChild(clear);
+  }
+}
+/* 不含收藏过滤的核心匹配（用于统计收藏总数） */
+function coreMatchNoFav(r){
+  var saved = state.fav; state.fav = false;
+  var ok = coreMatch(r); state.fav = saved;
+  return ok;
+}
+function renderModels(){
+  var mb = $("#modelbar");
+  mb.innerHTML = "";
+  /* 计数口径跟卡片列表、标签条一致，都用「素材数」（一条提示词 = 一条素材）；
+     shard 里的 p 是素材数、n 是图片数，图片数只放进 title 提示，不混进数字。 */
+  function chip(val, label, cnt, figs){
+    var el = document.createElement("span");
+    el.className = "chip" + (state.model === val ? " on" : "");
+    el.innerHTML = esc(label) + "<b>" + cnt + "</b>";
+    el.title = label + " · " + UI.countImgs.replace("{n}", figs);
+    el.onclick = function(){ switchModel(val); };
+    mb.appendChild(el);
+  }
+  var allCnt = 0, allFigs = 0;
+  IDX.models.forEach(function(m){ allCnt += m.p || 0; allFigs += m.n || 0; });
+  chip("", UI.model + " · " + UI.all, allCnt, allFigs);
+  IDX.models.forEach(function(m){ chip(m.key, m.label, m.p || 0, m.n || 0); });
+}
+function renderAr(){
+  var sel = $("#arSel"), counts = {};
+  DATA.items.forEach(function(r){
+    if (!matches(r)) return;
+    r.files.forEach(function(f){ if (f.ar) counts[f.ar] = (counts[f.ar] || 0) + 1; });
+  });
+  var html = "<option value=''>" + UI.aspect + " · " + UI.all + "</option>";
+  DATA.ars.forEach(function(f){
+    var n = counts[f.a] || 0;
+    if (!n && f.a !== state.ar) return;
+    html += "<option value='" + esc(f.a) + "'" + (state.ar === f.a ? " selected" : "")
+         +  ">" + esc(f.a) + " (" + n + ")</option>";
+  });
+  sel.innerHTML = html;
+}
+function renderCards(){
+  var grid = $("#grid"), html = [];
+  var matched = [];
+  DATA.items.forEach(function(r, i){ if (matches(r)) matched.push(i); });
+  var n = matched.length;
+  var upto = Math.min(state.shown, n);
+  for (var m = 0; m < upto; m++){
+    var i = matched[m], r = DATA.items[i], f = curFile(r);
+    var chips = [];
+    if (r.modelLabel) chips.push("<span class='mini mdl'>" + esc(r.modelLabel) + "</span>");
+    tagsOf(r).forEach(function(t){
+      chips.push("<span class='mini acc'>" + esc(t) + "</span>");
+    });
+    paramsOf(r).forEach(function(p){
+      chips.push("<span class='mini'>--" + esc(p.k) + " " + esc(p.v) + "</span>");
+    });
+    /* 多图切换：<=6 张给数字按钮，更多只给 «当前/总数» 徽标（进灯箱切换） */
+    var nf = r.files.length, nav = "";
+    if (nf > 1 && nf <= 6){
+      var btns = [];
+      for (var k = 0; k < nf; k++){
+        btns.push("<span class='fnum" + (k === r.cover ? " on" : "") + "' data-f='" + k + "'>" +
+                  (k + 1) + "</span>");
+      }
+      nav = "<div class='fnav'>" + btns.join("") + "</div>";
+    } else if (nf > 1){
+      nav = "<div class='fnav'><span class='fcount'>" + (r.cover + 1) + "/" + nf + "</span></div>";
+    }
+    var btnTrash = state.trash
+      ? "<button class='restorebtn' data-i='" + i + "'>↩ " + esc(UI.restore) + "</button>"
+      : "<button class='delbtn' data-i='" + i + "' title='" + esc(UI.del) + "'>✕</button>";
+    html.push(
+      "<div class='card" + (state.trash ? " trashed" : "") + "' data-i='" + i + "'>" +
+      (state.trash ? "" :
+        "<button class='favbtn" + (isFav(r) ? " on" : "") + "' data-i='" + i + "' title='" + esc(UI.favTip) + "'>" +
+        (isFav(r) ? "★" : "☆") + "</button>") +
+      btnTrash +
+      "<div class='thumbwrap'>" +
+      "<img class='thumb' loading='lazy' src='" + esc(f.thumb || f.file) + "' " +
+      "data-full='" + esc(f.file) + "' " +
+      /* 少数记录的缩略图在上游就是 404（原图正常），回退到原图，别让卡片碎掉 */
+      "onerror=\"this.onerror=null;this.src=this.dataset.full\" " +
+      "style='aspect-ratio:" + ratioOf(r) + "' alt='" + esc(r.title) + "'>" + nav + "</div>" +
+      "<div class='cbody'><div class='ctitle'>" + esc(r.title) + "</div>" +
+      "<div class='cprompt'>" + esc(r.prompt) + "</div>" +
+      "<div class='cmeta'>" + chips.join("") + "</div></div></div>");
+  }
+  grid.innerHTML = html.join("");
+  $("#count").innerHTML = UI.count.replace("{n}", "<b>" + n + "</b>");
+  var none = n === 0;
+  $("#empty").style.display = none ? "block" : "none";
+  grid.style.display = none ? "none" : "";
+  Array.prototype.forEach.call(grid.children, function(card){
+    card.onclick = function(){ openLb(+card.dataset.i); };
+  });
+  /* 卡片内切图：只换这张卡的图与按钮态，不整页重绘（240 张重绘会闪） */
+  Array.prototype.forEach.call(grid.querySelectorAll(".fnum"), function(btn){
+    btn.onclick = function(e){
+      e.stopPropagation();
+      var card = btn.closest(".card"), r = DATA.items[+card.dataset.i];
+      r.cover = +btn.dataset.f;
+      var f = curFile(r), img = card.querySelector(".thumb");
+      img.src = f.thumb || f.file;
+      img.style.aspectRatio = ratioOf(r);
+      Array.prototype.forEach.call(card.querySelectorAll(".fnum"),
+        function(b){ b.classList.toggle("on", b === btn); });
+    };
+  });
+  Array.prototype.forEach.call(grid.querySelectorAll(".favbtn"), function(btn){
+    btn.onclick = function(e){
+      e.stopPropagation();
+      toggleFav(DATA.items[+btn.dataset.i]);
+      render();
+    };
+  });
+  Array.prototype.forEach.call(grid.querySelectorAll(".delbtn"), function(btn){
+    btn.onclick = function(e){
+      e.stopPropagation();
+      if (window.confirm(UI.delConfirm)){
+        delItem(DATA.items[+btn.dataset.i]);
+        render();
+      }
+    };
+  });
+  Array.prototype.forEach.call(grid.querySelectorAll(".restorebtn"), function(btn){
+    btn.onclick = function(e){
+      e.stopPropagation();
+      restoreItem(DATA.items[+btn.dataset.i]);
+      render();
+    };
+  });
+  /* 增量加载提示（滚动到底自动加载下一批） */
+  canMore = n > upto;
+  var hint = $("#morehint");
+  if (canMore){
+    hint.innerHTML = UI.shownMore.replace("{a}", upto).replace("{b}", n);
+  } else {
+    hint.innerHTML = n > PAGE_SIZE ? UI.allShown.replace("{n}", n) : "";
+  }
+}
+var canMore = false;
+var io = new IntersectionObserver(function(entries){
+  if (entries[0].isIntersecting && canMore){
+    state.shown += PAGE_SIZE;
+    renderCards();
+  }
+});
+io.observe($("#sentinel"));
+function render(){ state.shown = PAGE_SIZE; renderModels(); renderFacets(); renderAr(); renderCards(); }
+
+var cur = -1;
+/* 灯箱内切换同一素材的不同成图 */
+function showLbFile(r, idx){
+  r.cover = idx;
+  var f = curFile(r);
+  $("#lbimg").src = f.file;
+  $("#lbimg").style.aspectRatio = "";
+  Array.prototype.forEach.call(document.querySelectorAll("#lbfiles img"),
+    function(im, i){ im.classList.toggle("on", i === idx); });
+  syncOwnChip(r);
+}
+/* 「自制」徽标跟着当前这张图走：同一条素材里上游图与自制图混排 */
+function syncOwnChip(r){
+  var ow = document.getElementById("lbown");
+  if (!ow) return;
+  ow.style.display = curFile(r).own ? "" : "none";
+}
+function openLb(i){
+  cur = i;
+  var r = DATA.items[i];
+  $("#lbtitle").textContent = r.title || "";
+  $("#lbprompt").textContent = r.promptRaw || r.rawPrompt || r.prompt || "";
+  /* 同一提示词的成图条：一张素材可以有多个版本，灯箱里直接选图1/图2/图3 */
+  var box = $("#lbfiles"), nf = r.files.length;
+  box.innerHTML = "";
+  if (nf > 1){
+    r.files.forEach(function(f, k){
+      var im = document.createElement("img");
+      im.src = f.thumb || f.file;
+      im.onerror = function(){ this.onerror = null; this.src = f.file; };
+      im.alt = UI.figure + (k + 1);
+      im.title = UI.figure + (k + 1);
+      im.className = (k === r.cover ? "on" : "") + (f.own ? " own" : "");
+      im.onclick = function(){ showLbFile(r, k); };
+      box.appendChild(im);
+    });
+    box.style.display = "";
+  } else {
+    box.style.display = "none";
+  }
+  showLbFile(r, r.cover);
+  var meta = [];
+  meta.push("<span class='mini self' id='lbown' style='display:none' title='" + esc(UI.ownTip) + "'>" +
+            esc(UI.own) + "</span>");
+  if (r.modelLabel) meta.push("<span class='mini mdl'>" + esc(r.modelLabel) + "</span>");
+  tagsOf(r).forEach(function(t){ meta.push("<span class='mini acc'>" + esc(t) + "</span>"); });
+  if (r.author) meta.push("<span class='mini'>👤 " + esc(r.author) + "</span>");
+  if (r.published) meta.push("<span class='mini'>🗓 " + esc(r.published) + "</span>");
+  if (r.sourceUrl) meta.push("<a class='mini srclink' target='_blank' rel='noopener noreferrer' href='" + esc(r.sourceUrl) + "'>" + esc(UI.viewSource) + "</a>");
+  paramsOf(r).forEach(function(p){
+    meta.push("<span class='mini'>--" + esc(p.k) + " " + esc(p.v) + "</span>");
+  });
+  $("#lbmeta").innerHTML = meta.join("");
+  syncOwnChip(r);
+  /* 收藏按钮（回收站视图隐藏） */
+  var fb = $("#favBtn");
+  fb.style.display = state.trash ? "none" : "";
+  fb.classList.toggle("on", isFav(r));
+  fb.textContent = isFav(r) ? "★ " + UI.fav : "☆ " + UI.fav;
+  /* 删除 / 恢复按钮 */
+  var db = $("#delBtn");
+  db.textContent = state.trash ? "↩ " + UI.restore : "✕ " + UI.del;
+  /* 标签编辑器 */
+  renderTagEditor(r);
+  var btn = $("#copyBtn");
+  btn.classList.remove("ok"); btn.textContent = UI.copy;
+  $("#lb").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+function closeLb(){
+  $("#lb").classList.remove("open");
+  document.body.style.overflow = "";
+  cur = -1;
+}
+/* —— 标签编辑器：内置标签只读，手动标签可删 —— */
+function renderTagEditor(r){
+  var box = $("#lbtags");
+  box.innerHTML = "";
+  var base = r.tags || [];
+  var own = userTags[keyOf(r)] || [];
+  base.forEach(function(t){
+    var el = document.createElement("span");
+    el.className = "mini acc";
+    el.textContent = t;
+    box.appendChild(el);
+  });
+  own.forEach(function(t){
+    var el = document.createElement("span");
+    el.className = "mini own";
+    el.innerHTML = esc(t) + " <i class='rm' title='" + esc(UI.remove) + "'>×</i>";
+    el.querySelector(".rm").onclick = function(){
+      own.splice(own.indexOf(t), 1);
+      if (own.length) userTags[keyOf(r)] = own; else delete userTags[keyOf(r)];
+      lsSet("mj.usertags", userTags);
+      renderTagEditor(r);
+      render();
+    };
+    box.appendChild(el);
+  });
+  var input = document.createElement("input");
+  input.id = "taginput";
+  input.placeholder = UI.addTag;
+  input.autocomplete = "off";
+  input.onkeydown = function(e){
+    if (e.key === "Enter" || e.key === ","){
+      e.preventDefault();
+      var v = input.value.trim().replace(/,+$/, "");
+      if (!v) return;
+      if (tagsOf(r).indexOf(v) >= 0){ input.value = ""; return; }
+      userTags[keyOf(r)] = (userTags[keyOf(r)] || []).concat([v]);
+      lsSet("mj.usertags", userTags);
+      renderTagEditor(r);
+      render();
+      var ni = $("#taginput");
+      if (ni){ ni.focus(); }
+    }
+  };
+  box.appendChild(input);
+}
+$("#copyBtn").onclick = function(){
+  var r = DATA.items[cur]; if (!r) return;
+  var text = r.promptRaw || r.rawPrompt || r.prompt || "";
+  function done(ok){
+    var btn = $("#copyBtn");
+    btn.classList.toggle("ok", ok);
+    btn.textContent = ok ? UI.copied : UI.copyFail;
+    setTimeout(function(){ btn.classList.remove("ok"); btn.textContent = UI.copy; }, 1400);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ done(true); }, function(){ fallback(); });
+  } else fallback();
+  function fallback(){
+    var ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch(e){}
+    document.body.removeChild(ta); done(ok);
+  }
+};
+$("#favBtn").onclick = function(){
+  var r = DATA.items[cur]; if (!r) return;
+  toggleFav(r);
+  this.classList.toggle("on", isFav(r));
+  this.textContent = isFav(r) ? "★ " + UI.fav : "☆ " + UI.fav;
+  render();
+};
+$("#delBtn").onclick = function(){
+  var r = DATA.items[cur]; if (!r) return;
+  if (state.trash){
+    restoreItem(r);
+  } else {
+    if (!window.confirm(UI.delConfirm)) return;
+    delItem(r);
+  }
+  this.textContent = state.trash ? "↩ " + UI.restore : "✕ " + UI.del;
+  render();
+};
+$("#lb").onclick = function(e){ if (e.target === this) closeLb(); };
+document.addEventListener("keydown", function(e){
+  if (e.key === "Escape") return closeLb();
+  /* 灯箱里 ←/→ 切换同一素材的图1/图2/图3 */
+  if (cur < 0 || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+  var r = DATA.items[cur];
+  if (!r || r.files.length < 2) return;
+  var next = (r.cover + (e.key === "ArrowRight" ? 1 : -1) + r.files.length) % r.files.length;
+  showLbFile(r, next);
+  e.preventDefault();
+});
+$("#q").addEventListener("input", function(){
+  state.q = this.value.trim().toLowerCase(); render();
+});
+$("#arSel").addEventListener("change", function(){
+  state.ar = this.value; render();
+});
+$("#themeBtn").onclick = function(){
+  var el = document.documentElement;
+  var t = el.dataset.theme === "dark" ? "light" : "dark";
+  el.dataset.theme = t;
+  try { localStorage.setItem("mj.theme", t); } catch(e){}
+  themeLabel();
+};
+$("#langBtn").onclick = function(){ setLang(lang === "zh" ? "ja" : "zh"); };
+/* 落地页通过 #tag=<标签> 带筛选条件打开画廊 */
+function applyHash(){
+  var m = (location.hash || "").match(/tag=([^&]+)/);
+  if (m){
+    try { state.tags = [decodeURIComponent(m[1])]; } catch(e){}
+  }
+}
+function themeLabel(){
+  var dark = document.documentElement.dataset.theme === "dark";
+  $("#themeBtn").textContent = dark ? UI.themeLight : UI.themeDark;
+}
+applyStatic();
+themeLabel();
+applyHash();
+ensureData();
+</script>
+</body>
+</html>

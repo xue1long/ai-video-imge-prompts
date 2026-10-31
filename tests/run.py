@@ -21,7 +21,8 @@ SITES = [s["id"] for s in CFG["sites"]]
 PAGES = ["hub/index.html"] + [f"sites/{s}/{f}" for s in SITES for f in ("index.html", "404.html")]
 BUILD_OUTPUT = ["hub/index.html", "hub/robots.txt", "hub/sitemap.xml", "hub/llms.txt"] + [
     f"sites/{s}/{f}" for s in SITES for f in ("index.html", "404.html", "robots.txt", "sitemap.xml")] + [
-    f"sites/{s}/data/landing.json" for s in SITES]
+    f"sites/{s}/data/landing.json" for s in SITES] + [
+    f"sites/prompts/data/gallery.js"]      # prompts 站数据外置，构建产物同样校验一致性
 
 
 def landing_meta(root, sid):
@@ -57,8 +58,10 @@ def scripts(html):
 
 
 def page_db(html):
-    """取出页面里内联的 const DB = {...}"""
+    """取出页面里内联的 const DB = {...}；无内联 DB 的页面（如 prompts 站数据外置）返回空"""
     k = "const DB = "
+    if k not in html:
+        return {}
     i = html.index(k) + len(k)
     obj, _ = json.JSONDecoder().raw_decode(html, i)
     return obj
@@ -396,6 +399,97 @@ class Docs(unittest.TestCase):
         gone = ["scripts/download.py", "scripts/verify.py", "build_dist.sh"]
         hits = [f"{rel}: {g}" for rel in self.DOCS for g in gone if g in read(rel)]
         self.assertEqual(hits, [])
+
+
+class GitIgnore(unittest.TestCase):
+    """prompts 站的大体积中间数据一律不入库，清单与小索引必须入库。
+
+    这条闸门防的是「手滑 git add -f」或者有人顺手删掉忽略规则——
+    那 220 MB 一旦进了历史就删不干净了。
+    """
+
+    def ignored(self, rel):
+        r = subprocess.run(["git", "check-ignore", "-q", rel], cwd=ROOT,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if r.returncode not in (0, 1):
+            self.skipTest("当前目录不是 git 仓库，或没有 git")
+        return r.returncode == 0
+
+    def test_large_intermediate_data_is_ignored(self):
+        for rel in ("sites/prompts/data/prompts_gpt2.json",
+                    "sites/prompts/data/prompts_nbpro.json",
+                    "sites/prompts/data/gallery_gpt2.js",
+                    "sites/prompts/data/gallery_nbpro.js",
+                    "sites/prompts/data/dims.json",
+                    "sites/prompts/data/gpt2_id2cats.json",
+                    "sites/prompts/data/nbpro_site_meta.json"):
+            self.assertTrue(self.ignored(rel), f"{rel} 应当被 .gitignore 排除")
+
+    def test_manifest_and_shard_index_stay_tracked(self):
+        # manifest 是 fetch.py 与 tests 的图片清单；gallery.js 是分片索引（275 B）
+        for rel in ("sites/prompts/manifest.json",
+                    "sites/prompts/data/gallery.js",
+                    "sites/prompts/data/landing.json"):
+            self.assertFalse(self.ignored(rel), f"{rel} 必须入库")
+
+
+class UserAssets(unittest.TestCase):
+    """自制图覆盖层的契约（sites/prompts/data/user_assets.json + userimg/）。
+
+    覆盖层是把「素材管理器里挂的图」送进静态站的唯一通道，一旦结构跑偏
+    （路径写进 img/、漏了 own 标记），页面上会出现来源不明的图或者静默丢图。
+    """
+
+    PATH = os.path.join(ROOT, "sites/prompts/data/user_assets.json")
+
+    def load(self):
+        if not os.path.exists(self.PATH):
+            self.skipTest("没有 user_assets.json（该站可以完全没有自制图）")
+        with open(self.PATH, encoding="utf-8") as f:
+            return json.load(f)
+
+    def test_shape(self):
+        data = self.load()
+        self.assertEqual(data.get("version"), 1)
+        items = data.get("items")
+        self.assertIsInstance(items, dict)
+        for gid, files in items.items():
+            self.assertIsInstance(files, list, gid)
+            for f in files:
+                for key in ("name", "file", "thumb", "w", "h", "own"):
+                    self.assertIn(key, f, f"{gid} 缺字段 {key}")
+
+    def test_paths_stay_in_userimg(self):
+        """自制图必须落在 userimg/，不能混进上游的 img/<key>/。
+
+        img/<key>/ 的目录名就是模型分片键，混进去会被当成新模型；
+        fetch.py 也只认 manifest 里的文件，多出来的会被当成噪声。
+        """
+        for gid, files in self.load().get("items", {}).items():
+            for f in files:
+                self.assertTrue(f["file"].startswith("userimg/"),
+                                f"{gid} 的图不在 userimg/：{f['file']}")
+                self.assertTrue(f["thumb"].startswith("userimg/thumbs/"),
+                                f"{gid} 的缩略图不在 userimg/thumbs/：{f['thumb']}")
+                self.assertEqual(f["own"], 1, f"{gid} 缺 own 标记")
+
+    def test_images_exist(self):
+        missing = []
+        for gid, files in self.load().get("items", {}).items():
+            for f in files:
+                for rel in (f["file"], f["thumb"]):
+                    if not os.path.exists(os.path.join(ROOT, "sites/prompts", rel)):
+                        missing.append(f"{gid}: {rel}")
+        self.assertEqual(missing, [], "覆盖层引用的图不存在，重跑 sync_user_assets.py")
+
+    def test_userimg_is_tracked(self):
+        rel = "sites/prompts/userimg/README.md"
+        r = subprocess.run(["git", "check-ignore", "-q", rel], cwd=ROOT,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if r.returncode not in (0, 1):
+            self.skipTest("当前目录不是 git 仓库，或没有 git")
+        self.assertNotEqual(r.returncode, 0,
+                            "userimg/ 必须入库：自己的图无法从上游重下")
 
 
 if __name__ == "__main__":

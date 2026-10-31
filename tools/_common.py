@@ -27,6 +27,21 @@ def select(cfg, only=None):
     return [s for s in sites if s["id"] == only]
 
 
+def exclude(sites, skip=None):
+    """按 --skip a,b 排除站点；id 不存在时报错退出。
+
+    拼错的 id 不静默放过——CI 里少排一个站，就等于该站的产物没人校验。
+    """
+    if not skip:
+        return sites
+    want = [x.strip() for x in skip.split(",") if x.strip()]
+    ids = [s["id"] for s in sites]
+    unknown = [x for x in want if x not in ids]
+    if unknown:
+        sys.exit(f"未知站点: {', '.join(unknown)}\n可选: {', '.join(ids)}")
+    return [s for s in sites if s["id"] not in want]
+
+
 def run(cmd, cwd, env_extra=None, quiet=False):
     """执行子进程，失败即退出。"""
     env = os.environ.copy()

@@ -37,9 +37,20 @@ def rel_path(p):
 # ── 下载 ────────────────────────────────────────────
 
 def download(site_dir, tier, referer, workers=12, log=print):
-    """下载一档图片，返回失败列表 [(id, 原因)]。"""
+    """下载一档图片，返回失败列表 [(id, 原因)]。
+
+    环境变量 FETCH_PROXY（如 http://127.0.0.1:7897）可为下载统一挂代理，
+    用于图源被 DNS 污染 / 需要出口 IP 的站点；不设置时行为不变。
+    """
     rows = load_manifest(site_dir)
     url_key, path_key = tier_keys(rows, tier)
+    proxy = os.environ.get("FETCH_PROXY", "")
+    if proxy:
+        log(f"  FETCH_PROXY = {proxy}")
+        opener = urllib.request.build_opener(
+            urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
+    else:
+        opener = urllib.request.build_opener()
     total = len(rows)
     lock = threading.Lock()
     state = {"done": 0, "bytes": 0}
@@ -66,7 +77,7 @@ def download(site_dir, tier, referer, workers=12, log=print):
         for attempt in range(RETRIES):
             try:
                 req = urllib.request.Request(r[url_key], headers={"User-Agent": UA, "Referer": referer})
-                with urllib.request.urlopen(req, timeout=60) as resp:
+                with opener.open(req, timeout=60) as resp:
                     blob = resp.read()
                 if len(blob) < MIN_BYTES // 2:
                     raise IOError("响应过小: %d bytes" % len(blob))

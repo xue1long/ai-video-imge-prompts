@@ -29,9 +29,19 @@ jobs:
       - name: Tests (Python 3.13)
         run: python3.13 tests/run.py
 
+      # 素材管理器的测试要生成缩略图，需要 Pillow（唯一被接受的第三方依赖）
+      - name: Install Pillow for manager tests
+        run: python3.13 -m pip install --quiet pillow
+
+      - name: Manager tests (HTTP API)
+        run: python3.13 tests/test_manager.py
+
       - name: Build with minimum Python (3.8)
         run: |
-          python3.8 tools/build.py
+          # prompts 站的数据源（data/prompts_*.json、data/gallery_*.js，约 220 MB）
+          # 不入库、可由 import_youmind.py 重拉，干净检出上构建它必然失败，所以跳过。
+          # 其余五站照常构建并逐文件比对，闸门不变。
+          python3.8 tools/build.py --skip prompts
           git diff --exit-code -- hub sites \
             || { echo "::error::构建产物与仓库不一致，请运行 python tools/build.py 并提交"; exit 1; }
 

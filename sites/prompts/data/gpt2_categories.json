@@ -1,0 +1,166 @@
+{
+ "3d-render": {
+  "zh": "3D 渲染",
+  "de": "3D-Rendering"
+ },
+ "abstract-background": {
+  "zh": "摘要 / 背景",
+  "de": "Zusammenfassung / Hintergrund"
+ },
+ "animal-creature": {
+  "zh": "动物 / 生物",
+  "de": "Tier / Kreatur"
+ },
+ "anime-manga": {
+  "zh": "动漫 / 漫画",
+  "de": "Anime / Manga"
+ },
+ "app-web-design": {
+  "zh": "App / 网页设计",
+  "de": "App- / Webdesign"
+ },
+ "architecture-interior": {
+  "zh": "建筑 / 室内设计",
+  "de": "Architektur / Interieur"
+ },
+ "character": {
+  "zh": "角色",
+  "de": "Charakter"
+ },
+ "chibi-q-style": {
+  "zh": "Q 版 / Q 萌风",
+  "de": "Chibi / Q-Style"
+ },
+ "cinematic-film-still": {
+  "zh": "电影 / 电影剧照",
+  "de": "Kinematisch / Filmstill"
+ },
+ "cityscape-street": {
+  "zh": "城市风光 / 街道",
+  "de": "Stadtbild / Straße"
+ },
+ "comic-graphic-novel": {
+  "zh": "漫画 / 图画小说",
+  "de": "Comic / Graphic Novel"
+ },
+ "comic-storyboard": {
+  "zh": "漫画 / 故事板",
+  "de": "Comic / Storyboard"
+ },
+ "cyberpunk-sci-fi": {
+  "zh": "赛博朋克 / 科幻",
+  "de": "Cyberpunk / Sci-Fi"
+ },
+ "diagram-chart": {
+  "zh": "图表",
+  "de": "Diagramm / Grafik"
+ },
+ "ecommerce-main-image": {
+  "zh": "电商主图",
+  "de": "E-Commerce-Hauptbild"
+ },
+ "fashion-item": {
+  "zh": "时尚单品",
+  "de": "Modeartikel"
+ },
+ "food-drink": {
+  "zh": "食品 / 饮料",
+  "de": "Essen / Trinken"
+ },
+ "game-asset": {
+  "zh": "游戏素材",
+  "de": "Spiel-Asset"
+ },
+ "group-couple": {
+  "zh": "团体 / 情侣",
+  "de": "Gruppe / Paar"
+ },
+ "illustration": {
+  "zh": "插画",
+  "de": "Illustration"
+ },
+ "influencer-model": {
+  "zh": "网红 / 模特",
+  "de": "Influencer / Model"
+ },
+ "infographic-edu-visual": {
+  "zh": "信息图 / 教育视觉图",
+  "de": "Infografik / Edu Visual"
+ },
+ "ink-chinese-style": {
+  "zh": "水墨 / 中国风",
+  "de": "Tinte / Chinesischer Stil"
+ },
+ "isometric": {
+  "zh": "等距",
+  "de": "Isometrisch"
+ },
+ "landscape-nature": {
+  "zh": "风景 / 自然",
+  "de": "Landschaft / Natur"
+ },
+ "minimalism": {
+  "zh": "极简主义",
+  "de": "Minimalismus"
+ },
+ "oil-painting": {
+  "zh": "油画",
+  "de": "Ölgemälde"
+ },
+ "photography": {
+  "zh": "摄影",
+  "de": "Fotografie"
+ },
+ "pixel-art": {
+  "zh": "像素艺术",
+  "de": "Pixel-Art"
+ },
+ "portrait-selfie": {
+  "zh": "人像 / 自拍",
+  "de": "Porträt / Selfie"
+ },
+ "poster-flyer": {
+  "zh": "海报 / 传单",
+  "de": "Plakat / Flyer"
+ },
+ "product": {
+  "zh": "产品",
+  "de": "Produkt"
+ },
+ "product-marketing": {
+  "zh": "产品营销",
+  "de": "Produktmarketing"
+ },
+ "profile-avatar": {
+  "zh": "个人资料 / 头像",
+  "de": "Profil / Avatar"
+ },
+ "retro-vintage": {
+  "zh": "复古 / 怀旧",
+  "de": "Retro / Vintage"
+ },
+ "sketch-line-art": {
+  "zh": "草图 / 线稿",
+  "de": "Skizze / Strichzeichnung"
+ },
+ "social-media-post": {
+  "zh": "社交媒体帖子",
+  "de": "Social-Media-Beitrag"
+ },
+ "text-typography": {
+  "zh": "文本 / 排版",
+  "de": "Text / Typografie"
+ },
+ "vehicle": {
+  "zh": "车辆",
+  "de": "Fahrzeug"
+ },
+ "watercolor": {
+  "zh": "水彩画",
+  "de": "Aquarell"
+ },
+ "youtube-thumbnail": {
+  "zh": "YouTube 缩略图",
+  "de": "YouTube-Miniaturbild"
+ }
+}

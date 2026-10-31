@@ -8,10 +8,37 @@ sites/*/png/
 sites/*/raw/
 sites/*/failed_*.json
 
+# ── prompts 站的抓取与构建中间数据 ──────────────────────────
+# 这些都能由 sites/prompts/import_youmind.py + build_gallery.py 重新生成，
+# 合计约 320 MB；入库会让 .git 从几 MB 直接涨到几百 MB，且每次重抓都产生新 blob。
+# 入库的只有：manifest.json（图片清单，fetch.py 与测试要靠它）、
+#             data/gallery.js（分片索引，275 B）、data/landing.json、页面本身。
+#
+# 注意 .gitignore 不支持行尾注释，说明一律写在上面。
+sites/prompts/data/*_site_meta.json
+sites/prompts/data/*_site_categories.json
+sites/prompts/data/prompts_*.json
+sites/prompts/data/*_id2cats.json
+sites/prompts/data/dims.json
+# 构建产物：按模型分片的内嵌数据（gallery_*.js 不会匹配 gallery.js）
+sites/prompts/data/gallery_*.js
+
 # ── 构建与发布产物 ────────────────────────────────────
 dist/
 sites/*/dist/
 *.zip
+
+# ── 素材管理器（index/）的本地数据 ──────────────────────
+# catalog.csv 由 index/catalog.py 生成，可由六份 manifest 重建
+# gallery.db 是本地索引与标注，备份走 server 的 snapshot
+# library/ 是用户自己导入的素材，与 sites/ 的采集素材物理隔离
+exports/
+library/
+backups/
+gallery.db
+gallery.db-wal
+gallery.db-shm
+config.json
 
 # ── Python ────────────────────────────────────────────
 __pycache__/
@@ -27,3 +54,7 @@ desktop.ini
 # ── 临时 ──────────────────────────────────────────────
 _v/
 _preview.html
+# AI 助手的工作草稿（issue 拆解、临时笔记），不是交付物
+.scratch/
+# 抓取 / 构建 / 本地服务的运行日志
+*.log
