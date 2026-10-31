@@ -6,7 +6,8 @@
 ## 项目定位
 
 **单仓多站**的 AI 绘画参考素材库：一个仓库构建、构建五个图库，人像 / 姿势 / 深度姿势 / 服装 / Shisei CC0 姿势线稿，共 15,241 张参考图，中日双语、浅色 / 深色双主题。
-线上入口：photoai.life ｜ 仓库：github.com/Brilliant666/ai-image-gallery
+线上入口：photoai.life ｜ 远程 `origin`：github.com/Brilliant666/ai-image-gallery
+　另有一个远程 `target`：github.com/xue1long/ai-video-imge-prompts（2026-11-01 由本机首次推送，内容同源）
 许可：代码 MIT；素材逐站授权不同。
 
 ## 技术栈与运行
@@ -94,6 +95,15 @@ python tests/run.py        # 不依赖图片的检查
 做完忽略后 `sites/prompts/` 只有 35 个文件 13.6 MB 入库（其中 13.1 MB 是 manifest）。
 `tests/run.py::GitIgnore` 两项就是守这条线的：大文件必须被忽略、manifest 与 gallery.js 必须入库。
 `build.py` 的 `--skip <id>` 只给「数据源不在仓库」的站用，别拿它绕过构建校验。
+
+## Windows 上的行尾漂移（提交前必查）
+
+构建脚本 `open(...,"w")` 在 Windows 上把 LF 写成 CRLF，构建后 `git status` 会冒出
+30 个 `M sites/*/index.html`。**这类改动只有行尾、没有内容，提交就是 bug**
+——CI 在 Linux 上产出 LF，会和仓库里的 CRLF 打架，`git diff --exit-code -- hub sites` 必挂。
+
+判定：`git diff --stat -- <path>` 为空但 `git status` 显示 `M`。
+处理：`git checkout -- <path>` 丢弃。这是跨平台常态，不打算改构建脚本的换行策略。
 
 ## 性能约定
 
