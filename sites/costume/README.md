@@ -125,7 +125,7 @@
 本站是 [ai-image-gallery](../../README.md) 单仓的一部分，下载、构建、发布都在仓库根目录用统一工具完成：
 
 ```bash
-git clone https://github.com/Brilliant666/ai-image-gallery.git
+git clone https://github.com/xue1long/ai-video-imge-prompts.git
 cd ai-image-gallery
 
 python tools/fetch.py --site costume --tier thumb   # 缩略图 360×540 webp，约 10 MB
@@ -218,7 +218,7 @@ python tools/release.py --out dist-stage               # 发布前会自动校�
 
 ## 📧 联系方式
 
-有问题请开 [Issue](https://github.com/Brilliant666/ai-costume-gallery-cn/issues)。
+有问题请开 [Issue](https://github.com/xue1long/ai-video-imge-prompts/issues)。
 
 ---
 
@@ -266,7 +266,7 @@ python tools/release.py --out dist-stage               # 发布前会自动校�
 ## 🚀 クイックスタート
 
 ```bash
-git clone https://github.com/Brilliant666/ai-image-gallery.git
+git clone https://github.com/xue1long/ai-video-imge-prompts.git
 cd ai-image-gallery
 # リポジトリ直下で実行
 python tools/fetch.py --site costume --tier thumb   # サムネイル 約 10 MB
@@ -332,7 +332,7 @@ Original author: ギア（[@giaaibusi](https://x.com/giaaibusi)）
 ## 🚀 Quick start
 
 ```bash
-git clone https://github.com/Brilliant666/ai-image-gallery.git
+git clone https://github.com/xue1long/ai-video-imge-prompts.git
 cd ai-image-gallery
 # run from the repository root
 python tools/fetch.py --site costume --tier thumb   # thumbnails, ~10 MB

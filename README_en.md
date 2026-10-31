@@ -6,7 +6,7 @@
 
 Portrait · Pose · Pose Depth · Costume · CC0 Pose Line Art · 15,241 images · Chinese / Japanese UI · Light / Dark
 
-[![CI](https://github.com/Brilliant666/ai-image-gallery/actions/workflows/ci.yml/badge.svg)](https://github.com/Brilliant666/ai-image-gallery/actions/workflows/ci.yml)
+[![CI](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml/badge.svg)](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml)
 [![online](https://img.shields.io/badge/online-photoai.life-2563eb?style=flat-square)](https://photoai.life/)
 [![sites](https://img.shields.io/badge/sites-5-0ea5e9?style=flat-square)](#sites)
 [![images](https://img.shields.io/badge/images-15%2C241-8b5cf6?style=flat-square)](#sites)
@@ -63,7 +63,7 @@ Every site has paginated grids, filters and search, a lightbox (`←` `→` to s
 This repo contains no image files; `tools/fetch.py` downloads them from each original site. Requires **Python 3.8+**. `tools/mid.py`, which generates lightbox previews, also needs Pillow (`pip install pillow`); every other script uses only the standard library.
 
 ```bash
-git clone https://github.com/Brilliant666/ai-image-gallery.git
+git clone https://github.com/xue1long/ai-video-imge-prompts.git
 cd ai-image-gallery
 
 python tools/fetch.py      # download all images (~6.8 GB first time, then only missing files)

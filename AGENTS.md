@@ -8,7 +8,7 @@
 **一个仓库构建、构建六个 AI 绘画参考图库**：人像集 / 姿势集 / 深度姿势集 / 服装集 / Shisei CC0 姿势线稿 / 提示词生图集，共 **56,502 张参考图**，中日双语、浅色 / 深色双主题。
 
 - 线上入口：<https://photoai.life/>
-- 仓库：<https://github.com/Brilliant666/ai-image-gallery>
+- 仓库：<https://github.com/xue1long/ai-video-imge-prompts>
 - 许可：代码 MIT；**素材授权逐站不同**（见下表）
 
 ## 技术栈

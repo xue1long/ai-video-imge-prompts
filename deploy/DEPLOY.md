@@ -32,7 +32,7 @@ free -m | head -2
 apt update
 apt install -y git python3 python3-pil nginx
 
-git clone https://github.com/Brilliant666/ai-image-gallery.git /srv/ai-image-gallery
+git clone https://github.com/xue1long/ai-video-imge-prompts.git /srv/ai-image-gallery
 cd /srv/ai-image-gallery
 
 # ① 下载图片（约 6.8 GB，只需一次）

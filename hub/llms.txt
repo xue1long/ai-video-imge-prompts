@@ -32,4 +32,4 @@
 ## 其他
 
 - [站点地图](https://example.com/sitemap.xml)
-- [源代码（MIT）](https://github.com/Brilliant666/ai-image-gallery)
+- [源代码（MIT）](https://github.com/xue1long/ai-video-imge-prompts)

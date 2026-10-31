@@ -99,7 +99,7 @@
 本站是 [ai-image-gallery](../../README.md) 单仓的一部分，下载、构建、发布都在仓库根目录用统一工具完成：
 
 ```bash
-git clone https://github.com/Brilliant666/ai-image-gallery.git
+git clone https://github.com/xue1long/ai-video-imge-prompts.git
 cd ai-image-gallery
 
 python tools/fetch.py --site pose-depth --tier thumb    # 缩略图 300×400，约 12 MB

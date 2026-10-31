@@ -6,7 +6,7 @@
 
 人像 · 姿势 · 深度姿势 · 服装 · CC0 姿势线稿 · 提示词生图集 · 56,502 张参考图 · 中日双语 · 浅色 / 深色
 
-[![CI](https://github.com/Brilliant666/ai-image-gallery/actions/workflows/ci.yml/badge.svg)](https://github.com/Brilliant666/ai-image-gallery/actions/workflows/ci.yml)
+[![CI](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml/badge.svg)](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml)
 [![online](https://img.shields.io/badge/online-photoai.life-2563eb?style=flat-square)](https://photoai.life/)
 [![sites](https://img.shields.io/badge/sites-6-0ea5e9?style=flat-square)](#六个站点)
 [![images](https://img.shields.io/badge/images-37%2C509-8b5cf6?style=flat-square)](#六个站点)
@@ -64,7 +64,7 @@
 本仓库不含图片文件，由 `tools/fetch.py` 从各原站下载。需要 **Python 3.8+**。生成中图的 `tools/mid.py` 另需 Pillow（`pip install pillow`），其余脚本只用标准库。
 
 ```bash
-git clone https://github.com/Brilliant666/ai-image-gallery.git
+git clone https://github.com/xue1long/ai-video-imge-prompts.git
 cd ai-image-gallery
 
 python tools/fetch.py      # 下载全部图片（首次约 7.4 GB，之后只补缺失）

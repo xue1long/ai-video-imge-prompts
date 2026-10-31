@@ -383,7 +383,7 @@ def hub_seo(cfg, base):
     lines += ["", "## 常见问题", ""] + [f"- **{q}** {a}" for q, a in faq]
     lines += ["", "## 其他", "",
               f"- [站点地图]({base}/sitemap.xml)",
-              "- [源代码（MIT）](https://github.com/Brilliant666/ai-image-gallery)", ""]
+              "- [源代码（MIT）](https://github.com/xue1long/ai-video-imge-prompts)", ""]
     return {"intro": intro, "faq": faq, "llms": "\n".join(lines)}
 
 

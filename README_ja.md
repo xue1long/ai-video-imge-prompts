@@ -6,7 +6,7 @@
 
 ポートレート · ポーズ · デプス ポーズ · 衣装 · CC0 ポーズ線画 · 15,241 枚 · 中国語 / 日本語 · ライト / ダーク
 
-[![CI](https://github.com/Brilliant666/ai-image-gallery/actions/workflows/ci.yml/badge.svg)](https://github.com/Brilliant666/ai-image-gallery/actions/workflows/ci.yml)
+[![CI](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml/badge.svg)](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml)
 [![online](https://img.shields.io/badge/online-photoai.life-2563eb?style=flat-square)](https://photoai.life/)
 [![sites](https://img.shields.io/badge/sites-5-0ea5e9?style=flat-square)](#サイト)
 [![images](https://img.shields.io/badge/images-15%2C241-8b5cf6?style=flat-square)](#サイト)
@@ -63,7 +63,7 @@
 このリポジトリに画像ファイルは含まれていません。`tools/fetch.py` が各元サイトから取得します。**Python 3.8+** が必要です。ライトボックス用の中サイズ画像を作る `tools/mid.py` だけは Pillow（`pip install pillow`）も必要で、他のスクリプトは標準ライブラリのみで動きます。
 
 ```bash
-git clone https://github.com/Brilliant666/ai-image-gallery.git
+git clone https://github.com/xue1long/ai-video-imge-prompts.git
 cd ai-image-gallery
 
 python tools/fetch.py      # 全画像をダウンロード（初回約 6.8 GB、以降は不足分のみ）
