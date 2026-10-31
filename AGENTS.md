@@ -23,10 +23,10 @@
 | id | 名称 | 规模 | 素材授权 | imageDirs / tiers |
 | --- | --- | --- | :---: | --- |
 | `portrait` | 人像集 | 1,499 张（面部 893 / 造型 606） | **CC0** | thumbs, mid, img / thumb, full |
-| `pose` | 姿势集 | 288 姿势 × 5 视角 = 1,439 张 | 禁止再分发 | thumbs, mid, img / thumb, full |
-| `pose-depth` | 深度姿势集 | 同批 288 姿势的深度图 = 1,439 张 | 禁止再分发 | thumbs, mid, img / thumb, full |
+| `pose` | 姿势集 | 288 姿势 / 1,439 张（5 视角，`P018` 缺仰视，故为 1439 而非 1440） | 禁止再分发 | thumbs, mid, img / thumb, full |
+| `pose-depth` | 深度姿势集 | 同批 288 姿势的深度图 / 1,439 张 | 禁止再分发 | thumbs, mid, img / thumb, full |
 | `costume` | 服装集 | 1,407 件 / 4,221 张 / 86 标签 | 禁止再分发 | thumbs, img, png / thumb, img, png |
-| `shisei` | Shisei CC0 姿势线稿 | 280 姿势 × 5 视角 = 1,133 张 | **CC0** | thumbs, mid, img / thumb, mid, full |
+| `shisei` | Shisei CC0 姿势线稿 | 280 姿势 / 1,133 张（每姿势**最多** 5 视角，上游质检未过的视角不收录） | **CC0** | thumbs, mid, img / thumb, mid, full |
 
 来源：portrait ← ai-portrait-gallery.pages.dev；pose ← ai-pose-gallery.pages.dev；pose-depth ← ai-pose-depth-gallery.pages.dev；costume ← ai-costume-gallery.pages.dev；shisei ← shisei.indaloop.app（GitHub `wquguru/shisei` v0.3.0，raw 源）。
 
@@ -106,5 +106,6 @@ python tests/run.py        # 不依赖图片的检查
 ## 边界
 
 - 素材著作权归各原作者，本项目为个人学习用途的镜像；**代码 MIT，素材按各原站条件使用**。
-- 仓库不含图片文件，克隆后必须先 `fetch.py` 才能看到内容。
+- 仓库**不含素材图片**（thumbs / mid / img / png 全部不入库），克隆后必须先 `fetch.py` 才能看到内容；但仓库**含 25 个 UI 与文档图片**：`hub/` 的 og-cover / favicon / apple-touch-icon / icon-512、各站 `og-cover.jpg`、`docs/screenshots/` 11 张界面截图。
+- `sites/portrait/NOTICE.md` 中，原作者对「再分发图片数据本身」另有**请求**（CC0 许可与该请求需并读）；`pose` / `pose-depth` / `costume` 明确禁止再分发。
 - `hub/` 与 `sites/*/index.html` 都是生成产物。

@@ -51,10 +51,10 @@ python tests/run.py        # 不依赖图片的检查
 | id | code | 规模 | license | tiers / imageDirs |
 | --- | --- | --- | --- | --- |
 | `portrait` | PORTRAIT-DB-01 | 1499 张（面部 893 / 造型 606） | **cc0** | thumb, full / thumbs, mid, img |
-| `pose` | POSE-DB-01 | 288 姿势 × 5 视角 = 1439 张 | restricted | thumb, full / thumbs, mid, img |
-| `pose-depth` | POSE-DB-02 | 288 姿势深度图 = 1439 张 | restricted | thumb, full / thumbs, mid, img |
+| `pose` | POSE-DB-01 | 288 姿势 / 1439 张（5 视角，P018 缺仰视） | restricted | thumb, full / thumbs, mid, img |
+| `pose-depth` | POSE-DB-02 | 同批 288 姿势深度图 / 1439 张 | restricted | thumb, full / thumbs, mid, img |
 | `costume` | COSTUME-DB-01 | 1407 件 / 4221 张 / 86 标签 | restricted | thumb, img, png / thumbs, img, png |
-| `shisei` | SHISEI-v0.3.0 | 280 姿势 × 5 视角 = 1133 张 | **cc0** | thumb, mid, full / thumbs, mid, img |
+| `shisei` | SHISEI-v0.3.0 | 280 姿势 / 1133 张（每姿势最多 5 视角，上游质检未过的不收录） | **cc0** | thumb, mid, full / thumbs, mid, img |
 
 来源域名：portrait ← `ai-portrait-gallery.pages.dev`；pose ← `ai-pose-gallery.pages.dev`；pose-depth ← `ai-pose-depth-gallery.pages.dev`；costume ← `ai-costume-gallery.pages.dev`；shisei ← `shisei.indaloop.app`（raw 源 `raw.githubusercontent.com/wquguru/shisei/v0.3.0/`）。
 作者：portrait あぎ（@agi_aibusi）；pose / pose-depth / costume ギア（@giaaibusi）；shisei Shisei（github.com/wquguru）。
@@ -92,6 +92,7 @@ python tests/run.py        # 不依赖图片的检查
 
 ## 待办 / 注意事项
 
-- 克隆后必须先 `fetch.py` 才能看到图片内容（图片不入库）。
+- 克隆后必须先 `fetch.py` 才能看到图片内容（**素材**图片不入库；但仓库含 25 个 UI / og 封面 / 界面截图图片文件）。
+- `sites/portrait/NOTICE.md` 记载原作者对「再分发图片数据本身」的请求，与 CC0 许可需并读。
 - `tests/run.py` 是唯一的自动化回归，不依赖图片，适合本地快速跑。
 - `tools/release.py` 的 `--no-images` 仅用于 CI 验证，**线上更新不可使用**。
