@@ -42,11 +42,33 @@ python3 tools/fetch.py
 python3 tools/mid.py
 
 # ③ 用正式域名构建
+#    注意：prompts 站的数据不在仓库里，服务器上首次构建它会失败（见下方说明）
 python3 tools/build.py --base https://你的域名.com
 
 # ④ 组装发布目录
 python3 tools/release.py
 ```
+
+**prompts 站的数据怎么办（首次部署必读）**
+
+`sites/prompts/data/` 下只有 `manifest.json`、`gallery.js`、`landing.json` 入库；`prompts_<key>.json`、`gallery_<key>.js`、`dims.json`、`<key>_id2cats.json` 合计约 220 MB 都靠本地生成（理由见 `sites/prompts/README.md`）。所以全新服务器上 `tools/build.py` 会在这一站报「找不到 data/prompts_*.json」。两条路：
+
+```bash
+# 路 A：在服务器上补齐数据（一次性，约 30 分钟；--meta-only 不重下图片）
+cd sites/prompts
+for m in gpt-image-2 nano-banana-pro; do
+  python3 import_youmind.py --model $m --meta-only
+  python3 tag_categories.py --model $m
+done
+python3 scripts/manifest.py
+cd ../.. && python3 tools/build.py --base https://你的域名.com
+
+# 路 B：在构建机上构建好，把这些文件 rsync 到服务器，再只构建其余站
+rsync -av sites/prompts/data/ 服务器:/srv/ai-image-gallery/sites/prompts/data/
+python3 tools/build.py --skip prompts --base https://你的域名.com
+```
+
+路 B 依赖构建机与服务器数据一致；只改了其他站时用它最省事。
 
 **预期输出**（release 阶段）：
 

@@ -2,14 +2,14 @@
 
 # AI 图片素材库 · 单仓多站
 
-**五个 AI 绘画参考图库，一个仓库构建，一个目录部署**
+**六个 AI 绘画参考图库，一个仓库构建，一个目录部署**
 
-人像 · 姿势 · 深度姿势 · 服装 · CC0 姿势线稿 · 15,241 张参考图 · 中日双语 · 浅色 / 深色
+人像 · 姿势 · 深度姿势 · 服装 · CC0 姿势线稿 · 提示词生图集 · 56,502 张参考图 · 中日双语 · 浅色 / 深色
 
 [![CI](https://github.com/Brilliant666/ai-image-gallery/actions/workflows/ci.yml/badge.svg)](https://github.com/Brilliant666/ai-image-gallery/actions/workflows/ci.yml)
 [![online](https://img.shields.io/badge/online-photoai.life-2563eb?style=flat-square)](https://photoai.life/)
-[![sites](https://img.shields.io/badge/sites-5-0ea5e9?style=flat-square)](#五个站点)
-[![images](https://img.shields.io/badge/images-15%2C241-8b5cf6?style=flat-square)](#五个站点)
+[![sites](https://img.shields.io/badge/sites-6-0ea5e9?style=flat-square)](#六个站点)
+[![images](https://img.shields.io/badge/images-37%2C509-8b5cf6?style=flat-square)](#六个站点)
 [![Python](https://img.shields.io/badge/python-3.8%2B-3776ab?style=flat-square&logo=python&logoColor=white)](#快速开始)
 [![License](https://img.shields.io/badge/code-MIT-22c55e?style=flat-square)](#许可与致谢)
 
@@ -17,7 +17,7 @@
 
 **简体中文** · [English](README_en.md) · [日本語](README_ja.md)
 
-[五个站点](#五个站点) · [快速开始](#快速开始) · [图片加载](#图片加载) · [部署](#部署) · [文档](#文档)
+[六个站点](#六个站点) · [快速开始](#快速开始) · [图片加载](#图片加载) · [部署](#部署) · [文档](#文档)
 
 </div>
 
@@ -44,7 +44,7 @@
 
 </details>
 
-## 五个站点
+## 六个站点
 
 | 站点 | 内容 | 规模 | 素材授权 |
 | --- | --- | --- | :---: |
@@ -53,10 +53,11 @@
 | [深度姿势集](https://photoai.life/pose-depth/) | 同批姿势的灰度深度图，适合 ControlNet | 1,439 张 | 禁止再分发 |
 | [服装集](https://photoai.life/costume/) | 不含真人的服装图，86 个标签分面筛选 | 1,407 件 / 4,221 张 | 禁止再分发 |
 | [Shisei 姿势线稿](https://photoai.life/shisei/) | 无脸人偶线稿，四个系列、每个姿势 5 个视角，偏性感的默认模糊 | 280 个姿势 / 1,133 张 | **CC0** |
+| [提示词生图集](https://photoai.life/prompts/) | AI 生图成图与提示词对照，两个模型（Imge-2 / Nano Banana）、可按模型与 41 个官方分类筛选，一条提示词的多张成图归为一条素材 | 26,458 条 / 41,261 张 | **CC BY 4.0** |
 
 每个站都有：网格分页加载、筛选与搜索、灯箱（`←` `→` 翻页，`Esc` 关闭，手机可滑动）、原图下载、主题与语言切换。页面是单个 `index.html`，数据内嵌，没有框架、CDN 和外部字体。
 
-> **人像集和 Shisei 是 CC0**，其余三个站的素材禁止再分发。Shisei 的姿势目录沿用 ai-pose-gallery，只注明出处。详见各站的 `sites/<id>/NOTICE.md`。
+> **人像集和 Shisei 是 CC0**，姿势、深度姿势、服装三站的素材禁止再分发，**提示词生图集为 CC BY 4.0（可商用、须署名，作者与来源逐条保留）**。Shisei 的姿势目录沿用 ai-pose-gallery，只注明出处。详见各站的 `sites/<id>/NOTICE.md`。
 
 ## 快速开始
 
@@ -66,9 +67,9 @@
 git clone https://github.com/Brilliant666/ai-image-gallery.git
 cd ai-image-gallery
 
-python tools/fetch.py      # 下载全部图片（首次约 6.8 GB，之后只补缺失）
+python tools/fetch.py      # 下载全部图片（首次约 7.4 GB，之后只补缺失）
 python tools/mid.py        # 生成灯箱中图（约 290 MB）
-python tools/build.py      # 构建五个站 + 入口页
+python tools/build.py      # 构建六个站 + 入口页
 python tools/release.py    # 组装 dist/（图片硬链接，不额外占盘）
 python tools/serve.py      # 预览 http://127.0.0.1:8080/
 ```
@@ -139,11 +140,45 @@ ai-image-gallery/
 └── docs/               # 文档与截图
 ```
 
-图片不进 git：6.8 GB 二进制放进仓库，每次 clone 都要拉一遍，各站授权也不允许。`release.py` 把 20,751 个图片文件硬链接进 `dist/`，同一文件系统下不额外占盘。
+图片不进 git：6.8 GB 二进制放进仓库，每次 clone 都要拉一遍，各站授权也不允许。`release.py` 把 43,019 个图片文件硬链接进 `dist/`，同一文件系统下不额外占盘。
+
+## 素材管理器（本地 WebUI）
+
+静态站是「发布」，素材管理器是「日常用」。同一个仓库两种形态，图片不搬、不复制。
+
+双击 `启动.bat`（或 `python index/serve.py`）打开 `http://127.0.0.1:8787/`。
+
+界面与静态站同一套设计语言：相同的颜色变量（浅色 `#2563eb`／深色 `#8fb4ff`）、胶囊 tab 与 chip、2:3 不裁切的卡片、淡光晕背景。右上角切换浅色/深色，选择记在浏览器里。
+
+布局是四块：顶部一排集合胶囊 tab（带条目数）、左栏分面筛选（值超过 48 项的如「编号」默认折叠）与添加素材、中间网格每页 120 条、右栏详情。卡片只显示标题，编号留在详情里 —— 否则长 id 会把「S形站姿・胯部向侧顶出」挤成两个字。
+
+| 命令 | 作用 |
+| --- | --- |
+| `python index/sync.py` | 把六个集合的 manifest 同步进 `gallery.db`；manifest 没变就跳过 |
+| `python index/verify.py` | 探缺图：把盘上已不存在的资产标成 `missing` |
+| `python index/snapshot.py` | 给数据库留一个可回滚的快照，写到 `backups/` |
+
+边界只有一句：**`sites/` 只读、`library/` 可写**。采集来的素材永不物理删除（只做视图隐藏），自己导入的素材才允许删。数据库、导入素材、快照、配置都不进 git。
+
+一张图有四个入口，都落在同一个导入函数上：
+
+| 入口 | 位置 | 结果 |
+| --- | --- | --- |
+| 拖文件/文件夹到页面 | 全局 | 新增素材（`own` 集合） |
+| 左栏「添加素材」三个按钮：选本地图片 / 粘贴图片 / 粘贴链接 | 左栏 | 新增素材 |
+| `Ctrl+V` 直接贴图 | 全局 | 新增素材 |
+| 详情面板「给这条素材加图」同样的三个按钮 | 右侧详情 | **追加**图片到这条素材，可多选，主图不动 |
+| 详情面板「替换这张图」同样的三个按钮 | 右侧详情 | **替换当前素材的展示图**，原图留在盘上不删 |
+
+「替换」不是覆盖文件：新图进 `library/YYYY/MM/`、排到主图位，原图变成第二版本。所以对 `sites/` 只读区也成立，随时可以反悔。链接只接受 `http`/`https`，单张上限 40 MB。
+
+「加图」和「替换」是两件事：一条提示词的上游成图保持原样，自己用别的模型跑出来的图接在图条**末尾**（详情里虚线缩略图），主图与复制出来的 prompt 都不变。图为 `library/` 内的文件，因此重跑 `sync.py` 也不会丢；同一条素材下重复传同一张会被内容哈希挡掉。
+
+接口契约见 [SPEC](docs/SPEC_MATERIAL_MANAGER.md)，方案推演见 [v6](docs/REFACTOR_V6_LOCKED.md)。
 
 ## 文档
 
-[部署手册](deploy/DEPLOY.md) · [加第 N 个站](docs/ADDING_A_SITE.md) · [nginx 模板](deploy/nginx.conf) · 各站说明：[人像](sites/portrait/README.md) · [姿势](sites/pose/README.md) · [深度姿势](sites/pose-depth/README.md) · [服装](sites/costume/README.md) · [Shisei](sites/shisei/README.md)
+[部署手册](deploy/DEPLOY.md) · [加第 N 个站](docs/ADDING_A_SITE.md) · [nginx 模板](deploy/nginx.conf) · 各站说明：[人像](sites/portrait/README.md) · [姿势](sites/pose/README.md) · [深度姿势](sites/pose-depth/README.md) · [服装](sites/costume/README.md) · [Shisei](sites/shisei/README.md) · [提示词生图集](sites/prompts/README.md)
 
 ## 许可与致谢
 
@@ -153,4 +188,4 @@ ai-image-gallery/
 | 图片素材 | 各站不同，见 `sites/<id>/NOTICE.md` |
 | `data/` 中的中文译文 | CC BY 4.0 |
 
-素材来自各原站：人像集作者 [あぎ](https://x.com/agi_aibusi)（[原站](https://ai-portrait-gallery.pages.dev/)），姿势集、深度姿势集、服装集作者 [ギア](https://x.com/giaaibusi)（[姿势](https://ai-pose-gallery.pages.dev/) · [深度姿势](https://ai-pose-depth-gallery.pages.dev/) · [服装](https://ai-costume-gallery.pages.dev/)）。Shisei 线稿来自 [wquguru/shisei](https://github.com/wquguru/shisei)（CC0）。本项目是个人学习用途的中文镜像。
+素材来自各原站：人像集作者 [あぎ](https://x.com/agi_aibusi)（[原站](https://ai-portrait-gallery.pages.dev/)），姿势集、深度姿势集、服装集作者 [ギア](https://x.com/giaaibusi)（[姿势](https://ai-pose-gallery.pages.dev/) · [深度姿势](https://ai-pose-depth-gallery.pages.dev/) · [服装](https://ai-costume-gallery.pages.dev/)）。Shisei 线稿来自 [wquguru/shisei](https://github.com/wquguru/shisei)（CC0）。提示词生图集来自 YouMind 社区（[GPT Image 2 Prompts](https://youmind.com/gpt-image-2-prompts/explore) · [Nano Banana Pro Prompts](https://youmind.com/nano-banana-pro-prompts/explore) · [开源镜像](https://github.com/YouMind-OpenLab/awesome-gpt-image-2)，CC BY 4.0）。本项目是个人学习用途的中文镜像。

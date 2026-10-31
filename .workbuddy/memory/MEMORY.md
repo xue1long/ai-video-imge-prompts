@@ -69,15 +69,31 @@ python tests/run.py        # 不依赖图片的检查
 6. **授权逐站不同**：`portrait` / `shisei` 为 CC0；`pose` / `pose-depth` / `costume` 禁止再分发。
 7. **部署**：站点根 = `release.py` 产出的扁平 `dist/`（`index.html` + `portrait/` + `pose/` + …），nginx 不需要 `alias`；**git commit 即版本**；更新先发 `--out dist-stage` 再逐站原子换入。
 8. `release.py` 发布前校验图片，缺图中止；会先删后建目标站点目录。`--no-images` 不保留线上旧图。
+9. **prompts 站的自制图走覆盖层**：素材管理器 attach → `sites/prompts/sync_user_assets.py` 导出 `userimg/` + `data/user_assets.json`（按 originId 归属，**两者都入库**）→ `build_gallery.py` 追加到分片 `files[]` 末尾并标「自制」。**不写进 `data/prompts_<key>.json`**（导入器会整份重写），**不放 `img/<key>/`**（目录名即分片键）。授权上 `img/` 全 CC BY 4.0、`userimg/` 归本站，NOTICE 已分开写明。
 
 ## CI 闸门（`ci.yml`）
 
 1. `python3.13 tests/run.py`
-2. `python3.8 tools/build.py` + `git diff --exit-code -- hub sites` → **最低版本 Python 的构建产物必须与仓库一致**
+2. `python3.8 tools/build.py --skip prompts` + `git diff --exit-code -- hub sites` → **最低版本 Python 的构建产物必须与仓库一致**（跳过 prompts 是因为它的数据源不入库，干净检出上构建必然失败；其余五站照常逐文件比对）
 3. `python3.13 tools/release.py --no-images --out /tmp/dist-ci`
 4. `python3.13 tools/update.py --check --no-fetch --ref HEAD`
 
 **推论：改 `sites/` 或 `hub/` 的生成物必须同提交重新构建的结果。**
+
+## prompts 站的数据边界（2026-10-31 定）
+
+| 类别 | 文件 | 体积 | git |
+| --- | --- | ---: | --- |
+| 抓取中间数据 | `data/prompts_<key>.json` | 132 MB | **忽略**（`import_youmind.py` 重拉） |
+| 构建产物 | `data/gallery_<key>.js` | 84 MB | **忽略**（`build_gallery.py` 重建） |
+| 映射/缓存 | `data/<key>_id2cats.json`、`data/dims.json` | 4 MB | **忽略** |
+| 抓取缓存 | `data/<key>_site_meta.json`、`*_site_categories.json` | 103 MB | **忽略** |
+| 图片清单 | `manifest.json` | 14 MB | **入库**（`fetch.py` 与 `tests/run.py` 都要读） |
+| 分片索引 | `data/gallery.js`（275 B）、`data/landing.json`、`data/gpt2_categories.json` | <5 KB | **入库** |
+
+做完忽略后 `sites/prompts/` 只有 35 个文件 13.6 MB 入库（其中 13.1 MB 是 manifest）。
+`tests/run.py::GitIgnore` 两项就是守这条线的：大文件必须被忽略、manifest 与 gallery.js 必须入库。
+`build.py` 的 `--skip <id>` 只给「数据源不在仓库」的站用，别拿它绕过构建校验。
 
 ## 性能约定
 
