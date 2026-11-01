@@ -6,8 +6,8 @@
 ## 项目定位
 
 **单仓多站**的 AI 绘画参考素材库：一个仓库构建、构建五个图库，人像 / 姿势 / 深度姿势 / 服装 / Shisei CC0 姿势线稿，共 15,241 张参考图，中日双语、浅色 / 深色双主题。
-线上入口：photoai.life ｜ 远程 `origin`：github.com/Brilliant666/ai-image-gallery
-　另有一个远程 `target`：github.com/xue1long/ai-video-imge-prompts（2026-11-01 由本机首次推送，内容同源）
+线上入口：photoai.life ｜ 远程 `origin`：github.com/xue1long/ai-video-imge-prompts（唯一远程）
+　2026-11-01 从 `github.com/Brilliant666/ai-image-gallery` 迁出，旧远程已删除
 许可：代码 MIT；素材逐站授权不同。
 
 ## 技术栈与运行
