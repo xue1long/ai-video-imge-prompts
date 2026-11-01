@@ -213,6 +213,57 @@ def sync_rows(conn, sid, cfg, recs):
     return count
 
 
+def sync_midjourney_explore(conn, cfg, root):
+    """midjourney-explore 站：manifest 一行一张图，同一作业(jobId)的 4 格共用一段提示词。
+
+    按**作业**聚合成一条作品（item），4 张图作为它的 4 个 asset 挂上去，
+    ordinal 用作业内的格子序号（index 字段）。WebUI 的灯箱按 item 的 assets 翻页，
+    这样同一提示词的 4 格就在同一个灯箱里连着翻，而不是散成 4 条独立素材。
+    """
+    recs = load(root, cfg["manifest"])
+    groups = {}
+    for rec in recs:
+        gid = rec.get("jobId") or rec.get("id", "")
+        groups.setdefault(gid, []).append(rec)
+
+    prefix = "sites/midjourney-explore/"
+    for gid, grp in groups.items():
+        grp = sorted(grp, key=lambda r: r.get("index") or 0)
+        head = grp[0]
+        item_id = f"midjourney-explore:{gid}"
+        prompt = norm(head.get("prompt"))
+        store.add_item(
+            conn,
+            id=item_id,
+            collection="midjourney-explore",
+            ext_id=gid,
+            title=norm(head.get("title")) or gid,
+            title_alt=prompt,
+            prompt=prompt,
+            prompt_raw=prompt,
+            author=head.get("username") or "",
+            source_url=head.get("sourceUrl") or "",
+            published_at=str(head.get("enqueueTime") or ""),
+            model=head.get("version") or "",
+        )
+        write_tags(conn, item_id, facet_pairs(cfg["facets"], head))
+
+        for ordinal, rec in enumerate(grp):
+            original = rec.get("full_path")
+            if not original:
+                continue
+            asset_id, _ = store.add_asset(
+                conn, prefix + original, "sites", 0, rec.get("width"), rec.get("height")
+            )
+            for kind, key in cfg["files"]:
+                p = rec.get(key)
+                if p and kind != "full":
+                    store.add_derivative(conn, asset_id, kind, prefix + p)
+            store.add_derivative(conn, asset_id, "full", prefix + original)
+            store.link_asset(conn, item_id, asset_id, role="full", ordinal=ordinal)
+    return len(groups)
+
+
 def sync_prompts(conn, cfg, root):
     """prompts 站：manifest 一行一张图，meta 一行一条提示词，按图片路径关联并聚合。"""
     manifest = load(root, cfg["manifest"])
@@ -291,6 +342,11 @@ def sync(root, db_path, force=False, verbose=True):
             continue
         if sid == "prompts":
             n = sync_prompts(conn, cfg, root)
+            seen = set()
+            for rec in load(root, cfg["manifest"]):
+                seen.update(rec.keys())
+        elif sid == "midjourney-explore":
+            n = sync_midjourney_explore(conn, cfg, root)
             seen = set()
             for rec in load(root, cfg["manifest"]):
                 seen.update(rec.keys())

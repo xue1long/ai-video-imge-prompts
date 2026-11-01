@@ -96,6 +96,29 @@ SOURCES = {
         "size": None,
         "bytes": None,
     },
+    "midjourney-explore": {
+        "manifest": "sites/midjourney-explore/manifest.json",
+        # title 是提示词原文的前 80 字；title_alt 用完整提示词
+        "title": "title",
+        "title_alt": "prompt",
+        # 官网 Explore 榜没有官方分类，唯一稳定可枚举的维度是画面宽高比
+        "facets": {"宽高比": "aspect", "版本": "version"},
+        "files": [("thumb", "thumb_path"), ("mid", "mid_path"), ("full", "full_path")],
+        "size": ("width", "height"),
+        "bytes": None,
+        "keywords": "prompt",
+        "prompt": "prompt",
+        "extra": {
+            "source_url": "sourceUrl",
+            "published_at": "enqueueTime",
+            "model": "version",
+            "author": "username",
+            "author_display": "displayName",
+            "style_ref": "hasStyleRef",
+            "grid_index": "index",
+            "job_id": "jobId",
+        },
+    },
     "prompthero-midjourney": {
         "manifest": "sites/prompthero-midjourney/manifest.json",
         # title 是提示词原文的前 80 字；title_alt 用上游的描述（含浏览/收藏数）
@@ -143,6 +166,10 @@ CSV_COLS = [
     "height",
     "fav_count",
     "view_count",
+    "author_display",
+    "style_ref",
+    "grid_index",
+    "job_id",
 ]
 
 # 每个 manifest 里允许出现但不需要入库的键（纯 URL，本地已有副本）
@@ -227,6 +254,59 @@ def build_portrait_like(sid, cfg):
         # {"source_url": "sourceUrl", "published_at": "createdAt", ...}
         for col, key in (cfg.get("extra") or {}).items():
             row[col] = rec.get(key, "")
+
+        rows.append(row)
+    return rows, seen_keys
+
+
+def build_midjourney_explore(cfg):
+    """midjourney-explore 站：同一作业(jobId)的 4 格聚合成一条，提示词取作业级原文。
+
+    与 sync.py 的 sync_midjourney_explore 同口径：一个作业一条素材，
+    CSV 的 thumb/mid/full 列取作业的第 1 格（列表缩略图用它）。
+    """
+    manifest = load(cfg["manifest"])
+    seen_keys = set()
+    groups = {}
+    for rec in manifest:
+        seen_keys.update(rec.keys())
+        gid = rec.get("jobId") or rec.get("id", "")
+        groups.setdefault(gid, []).append(rec)
+
+    rows = []
+    for gid, grp in groups.items():
+        grp = sorted(grp, key=lambda r: r.get("index") or 0)
+        head = grp[0]
+        row = {c: "" for c in CSV_COLS}
+        row["collection"] = "midjourney-explore"
+        row["ext_id"] = gid
+        row["item_id"] = gid
+        row["title"] = head.get("title") or gid
+        row["title_alt"] = cut(head.get("prompt") or "")
+        row["prompt"] = cut(head.get("prompt") or "")
+        row["prompt_raw"] = cut(head.get("prompt") or "")
+
+        facets = []
+        for ns, key in cfg["facets"].items():
+            val = head.get(key)
+            if isinstance(val, list):
+                facets.extend((ns, v) for v in val)
+            elif val:
+                facets.append((ns, val))
+        row["facets"] = fmt_facets(facets)
+
+        for kind, key in cfg["files"]:
+            row[kind] = head.get(key, "")
+
+        if cfg.get("size"):
+            w, h = cfg["size"]
+            row["width"] = head.get(w) or ""
+            row["height"] = head.get(h) or ""
+        if cfg.get("bytes"):
+            row["bytes"] = head.get(cfg["bytes"]) or ""
+
+        for col, key in (cfg.get("extra") or {}).items():
+            row[col] = head.get(key, "")
 
         rows.append(row)
     return rows, seen_keys
@@ -346,6 +426,9 @@ def main():
         if sid == "prompts":
             rows, seen, unmatched, file_count = build_prompts(cfg)
             report.append((sid, len(rows), file_count, unmatched, unmapped_report(sid, seen, cfg)))
+        elif sid == "midjourney-explore":
+            rows, seen = build_midjourney_explore(cfg)
+            report.append((sid, len(rows), len(rows) * 4, 0, unmapped_report(sid, seen, cfg)))
         else:
             rows, seen = build_portrait_like(sid, cfg)
             report.append((sid, len(rows), len(rows), 0, unmapped_report(sid, seen, cfg)))
