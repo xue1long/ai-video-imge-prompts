@@ -5,7 +5,7 @@
 
 ## 项目是什么
 
-**一个仓库构建、构建七个 AI 绘画参考图库**：人像集 / 姿势集 / 深度姿势集 / 服装集 / Shisei CC0 姿势线稿 / 提示词生图集 / Midjourney 提示词集，共 **123,759 张参考图**，中日双语、浅色 / 深色双主题。
+**一个仓库构建、构建七个 AI 绘画参考图库**：人像集 / 姿势集 / 深度姿势集 / 服装集 / Shisei CC0 姿势线稿 / 提示词生图集 / Midjourney 提示词集，共 **137,890 个图片文件**（同图多档各计一个），中日双语、浅色 / 深色双主题。
 
 - 线上入口：<https://photoai.life/>
 - 仓库：<https://github.com/xue1long/ai-video-imge-prompts>
@@ -35,7 +35,7 @@
 ## 目录结构
 
 ```
-ai-image-gallery/
+ai-video-imge-prompts/
 ├── sites.json          # ★ 唯一清单：站点、顺序、授权、档位、封面
 ├── sites/<id>/         # 各站：scripts/ + data/ + 构建产物 + NOTICE.md + README
 ├── shared/             # 各站共用逻辑
@@ -47,7 +47,7 @@ ai-image-gallery/
 │   └── pose_source.py  #   姿势两站共用的原站解析与 manifest 生成
 ├── hub/                # 入口页生成器（build_hub.py / make_icons.py）+ 入口页资源
 ├── tools/
-│   ├── fetch.py        #   下载图片（幂等；首次约 47 GB）
+│   ├── fetch.py        #   下载图片（幂等；首次约 86 GB）
 │   ├── mid.py          #   生成灯箱中图（约 290 MB，需 Pillow）
 │   ├── verify.py       #   校验图片存在性、体积、可读宽高、中图齐全
 │   ├── build.py        #   构建各站 index.html + 数据导出 + SEO 文件，并重建入口页
@@ -72,7 +72,7 @@ ai-image-gallery/
 ## 常用命令
 
 ```bash
-python tools/fetch.py      # 下载全部图片（首次约 47 GB，之后只补缺失）
+python tools/fetch.py      # 下载全部图片（首次约 86 GB，之后只补缺失）
 python tools/mid.py        # 生成灯箱中图（约 290 MB）
 python tools/build.py      # 构建七个站 + 入口页
 python tools/release.py    # 组装 dist/

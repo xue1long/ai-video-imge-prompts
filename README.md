@@ -4,12 +4,12 @@
 
 **七个 AI 绘画参考图库，一个仓库构建，一个目录部署**
 
-人像 · 姿势 · 深度姿势 · 服装 · CC0 姿势线稿 · 提示词生图集 · Midjourney 提示词 · 123,759 张参考图 · 中日双语 · 浅色 / 深色
+人像 · 姿势 · 深度姿势 · 服装 · CC0 姿势线稿 · 提示词生图集 · Midjourney 提示词 · 137,890 个图片文件 · 中日双语 · 浅色 / 深色
 
 [![CI](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml/badge.svg)](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml)
 [![online](https://img.shields.io/badge/online-photoai.life-2563eb?style=flat-square)](https://photoai.life/)
 [![sites](https://img.shields.io/badge/sites-7-0ea5e9?style=flat-square)](#七个站点)
-[![images](https://img.shields.io/badge/images-123%2C759-8b5cf6?style=flat-square)](#七个站点)
+[![images](https://img.shields.io/badge/images-137%2C890-8b5cf6?style=flat-square)](#七个站点)
 [![Python](https://img.shields.io/badge/python-3.8%2B-3776ab?style=flat-square&logo=python&logoColor=white)](#快速开始)
 [![License](https://img.shields.io/badge/code-MIT-22c55e?style=flat-square)](#许可与致谢)
 
@@ -66,9 +66,9 @@
 
 ```bash
 git clone https://github.com/xue1long/ai-video-imge-prompts.git
-cd ai-image-gallery
+cd ai-video-imge-prompts
 
-python tools/fetch.py      # 下载全部图片（首次约 47 GB，之后只补缺失）
+python tools/fetch.py      # 下载全部图片（首次约 86 GB，之后只补缺失）
 python tools/mid.py        # 生成灯箱中图（约 290 MB）
 python tools/build.py      # 构建七个站 + 入口页
 python tools/release.py    # 组装 dist/（图片硬链接，不额外占盘）
@@ -130,7 +130,7 @@ python3 tools/release.py --out dist-stage   # 先发到暂存目录，检查后�
 ## 项目结构
 
 ```
-ai-image-gallery/
+ai-video-imge-prompts/
 ├── sites.json          # 唯一清单：站点、顺序、授权、图片档位
 ├── sites/<id>/         # 各站：脚本、数据、构建产物、NOTICE
 ├── shared/             # 各站共用的下载与校验；姿势 / 深度姿势共用的页面生成器、原站解析、日中词典
@@ -141,7 +141,7 @@ ai-image-gallery/
 └── docs/               # 文档与截图
 ```
 
-图片不进 git：约 47 GB 二进制放进仓库，每次 clone 都要拉一遍，各站授权也不允许。`release.py` 把图片文件硬链接进 `dist/`，同一文件系统下不额外占盘。
+图片不进 git：约 86 GB 二进制放进仓库，每次 clone 都要拉一遍，各站授权也不允许。`release.py` 把图片文件硬链接进 `dist/`，同一文件系统下不额外占盘。
 
 ## 素材管理器（本地 WebUI）
 

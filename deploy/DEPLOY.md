@@ -13,7 +13,7 @@
 | 系统 | Ubuntu 20.04+ / Debian 11+ |
 | git | 任意版本（更新用 `tools/update.py`，见 §4） |
 | Python | 3.8+；`tools/mid.py` 需要 Pillow（`apt install python3-pil`），其余只用标准库 |
-| 磁盘 | ≥ 60 GB 可用（图片约 47 GB + 中图约 290 MB；硬链接不额外占盘） |
+| 磁盘 | ≥ 100 GB 可用（图片约 86 GB + 中图约 290 MB；硬链接不额外占盘） |
 | 内存 | ≥ 512 MB |
 | 域名 | 已解析到本机 IP |
 
@@ -35,7 +35,7 @@ apt install -y git python3 python3-pil nginx
 git clone https://github.com/xue1long/ai-video-imge-prompts.git /srv/ai-image-gallery
 cd /srv/ai-image-gallery
 
-# ① 下载图片（约 47 GB，只需一次）
+# ① 下载图片（约 86 GB，只需一次）
 python3 tools/fetch.py
 
 # ② 生成灯箱中图（约 290 MB，几分钟；之后只补缺失）
@@ -218,7 +218,7 @@ mv -T dist-stage dist-prev        # 对调后暂存目录里是旧版，留作�
 
 `update.py` 把改动分两类：`build.py` 会重写的构建产物直接丢弃；其他文件（源码、配置）
 默认**中止并列出**，什么都不改。确认要丢弃时加 `--force`，脚本会先把 diff 和原文件备份到
-`../ai-image-gallery-update-backups/<时间>-<旧提交>/` 再对齐。`--check` 只检查不改动。
+`../ai-video-imge-prompts-update-backups/<时间>-<旧提交>/` 再对齐。`--check` 只检查不改动。
 
 服务器上需要的修改，**一律提交进仓库**再部署，不要只改服务器上的文件。
 
