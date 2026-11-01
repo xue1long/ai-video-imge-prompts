@@ -85,6 +85,8 @@ sites/<新站id>/
 > 参考 `sites/prompts/`：把数据写成 `data/gallery_<key>.js`（`JSON.parse` 赋值），
 > 页面只内嵌一份小索引，进站按需加载分片。分片不入库时，CI 构建该站要加 `--skip`
 > （干净检出上分片不存在，构建必然失败）——`prompts` 站就是这么处理的。
+> 但如果分片**可由入库的源头数据**（如 manifest.json）一键重建，优先不 skip：
+> CI 构建比对照常校验该站，闸门不缩水——`prompthero-midjourney` 站就是这么处理的。
 
 ## 4. 构建
 
@@ -100,6 +102,22 @@ python tests/run.py                      # 提交前跑一遍；CI 也会跑
 
 `tests/run.py` 会自动覆盖 `sites.json` 里的新站：构建产物是否最新、重复 id、JS 引用的 id 是否存在、
 内联数据是否都被页面使用、页面体积上限、manifest 的档位字段与路径、封面是否在 manifest 里。
+
+## 5. 从原站接口采集数据（prompthero-midjourney 的经验）
+
+数据没有现成交档、要从上游接口抓时，按这几条走，能少走弯路：
+
+- **先抓前端 bundle 定位接口**：在 DevTools 里翻前端的 JS chunk，挖出真实的
+  tRPC / GraphQL procedure 与参数形状，不要硬猜 URL 查询参数——页面上看到的
+  `?page=2` 这类参数可能是摆设。
+- **探测分页上限与排序稳定性**：接口往往有隐藏的 pageSize 上限（如 48）；
+  凡是按排序分页，两次采集之间可能因并列漂移产生重复或丢条目——
+  采集侧必须按稳定键（如 slug）做确定性去重。
+- **限流退行**：批量请求先低速小批试跑，触发 429 就指数退避、后台分批补抓；
+  采集统计（总条数、NSFW 数、缺失回落数）写进 `data/meta.json` 留档。
+- **图片缺口的回落链**：多档位（原图 / 中图 / 缩略图）不必逐档都存在，
+  manifest 里缺失的档位回落到下一档并记 fallback 标记，
+  `verify.py` 保证最终每条每档都有可用文件。
 
 上线到已有服务器的步骤见 [DEPLOY.md](../deploy/DEPLOY.md) §6。
 
