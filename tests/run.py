@@ -362,6 +362,61 @@ class Manifests(unittest.TestCase):
             self.assertIn(s["cover"], thumbs, f"{s['id']} 的封面 {s['cover']} 不在 manifest 里")
 
 
+class ImagePolicy(unittest.TestCase):
+    """取图策略声明的闸门。
+
+    策略声明在 sites.json 里（每站一份，按档位给出），决定这个档位的图片
+    地址从哪来：站内相对路径、上游地址、还是「先本地、失败再回落上游」。
+
+    这里守的是**声明本身**：取值合法、档位齐全、读取器与清单一致。
+    声明有没有真的传导到构建产物，由 Pages 层的断言负责。
+    """
+
+    @staticmethod
+    def policy_mods():
+        from image_policy import MODES
+        return MODES
+
+    def test_every_site_declares_policy_for_every_tier(self):
+        for s in CFG["sites"]:
+            pol = s.get("imagePolicy")
+            self.assertTrue(pol, f"{s['id']} 没有声明 imagePolicy")
+            missing = [t for t in s["tiers"] if t not in pol]
+            self.assertEqual(missing, [], f"{s['id']} 缺这些档位的取图策略：{missing}")
+
+    def test_policy_values_are_known_modes(self):
+        mods = self.policy_mods()
+        for s in CFG["sites"]:
+            for tier, mode in (s.get("imagePolicy") or {}).items():
+                self.assertIn(mode, mods,
+                              f"{s['id']} 的 imagePolicy.{tier} 取值非法：{mode}")
+
+    def test_reader_returns_declared_mode(self):
+        # 读取器与清单必须一致：清单怎么写就读出什么
+        from image_policy import tier_mode
+        for s in CFG["sites"]:
+            for tier in s["tiers"]:
+                self.assertEqual(tier_mode(s, tier), s["imagePolicy"][tier],
+                                 f"{s['id']} 的 {tier} 档：读取器读出的策略与清单不符")
+
+    def test_reader_defaults_to_local_first(self):
+        # 未声明的档位按「本地优先」处理，即与改造前的行为一致
+        from image_policy import DEFAULT, tier_mode
+        for s in CFG["sites"]:
+            self.assertEqual(tier_mode(s, "不存在的档位"), DEFAULT)
+
+    def test_every_tier_has_an_upstream_url(self):
+        # 策略要用上游地址回落，前提是 manifest 里那个档位真有上游地址
+        for s in CFG["sites"]:
+            if s["id"] in SKIP_BUILD:
+                continue
+            rows = json.loads(read(f"sites/{s['id']}/manifest.json"))
+            for tier in s["tiers"]:
+                key = tier + "_url"
+                empty = [r.get("id") for r in rows if not r.get(key)]
+                self.assertEqual(empty, [], f"{s['id']} 的 {tier} 档缺 {key}")
+
+
 class IndexMapping(unittest.TestCase):
     """索引侧（素材管理器 WebUI）的接线闸门。
 

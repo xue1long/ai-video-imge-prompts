@@ -69,6 +69,10 @@
       "author": {
         "name": "あぎ",
         "url": "https://x.com/agi_aibusi"
+      },
+      "imagePolicy": {
+        "thumb": "local-first",
+        "full": "local-first"
       }
     },
     {
@@ -122,6 +126,11 @@
       "author": {
         "name": "ギア",
         "url": "https://x.com/giaaibusi"
+      },
+      "imagePolicy": {
+        "thumb": "local-first",
+        "img": "local-first",
+        "png": "local-first"
       }
     },
     {
@@ -174,6 +183,10 @@
       "author": {
         "name": "ギア",
         "url": "https://x.com/giaaibusi"
+      },
+      "imagePolicy": {
+        "thumb": "local-first",
+        "full": "local-first"
       }
     },
     {
@@ -226,6 +239,10 @@
       "author": {
         "name": "ギア",
         "url": "https://x.com/giaaibusi"
+      },
+      "imagePolicy": {
+        "thumb": "local-first",
+        "full": "local-first"
       }
     },
     {
@@ -280,7 +297,12 @@
         "name": "Shisei",
         "url": "https://github.com/wquguru"
       },
-      "imageBase": "https://raw.githubusercontent.com/wquguru/shisei/v0.3.0/"
+      "imageBase": "https://raw.githubusercontent.com/wquguru/shisei/v0.3.0/",
+      "imagePolicy": {
+        "thumb": "local-first",
+        "mid": "local-first",
+        "full": "local-first"
+      }
     },
     {
       "id": "prompts",
@@ -339,7 +361,11 @@
         "name": "YouMind OpenLab 社区",
         "url": "https://github.com/YouMind-OpenLab/awesome-gpt-image-2"
       },
-      "imageBase": "https://cms-assets.youmind.com/media/"
+      "imageBase": "https://cms-assets.youmind.com/media/",
+      "imagePolicy": {
+        "thumb": "local-first",
+        "full": "local-first"
+      }
     },
     {
       "id": "midjourney-explore",
@@ -400,7 +426,12 @@
         "name": "Midjourney 社区",
         "url": "https://www.midjourney.com/explore?tab=styles_top"
       },
-      "imageBase": "https://cdn.midjourney.com/"
+      "imageBase": "https://cdn.midjourney.com/",
+      "imagePolicy": {
+        "thumb": "local-first",
+        "mid": "local-first",
+        "full": "local-first"
+      }
     },
     {
       "id": "prompthero-midjourney",
@@ -464,7 +495,12 @@
       "imageBases": [
         "https://img.prompthero.com/",
         "https://cdn.prompthero.com/"
-      ]
+      ],
+      "imagePolicy": {
+        "thumb": "local-first",
+        "mid": "local-first",
+        "full": "local-first"
+      }
     }
   ]
 }
