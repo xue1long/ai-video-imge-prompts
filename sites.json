@@ -71,8 +71,8 @@
         "url": "https://x.com/agi_aibusi"
       },
       "imagePolicy": {
-        "thumb": "local-first",
-        "full": "local-first"
+        "thumb": "local-only",
+        "full": "local-only"
       }
     },
     {
@@ -128,9 +128,9 @@
         "url": "https://x.com/giaaibusi"
       },
       "imagePolicy": {
-        "thumb": "local-first",
-        "img": "local-first",
-        "png": "local-first"
+        "thumb": "local-only",
+        "img": "local-only",
+        "png": "local-only"
       }
     },
     {
@@ -185,8 +185,8 @@
         "url": "https://x.com/giaaibusi"
       },
       "imagePolicy": {
-        "thumb": "local-first",
-        "full": "local-first"
+        "thumb": "local-only",
+        "full": "online"
       }
     },
     {
@@ -241,8 +241,8 @@
         "url": "https://x.com/giaaibusi"
       },
       "imagePolicy": {
-        "thumb": "local-first",
-        "full": "local-first"
+        "thumb": "local-only",
+        "full": "online"
       }
     },
     {
@@ -300,8 +300,8 @@
       "imageBase": "https://raw.githubusercontent.com/wquguru/shisei/v0.3.0/",
       "imagePolicy": {
         "thumb": "local-first",
-        "mid": "local-first",
-        "full": "local-first"
+        "mid": "local-only",
+        "full": "online"
       }
     },
     {
@@ -363,8 +363,8 @@
       },
       "imageBase": "https://cms-assets.youmind.com/media/",
       "imagePolicy": {
-        "thumb": "local-first",
-        "full": "local-first"
+        "thumb": "local-only",
+        "full": "local-only"
       }
     },
     {
@@ -428,9 +428,9 @@
       },
       "imageBase": "https://cdn.midjourney.com/",
       "imagePolicy": {
-        "thumb": "local-first",
-        "mid": "local-first",
-        "full": "local-first"
+        "thumb": "local-only",
+        "mid": "local-only",
+        "full": "local-only"
       }
     },
     {
@@ -497,9 +497,9 @@
         "https://cdn.prompthero.com/"
       ],
       "imagePolicy": {
-        "thumb": "local-first",
-        "mid": "local-first",
-        "full": "local-first"
+        "thumb": "local-only",
+        "mid": "local-only",
+        "full": "local-only"
       }
     }
   ]

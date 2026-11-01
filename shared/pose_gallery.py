@@ -15,6 +15,7 @@ cfg 需要的键：
 import csv, json, os, sys
 
 from pose_i18n import SERIES_ZH, CAT_ZH, ANG_ZH, NAME_ZH
+from image_policy import FB_JS, site_entry, tier_addr
 
 
 def build(root, cfg):
@@ -31,6 +32,11 @@ def build(root, cfg):
     """
     UI = cfg["ui"]
     rows = json.load(open(os.path.join(root, "manifest.json"), encoding="utf-8"))
+
+    # 取图策略：按档位声明在站点清单里，决定展示地址与回落地址。
+    # 策略是静态配置，构建过程不探测本地文件是否存在——产物只取决于配置。
+    site_id = os.path.basename(os.path.abspath(root))
+    SITE_CFG = site_entry(site_id)
 
     # 站点地址：部署前用环境变量覆盖，否则 canonical / sitemap 会指向占位域名
     SITE_URL = os.environ.get("SITE_URL", "https://example.com").rstrip("/")
@@ -53,11 +59,21 @@ def build(root, cfg):
                           "z": zh or r["姿势名"], "v": []}
             if BLUR:
                 poses[key]["r"] = 1 if r.get("rating") in BLUR else 0
-        poses[key]["v"].append({
-            "a": r["视角"],
-            "t": r["thumb_path"].replace("\\", "/"),
-            "f": r["full_path"].replace("\\", "/"),
-        })
+        view = {"a": r["视角"]}
+        # 取图策略要求的编码（见 shared/image_policy.py）：
+        #   <字段>     展示地址（online 时是上游 URL，否则是站内相对路径）
+        #   <字段>Url  上游地址，仅 local-first 时写出，作为加载失败的回落目标
+        #   <字段>Path 站内相对路径，仅 online 时写出，供中图等按路径推导的规则使用
+        for tier, fkey in (("thumb", "t"), ("full", "f")):
+            path = r[tier + "_path"].replace("\\", "/")
+            url = r.get(tier + "_url") or ""
+            display, fallback, keep_path = tier_addr(SITE_CFG, tier, path, url)
+            view[fkey] = display
+            if fallback:
+                view[fkey + "Url"] = fallback
+            if keep_path:
+                view[fkey + "Path"] = path
+        poses[key]["v"].append(view)
 
     for p in poses.values():
         p["v"].sort(key=lambda v: ANG_ORDER.index(v["a"]) if v["a"] in ANG_ORDER else 99)
@@ -365,6 +381,7 @@ footer a:hover{color:var(--ac)}
 </style>
 <style>__SEO_CSS__.seo-intro{--si-max:1600px}</style>
 __FAQ_LD__
+__FB_JS__
 </head>
 <body>
 
@@ -676,7 +693,7 @@ function syncMore(){
 function cardPose(p, d, i){
   const strip = p.v.map(v=>
     '<button data-a="'+esc(v.a)+'" class="'+(v.a===d.a?'on':'')+'" title="'+esc(nA(v.a))+'">'+
-      '<img loading="lazy" decoding="async" src="'+esc(v.t)+'" alt="'+esc(nA(v.a))+'"><span>'+esc(nA(v.a))+'</span>'+
+      '<img loading="lazy" decoding="async" src="'+esc(v.t)+'"'+(v.tUrl?' data-fb="'+esc(v.tUrl)+'"':'')+' alt="'+esc(nA(v.a))+'"><span>'+esc(nA(v.a))+'</span>'+
     '</button>').join('');
   return '<article class="card'+(unblurred.has(p.p)?' unblur':'')+'" tabindex="0" data-i="'+i+'"'+(p.r?' data-r="1"':'')+'>'+
     '<div class="ph"'+(p.r?' data-blur="'+esc(t('blurTap'))+'"':'')+'><img'+(i<12?' fetchpriority="high"':' loading="lazy"')+' decoding="async" src="'+esc(d.t)+'" alt="'+esc(nN(p))+'">'+
@@ -691,7 +708,7 @@ function cardPose(p, d, i){
 
 function cardImg(p, v, i){
   return '<article class="card'+(unblurred.has(p.p)?' unblur':'')+'" tabindex="0" data-i="'+i+'"'+(p.r?' data-r="1"':'')+'>'+
-    '<div class="ph"'+(p.r?' data-blur="'+esc(t('blurTap'))+'"':'')+'><img'+(i<12?' fetchpriority="high"':' loading="lazy"')+' decoding="async" src="'+esc(v.t)+'" alt="'+esc(nN(p))+'">'+
+    '<div class="ph"'+(p.r?' data-blur="'+esc(t('blurTap'))+'"':'')+'><img'+(i<12?' fetchpriority="high"':' loading="lazy"')+' decoding="async" src="'+esc(v.t)+'"'+(v.tUrl?' data-fb="'+esc(v.tUrl)+'"':'')+' alt="'+esc(nN(p))+'">'+
       '<div class="badge"><span class="alt">'+esc(nA(v.a))+'</span></div>'+
       '<a class="dl" href="'+esc(v.f)+'" download="'+esc(p.p + '-' + v.a + '__EXT__')+'" title="下载原图" aria-label="下载原图">'+
         '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 19.5h14"/></svg></a></div>'+
@@ -736,11 +753,11 @@ const cardView=e=>{
 };
 grid.addEventListener('pointerover', e=>{
   const v=cardView(e); clearTimeout(hoverT);
-  if(v) hoverT=setTimeout(()=>warm(midOf(v.f)), 120);
+  if(v) hoverT=setTimeout(()=>warm(midOf(v.fPath || v.f)), 120);
 });
 grid.addEventListener('pointerout', ()=>clearTimeout(hoverT));
-grid.addEventListener('pointerdown', e=>{ const v=cardView(e); if(v) warm(midOf(v.f)); });
-grid.addEventListener('focusin', e=>{ const v=cardView(e); if(v) warm(midOf(v.f)); });
+grid.addEventListener('pointerdown', e=>{ const v=cardView(e); if(v) warm(midOf(v.fPath || v.f)); });
+grid.addEventListener('focusin', e=>{ const v=cardView(e); if(v) warm(midOf(v.fPath || v.f)); });
 
 /* ══ 灯箱 ══ */
 const modal=$('#modal'), mimg=$('#mimg'), mimgLo=$('#mimgLo');
@@ -748,7 +765,7 @@ const mstage=$('#mstage'), mwrap=$('.mimg');
 let loT=0;   // 底层模糊图隐藏定时器，连翻时需可取消
 let M={i:0, d:null};
 // img/a/b.png → mid/a/b.webp，规则与 tools/mid.py 的 mid_rel() 一致
-const midOf = f => f.replace(/^img\//, 'mid/').replace(/\.[^./]+$/, '.webp');
+const midOf = f => (f||'').replace(/^img\//, 'mid/').replace(/\.[^./]+$/, '.webp');
 // 预取中图：悬停/按下卡片时先下载，打开灯箱后预取同姿势其余视角。
 // 只留最近几个 Image 引用，下载完的字节留在 HTTP 缓存里，不长期占解码内存。
 const warmed = new Set(), warmRefs = [];
@@ -815,9 +832,9 @@ function showM(){
   mimg.onload = settle;
   // 灯箱用中图（tools/mid.py 生成，约为原图的 1/10～1/30）；没有中图时退回原图
   mimg.onerror = () => { mimg.onerror = null; mimg.src = v.f; };
-  mimg.src = midOf(v.f);
+  mimg.src = midOf(v.fPath || v.f);
   if (mimg.complete && mimg.naturalWidth) settle();
-  p.v.forEach(x => warm(midOf(x.f)));
+  p.v.forEach(x => warm(midOf(x.fPath || x.f)));
 
   $('#mtitle').textContent = nN(p);
   $('#mid').textContent = p.p + ' · ' + nA(v.a);
@@ -835,7 +852,7 @@ function showM(){
 
   $('#mang').innerHTML = p.v.map(x=>
     '<button data-a="'+esc(x.a)+'" class="'+(x.a===v.a?'on':'')+'" title="'+esc(nA(x.a))+'">'+
-      '<img src="'+esc(x.t)+'" alt="'+esc(nA(x.a))+'"><span>'+esc(nA(x.a))+'</span></button>').join('');
+      '<img src="'+esc(x.t)+'"'+(x.tUrl?' data-fb="'+esc(x.tUrl)+'"':'')+' alt="'+esc(nA(x.a))+'"><span>'+esc(nA(x.a))+'</span></button>').join('');
 
   const single = p.v.length<2;
   $('#mprev').disabled = single;
@@ -912,7 +929,8 @@ applyStatic(); drawTabs(); drawCats(); drawAng(); draw();
     else:
         html = html.replace("__SEO_INTRO__", "").replace("__SEO_CSS__", "").replace("__FAQ_LD__", "")
 
-    html = (html.replace("__PAYLOAD__", payload)
+    html = (html.replace("__FB_JS__", FB_JS)
+                .replace("__PAYLOAD__", payload)
                 .replace("__SITE__", SITE_URL)
                 .replace("__CODE__", cfg["code"])
                 .replace("__KEY__", KEY)

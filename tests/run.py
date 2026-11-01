@@ -417,6 +417,72 @@ class ImagePolicy(unittest.TestCase):
                 self.assertEqual(empty, [], f"{s['id']} 的 {tier} 档缺 {key}")
 
 
+class ImageArtifacts(unittest.TestCase):
+    """取图策略在构建产物里的传导闸门。
+
+    清单里声明了「本地优先」或「直连上游」的档位，产物里就必须带上该档位的
+    上游地址——否则声明是句空话：页面既没有回落目标，也不知道该直连哪里。
+
+    这一层此前完全没有闸门：清单对所有以 url 结尾的字段一律按「可忽略字段」
+    处理，字段名拼错也不报「未映射」，页面照常构建、照常运行，只是图片地址
+    是错的——属于沉默失败。
+    """
+
+    SAMPLE = 5
+
+    @staticmethod
+    def artifacts(sid):
+        """该站产物的全部文本：页面 + 数据分片。"""
+        parts = []
+        page = f"sites/{sid}/index.html"
+        if os.path.exists(os.path.join(ROOT, page)):
+            parts.append(read(page))
+        data_dir = os.path.join(ROOT, "sites", sid, "data")
+        if os.path.isdir(data_dir):
+            for name in sorted(os.listdir(data_dir)):
+                if name.startswith("gallery") and name.endswith(".js"):
+                    with open(os.path.join(data_dir, name), encoding="utf-8") as f:
+                        parts.append(f.read())
+        return "\n".join(parts)
+
+    def test_declared_tiers_emit_their_upstream_address(self):
+        from image_policy import LOCAL_ONLY, tier_mode
+        for s in CFG["sites"]:
+            if s["id"] in SKIP_BUILD:
+                continue
+            art = self.artifacts(s["id"])
+            rows = json.loads(read(f"sites/{s['id']}/manifest.json"))
+            for tier in s["tiers"]:
+                if tier_mode(s, tier) == LOCAL_ONLY:
+                    continue        # 仅本地：不需要上游地址
+                for r in rows[:self.SAMPLE]:
+                    url = r.get(tier + "_url")
+                    self.assertTrue(url, f"{s['id']} 的 {tier} 档缺上游地址")
+                    self.assertTrue(url in art,
+                                    f"{s['id']} 的 {tier} 档声明了 "
+                                    f"{tier_mode(s, tier)}，但产物里没有它的上游地址")
+
+    def test_online_tier_keeps_the_local_path(self):
+        """直连上游的档位，站内相对路径仍要留在产物里。
+
+        中图等按路径推导的规则依赖它——展示地址换成上游 URL 之后，
+        推导就没有输入了。
+        """
+        from image_policy import ONLINE, tier_mode
+        for s in CFG["sites"]:
+            if s["id"] in SKIP_BUILD:
+                continue
+            art = self.artifacts(s["id"])
+            rows = json.loads(read(f"sites/{s['id']}/manifest.json"))
+            for tier in s["tiers"]:
+                if tier_mode(s, tier) != ONLINE:
+                    continue
+                for r in rows[:self.SAMPLE]:
+                    self.assertTrue(r.get(tier + "_path") in art,
+                                    f"{s['id']} 的 {tier} 档直连上游，"
+                                    f"但产物里没有保留站内相对路径（推导会失去输入）")
+
+
 class IndexMapping(unittest.TestCase):
     """索引侧（素材管理器 WebUI）的接线闸门。
 
