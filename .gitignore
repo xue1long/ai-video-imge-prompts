@@ -31,6 +31,14 @@ sites/prompthero-midjourney/data/gallery_*.js
 # 需要时可随时由 python scripts/manifest.py 重新生成。
 sites/prompthero-midjourney/manifest.csv
 
+# ── Midjourney Explore 站：按宽高比分片的数据 ────────────────────
+# 分片由 scripts/build_gallery.py 从 manifest.json 重建；
+# 入库的只有 data/gallery.js（宽高比索引 + 作业表）。
+sites/midjourney-explore/data/gallery_*.js
+# manifest.csv 是 manifest.py 的派生可读导出（无脚本消费），
+# 需要时可随时由 python scripts/manifest.py 重新生成。
+sites/midjourney-explore/manifest.csv
+
 # ── 构建与发布产物 ────────────────────────────────────
 dist/
 sites/*/dist/

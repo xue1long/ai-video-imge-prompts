@@ -43,13 +43,19 @@ def exclude(sites, skip=None):
 
 
 def run(cmd, cwd, env_extra=None, quiet=False):
-    """执行子进程，失败即退出。"""
+    """执行子进程，失败即退出。
+
+    显式指定 encoding="utf-8"：subprocess 的 text=True 默认用系统 locale 编码
+    （中文 Windows 是 GBK），各站脚本输出的 UTF-8 中文会让解码器抛
+    UnicodeDecodeError，构建日志被截断。
+    """
     env = os.environ.copy()
     if env_extra:
         env.update(env_extra)
     if not quiet:
         print("    $ " + " ".join(cmd))
     r = subprocess.run(cmd, cwd=cwd, env=env, text=True,
+                       encoding="utf-8", errors="replace",
                        capture_output=quiet)
     if r.returncode != 0:
         if quiet and r.stderr:

@@ -1,6 +1,6 @@
 # photoai.life
 
-> AI 绘画参考图库合集：人像、人体姿势、ControlNet 姿势深度图、服装、CC0 姿势线稿、提示词生图集、Midjourney 提示词集，共 123,759 张，全部为 AI 生成。中文索引镜像，界面支持中文与日本語。
+> AI 绘画参考图库合集：人像、人体姿势、ControlNet 姿势深度图、服装、CC0 姿势线稿、提示词生图集、Midjourney 提示词集，共 125,359 张，全部为 AI 生成。中文索引镜像，界面支持中文与日本語。
 
 每个图库都是一个可筛选的画廊页，另有按分类 / 标签 / 发型生成的静态落地页（见各图库的 browse/ 目录与 sitemap）。图片著作权归各原作者，授权各不相同，引用时请注明对应图库的授权。
 
@@ -12,6 +12,7 @@
 - [深度姿势集](https://example.com/pose-depth/)：同一批 288 个姿势的 1439 张灰度深度图，可直接作为 ControlNet depth 控制图。 授权：同姿势集；原站另禁止批量下载或用工具自动获取。 原站：https://ai-pose-depth-gallery.pages.dev/
 - [CC0 姿势线稿](https://example.com/shisei/)：280 个姿势、1133 张无脸人偶线稿（全身・标准、上半身、全身・性感、双人），每个姿势最多 5 个视角；偏性感的姿势默认模糊。 授权：图片 CC0 1.0，可商用、可再分发；姿势目录沿用 ai-pose-gallery，仅注明出处。 原站：https://shisei.indaloop.app/
 - [提示词生图集](https://example.com/prompts/)：26458 条 AI 生图提示词与 41261 张对照成图，覆盖 2 个模型、41 个分类；展示中文提示词、复制英文原文。此外还可将自己跑出的图挂到提示词下。 授权：图片与提示词文本 CC BY 4.0，共享、改编与商用均可，须署名；标注为「自制」的图不在该授权内。 原站：https://youmind.com/gpt-image-2-prompts/explore
+- [Midjourney 探索榜](https://example.com/midjourney-explore/)：Midjourney 官网 Explore 热门榜的镜像。每条社区作业附原始英文提示词，可按画面宽高比筛选。 授权： 原站：https://www.midjourney.com/explore?tab=styles_top
 - [Midjourney 提示词集](https://example.com/prompthero-midjourney/)：12998 条 Midjourney 提示词与成图，覆盖 13 个版本、14 个分类；提示词原文可直接复制，含成人内容分区（默认模糊）。 授权：素材由 PromptHero 用户上传，版权归各原作者；允许免费用于作品制作与参考，禁止再分发、转载、转售图片文件本身，引用须回链原站。 原站：https://prompthero.com/midjourney-prompts
 
 ## 分类与标签索引
@@ -22,11 +23,12 @@
 - [深度姿势集 · 全部分类](https://example.com/pose-depth/browse/)
 - [CC0 姿势线稿 · 全部分类](https://example.com/shisei/browse/)
 - [提示词生图集 · 全部分类](https://example.com/prompts/browse/)
+- [Midjourney 探索榜 · 全部分类](https://example.com/midjourney-explore/browse/)
 - [Midjourney 提示词集 · 全部分类](https://example.com/prompthero-midjourney/browse/)
 
 ## 常见问题
 
-- **photoai.life 是什么？** 一组面向 AI 绘画的参考图库：人像集（角色脸部一致性参考）、姿势集（人体姿势线稿）、深度姿势集（ControlNet 深度图）、服装集（服装与穿搭参考）、Shisei（CC0 姿势线稿）提示词生图集（26458 条 AI 生图提示词与对照成图）与 Midjourney 提示词集（12998 条 Midjourney 提示词），共 123,759 张，全部为 AI 生成，中日双语。
+- **photoai.life 是什么？** 一组面向 AI 绘画的参考图库：人像集（角色脸部一致性参考）、姿势集（人体姿势线稿）、深度姿势集（ControlNet 深度图）、服装集（服装与穿搭参考）、Shisei（CC0 姿势线稿）提示词生图集（26458 条 AI 生图提示词与对照成图）与 Midjourney 提示词集（12998 条 Midjourney 提示词），共 125,359 张，全部为 AI 生成，中日双语。
 - **图片可以商用吗？** 要看图库。人像集与 Shisei 姿势线稿为 CC0 1.0 公有领域，可以免费商用和再分发。提示词生图集的图片与提示词文本为 CC BY 4.0，可商用与转载但必须署名，其中标注为「自制」的图不在该授权内。姿势集、深度姿势集、服装集、Midjourney 提示词集的原作者允许免费用于作品制作（包括商用与参考），但禁止再分发、转载或转售图片文件本身；深度姿势集另禁止批量下载。
 - **这些图是真人吗？** 不是。人像是 AI 生成的虚构人物，姿势是无脸人偶，服装图由文字生成图像制作，都不对应真实人物或商品。
 - **和原站是什么关系？** 这里是各原站的中文索引镜像：把日文分类、标签和姿势名译成中文，加了组合筛选、搜索和中日切换。图片著作权归原作者，每个图库页脚都有原站和作者链接。

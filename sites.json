@@ -342,6 +342,67 @@
       "imageBase": "https://cms-assets.youmind.com/media/"
     },
     {
+      "id": "midjourney-explore",
+      "code": "MJ-EXPLORE-01",
+      "name": {
+        "zh": "Midjourney 探索榜",
+        "ja": "Midjourney 探索榜"
+      },
+      "desc": {
+        "zh": "Midjourney 官网 Explore 热门榜的镜像。每条社区作业附原始英文提示词，可按画面宽高比筛选。",
+        "ja": "Midjourney 公式 Explore 人気ランキングのミラー。コミュニティ作品ごとに元の英語プロンプトを付し、アスペクト比で絞り込めます。"
+      },
+      "stats": [
+        {
+          "v": "800",
+          "l": {
+            "zh": "成图",
+            "ja": "画像"
+          }
+        },
+        {
+          "v": "200",
+          "l": {
+            "zh": "作业",
+            "ja": "作品"
+          }
+        },
+        {
+          "v": "200",
+          "l": {
+            "zh": "作者",
+            "ja": "作者"
+          }
+        },
+        {
+          "v": "16",
+          "l": {
+            "zh": "宽高比",
+            "ja": "アスペクト"
+          }
+        }
+      ],
+      "license": "restricted",
+      "source": "https://www.midjourney.com/explore?tab=styles_top",
+      "cover": "thumbs/10e1cc4e-8edb-40ef-9a92-70876dd77d73_1.webp",
+      "coverPos": "center 35%",
+      "tiers": [
+        "thumb",
+        "mid",
+        "full"
+      ],
+      "imageDirs": [
+        "thumbs",
+        "mid",
+        "img"
+      ],
+      "author": {
+        "name": "Midjourney 社区",
+        "url": "https://www.midjourney.com/explore?tab=styles_top"
+      },
+      "imageBase": "https://cdn.midjourney.com/"
+    },
+    {
       "id": "prompthero-midjourney",
       "code": "PROMPTHERO-MJ-01",
       "name": {

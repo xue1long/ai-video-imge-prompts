@@ -36,6 +36,37 @@ def rel_path(p):
 
 # ── 下载 ────────────────────────────────────────────
 
+def site_fetcher(site_dir):
+    """可选的站点级取图钩子。
+
+    少数图源需要浏览器化的请求头或 cookie（例如 Midjourney 的 CDN 要带
+    Cloudflare 下发的 __cf_bm 通行证，否则一律 403）。这类站点在
+    sites/<id>/scripts/fetch_hook.py 里提供一个模块，实现：
+
+        def headers(url, referer) -> dict       # 追加到默认请求头
+        def prepare(opener, log) -> opener      # 可选：预热（先访问页面拿 cookie）
+
+    没有这个文件的站点走默认路径，行为完全不变。
+    """
+    import importlib.util
+    path = os.path.join(site_dir, "scripts", "fetch_hook.py")
+    if not os.path.exists(path):
+        return None
+    spec = importlib.util.spec_from_file_location("fetch_hook_%s" % abs(hash(site_dir)), path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _headers(row, referer, hook):
+    """默认请求头 + 站点钩子追加的头。"""
+    hdr = {"User-Agent": UA, "Referer": referer}
+    if hook is not None and hasattr(hook, "headers"):
+        extra = hook.headers(row.get("thumb_url") or row.get("full_url") or "", referer) or {}
+        hdr.update(extra)
+    return hdr
+
+
 def download(site_dir, tier, referer, workers=12, log=print):
     """下载一档图片，返回失败列表 [(id, 原因)]。
 
@@ -51,6 +82,12 @@ def download(site_dir, tier, referer, workers=12, log=print):
             urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
     else:
         opener = urllib.request.build_opener()
+    # 站点级钩子：自定义请求头 / 预热（拿 cookie 等）
+    hook = site_fetcher(site_dir)
+    if hook is not None:
+        if hasattr(hook, "prepare"):
+            opener = hook.prepare(opener, log) or opener
+        log("  使用站点取图钩子：%s" % os.path.basename(site_dir))
     total = len(rows)
     lock = threading.Lock()
     state = {"done": 0, "bytes": 0}
@@ -76,7 +113,7 @@ def download(site_dir, tier, referer, workers=12, log=print):
         last = None
         for attempt in range(RETRIES):
             try:
-                req = urllib.request.Request(r[url_key], headers={"User-Agent": UA, "Referer": referer})
+                req = urllib.request.Request(r[url_key], headers=_headers(r, referer, hook))
                 with opener.open(req, timeout=60) as resp:
                     blob = resp.read()
                 if len(blob) < MIN_BYTES // 2:

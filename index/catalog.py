@@ -119,6 +119,29 @@ SOURCES = {
             "job_id": "jobId",
         },
     },
+    "midjourney-explore": {
+        "manifest": "sites/midjourney-explore/manifest.json",
+        # title 是提示词原文的前 80 字；title_alt 用完整提示词
+        "title": "title",
+        "title_alt": "prompt",
+        # 官网 Explore 榜没有官方分类，唯一稳定可枚举的维度是画面宽高比
+        "facets": {"宽高比": "aspect", "版本": "version"},
+        "files": [("thumb", "thumb_path"), ("mid", "mid_path"), ("full", "full_path")],
+        "size": ("width", "height"),
+        "bytes": None,
+        "keywords": "prompt",
+        "prompt": "prompt",
+        "extra": {
+            "source_url": "sourceUrl",
+            "published_at": "enqueueTime",
+            "model": "version",
+            "author": "username",
+            "author_display": "displayName",
+            "style_ref": "hasStyleRef",
+            "grid_index": "index",
+            "job_id": "jobId",
+        },
+    },
     "prompthero-midjourney": {
         "manifest": "sites/prompthero-midjourney/manifest.json",
         # title 是提示词原文的前 80 字；title_alt 用上游的描述（含浏览/收藏数）
