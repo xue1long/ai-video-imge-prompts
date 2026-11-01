@@ -10,7 +10,8 @@ sites/<新站id>/
 ├── scripts/
 │   ├── build_gallery.py    # 必填
 │   ├── extract.py          # 按需：从原站存档解析 data/
-│   └── manifest.py         # 按需：data/ → manifest.json
+│   ├── manifest.py         # 按需：data/ → manifest.json
+│   └── fetch_hook.py       # 按需：图源要浏览器化请求头或 cookie 时提供
 ├── data/                   # 结构化数据（入库）
 ├── index.html              # 构建产物（入库，便于直接预览）
 ├── LICENSE
@@ -22,9 +23,31 @@ sites/<新站id>/
 |---|---|
 | `scripts/build_gallery.py` | 读环境变量 `SITE_URL`，输出 `index.html`、`data/`、`robots.txt`、`sitemap.xml`、`404.html`。站点根用 `dirname(dirname(__file__))` 自己算，不依赖当前目录 |
 | `manifest.json` | 每条记录对 `sites.json` 里的每个档位 `<tier>` 都有 `<tier>_url` 和 `<tier>_path`（例如 `thumb_url` / `thumb_path`）。`tools/fetch.py` 和 `tools/verify.py` 只靠这条规则工作 |
+| `scripts/fetch_hook.py` | 图源要浏览器化请求头或 cookie 时提供（见下）。没有这个文件的站点行为完全不变 |
 
 结构和姿势集相同的站，直接复用 `shared/pose_gallery.py` 与 `shared/pose_source.py`，只写一份 `config.py`（参考 `sites/pose/config.py`）。
 数据来自别的项目、系列和名称不同的，参考 `sites/shisei/config.py`：系列与视角顺序、中文名表、作者、`blurRatings`（默认模糊）都在配置里。
+
+### 图源要 cookie 或特殊请求头时
+
+`shared/assets.py` 默认只发 `User-Agent` 与 `Referer`。有些图源（挂在 Cloudflare 后、
+要做 JS 挑战的）光这样不够。**不要为此改 `tools/`**，而是在本站放一个取图钩子：
+
+```python
+# sites/<新站id>/scripts/fetch_hook.py
+def headers(url, referer):
+    """追加到默认请求头之后。"""
+    return {"Accept": "image/webp,*/*", "Referer": "https://example.com/"}
+
+def prepare(opener, log):
+    """可选：预热。先访问页面拿 cookie，返回带 cookie 的 opener。"""
+    ...
+```
+
+`shared/assets.py` 会自动发现并调用它；没有这个文件的站点走默认路径，行为不变。
+
+实例：`sites/midjourney-explore/scripts/fetch_hook.py` —— `cdn.midjourney.com`
+必须带 Cloudflare 下发的 `__cf_bm` 通行证 cookie，否则一律 403。
 
 ## 2. 在 `sites.json` 追加一条
 
@@ -103,7 +126,58 @@ python tests/run.py                      # 提交前跑一遍；CI 也会跑
 `tests/run.py` 会自动覆盖 `sites.json` 里的新站：构建产物是否最新、重复 id、JS 引用的 id 是否存在、
 内联数据是否都被页面使用、页面体积上限、manifest 的档位字段与路径、封面是否在 manifest 里。
 
-## 5. 从原站接口采集数据（prompthero-midjourney 的经验）
+## 5. 接入素材管理器（index/）
+
+站点页面建好了，**不等于它进了 WebUI**。索引侧是三个独立的地方，漏改任何一处，
+站点页面照样正常、CI 照样全绿，只有用户在素材管理器里查不到素材时才发现：
+
+| 位置 | 作用 | 漏了会怎样 |
+|---|---|---|
+| `sites.json` | 站点清单 | 站点根本不存在 |
+| `index/catalog.py` 的 `SOURCES` | 索引哪些站、字段怎么映射 | **WebUI 里查不到这个站** |
+| `index/sync.py` | 索引实现 | 同步不出条目 |
+
+```python
+# index/catalog.py 的 SOURCES 里加一条
+"new-site": {
+    "manifest": "sites/new-site/manifest.json",
+    "title": "title",
+    "title_alt": None,
+    "facets": {"分类": "category"},
+    "files": [("thumb", "thumb_path"), ("full", "full_path")],
+    "size": None,
+    "bytes": None,
+    "prompt": "prompt",       # 有提示词就配上；没有就留空
+    "keywords": "prompt",
+    "extra": {"author": "username", "source_url": "sourceUrl"},
+    # 一条内容多张图的站必须声明聚合键（见下）
+    # "group_by": "jobId",
+    # "group_order": "index",
+},
+```
+
+### 多图站：同一提示词的 N 张图要在一个灯箱里
+
+上游一次作业出 4 格、共用一段提示词时，manifest 是 4 行、id 各不相同。
+**不声明聚合键，这 4 行会变成 4 条独立素材**，WebUI 灯箱里翻不到一起。
+
+- 声明 `group_by`：按该字段聚合成**一条**素材，组内多张图挂成它的多个 asset，
+  `ordinal` = 组内顺序（灯箱翻页顺序），由 `group_order` 指定。
+- 确实是「一条记录一张图、不该聚合」（如同姿势的 5 个视角在站内是独立条目）：
+  声明 `split_by_design` 并写明理由。两者都不写，测试会拦下。
+
+### 接入后必做的验证
+
+```bash
+python index/sync.py --force          # 重建索引
+python index/check_wiring.py           # 核对各站条目数（CI 也跑这一步）
+python tests/run.py                    # 含索引接线测试
+```
+
+`check_wiring.py` 逐站核对「实际条目数 == 按配置推算的条目数」，
+`tests/run.py` 的 `IndexMapping` 核对清单、聚合声明、字段映射是否自洽。
+
+## 6. 从原站接口采集数据（prompthero-midjourney 的经验）
 
 数据没有现成交档、要从上游接口抓时，按这几条走，能少走弯路：
 

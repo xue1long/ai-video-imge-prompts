@@ -239,12 +239,12 @@ class Landing(unittest.TestCase):
     def test_gallery_hash_params_known(self):
         # 「在画廊中查看」带的 #参数必须是画廊能识别的
         # 各站的分面维度不同：cat（分类）、tag（标签）、series（系列）、
-        # sec（分区）、hair（发型）、ver（版本）
+        # sec（分区）、hair（发型）、ver（版本）、asp（宽高比）
         for rel in self.pages:
             for hsh in re.findall(r'class="cta" href="[^"]*#([^"]+)"', read(rel)):
                 for kv in html.unescape(hsh).split("&"):
                     self.assertIn(kv.split("=")[0],
-                                  {"cat", "tag", "series", "sec", "hair", "ver"}, f"{rel}: {hsh}")
+                                  {"cat", "tag", "series", "sec", "hair", "ver", "asp"}, f"{rel}: {hsh}")
 
     def test_adult_series_not_expanded(self):
         # 姿势两站：双人系列不生成落地页，性感系与上半身不展开到分类
@@ -360,6 +360,135 @@ class Manifests(unittest.TestCase):
             rows = json.loads(read(f"sites/{s['id']}/manifest.json"))
             thumbs = {r["thumb_path"] for r in rows}
             self.assertIn(s["cover"], thumbs, f"{s['id']} 的封面 {s['cover']} 不在 manifest 里")
+
+
+class IndexMapping(unittest.TestCase):
+    """索引侧（素材管理器 WebUI）的接线闸门。
+
+    背景：sites.json 里加一个站，不等于它进了 WebUI。
+    catalog.SOURCES 决定「索引哪些站、字段怎么映射」，
+    漏了这一步时站点页面一切正常，但 WebUI 里查不到这条素材——
+    而这一层此前没有任何测试覆盖，CI 照样全绿。
+    """
+
+    @staticmethod
+    def sources():
+        sys.path.insert(0, os.path.join(ROOT, "index"))
+        import catalog
+        return catalog.SOURCES
+
+    def test_every_site_has_a_source_mapping(self):
+        # sites.json ↔ catalog.SOURCES 必须双向一一对应：
+        # 少一边 = 站点建好了却没进索引（或索引里有个已删的站）。
+        src = self.sources()
+        missing = [s for s in SITES if s not in src]
+        self.assertEqual(missing, [], "这些站没进 catalog.SOURCES，WebUI 里查不到")
+        extra = [s for s in src if s not in SITES]
+        self.assertEqual(extra, [], "catalog.SOURCES 里有 sites.json 没有的站")
+
+    def test_grouped_sites_declare_group_by(self):
+        """多图站必须声明聚合键（或显式声明刻意不聚合），否则同一提示词的多张图会散成多条素材。
+
+        判据不依赖具体站：扫描 manifest 的字段，若某个字段把记录近乎**均分成等大小**的组
+        （组大小 ≥2 且覆盖 ≥80% 的记录，且该字段的值域够宽——去重值数 ≥ 记录数的 5%），
+        就说明这站存在「一条内容多张图」。此时必须二选一：
+          · 声明 group_by（按该字段聚合成一条素材，多图挂成同一灯箱）
+          · 声明 split_by_design（记录刻意不聚合的理由，例如同姿势的 5 个视角）
+        否则同一提示词的多张图会散成多条独立素材，WebUI 灯箱里翻不到一起。
+        """
+        src = self.sources()
+        for sid in SITES:
+            cfg = src.get(sid)
+            if not cfg:
+                continue
+            path = os.path.join(ROOT, cfg["manifest"])
+            if not os.path.exists(path):
+                continue
+            rows = json.loads(read(cfg["manifest"]))
+            if len(rows) < 4:
+                continue
+            cands = self._group_candidates(cfg, rows)
+            if not cands:
+                continue
+            self.assertTrue(
+                cfg.get("group_by") or cfg.get("split_by_design"),
+                f"{sid} 的 manifest 存在把记录均分成等大小组的字段 {cands}，"
+                f"说明这站是一条内容多张图；必须在 catalog.SOURCES 里声明 "
+                f"group_by（聚合成一条素材，多图同灯箱），"
+                f"或声明 split_by_design 并写明刻意不聚合的理由"
+            )
+            if cfg.get("group_by"):
+                self.assertIn(cfg["group_by"], [c[0] for c in cands],
+                              f"{sid} 的 group_by={cfg['group_by']} 不在候选分组字段 {cands} 里")
+
+    @staticmethod
+    def _group_candidates(cfg, rows):
+        """找出「把记录均分成等大小组」的字段：返回 [(字段, 组大小, 覆盖率, 去重值数)]。
+
+        排除：id / slug / 各种 *_url *_path（天然唯一）、已声明的分面与内容字段、
+        布尔标记、值域过窄的字段（计数器与像素尺寸会偶然重复，不是分组键）。
+        """
+        n = len(rows)
+        skip = {"id", "slug"} | {k for k in rows[0] if k.endswith("_url") or k.endswith("_path")}
+        skip |= set(cfg.get("facets", {}).values())
+        for k in ("prompt", "keywords", "title", "title_alt"):
+            if cfg.get(k):
+                skip.add(cfg[k])
+        counter = collections.Counter()
+        for r in rows:
+            for k, v in r.items():
+                if k in skip or isinstance(v, bool) or "url" in k.lower():
+                    continue
+                if not isinstance(v, (str, int, float)) or v in ("", None):
+                    continue
+                counter[(k, v)] += 1
+        # per[k][组大小] = 该大小的组一共覆盖了多少条记录
+        per = collections.defaultdict(collections.Counter)
+        for (k, _v), c in counter.items():
+            if c >= 2:
+                per[k][c] += c
+        out = []
+        for k, dist in per.items():
+            size, cover = max(dist.items(), key=lambda kv: kv[1])
+            distinct = sum(1 for kk, _ in counter if kk == k)
+            if size >= 2 and cover >= 0.8 * n and distinct >= 0.05 * n:
+                out.append((k, size, round(cover / n, 2)))
+        return sorted(out)
+
+    def test_group_by_field_exists(self):
+        """声明了 group_by 就必须在 manifest 里真有这个字段，且分组数合理。"""
+        src = self.sources()
+        for sid in SITES:
+            cfg = src.get(sid)
+            if not cfg or not cfg.get("group_by"):
+                continue
+            path = os.path.join(ROOT, cfg["manifest"])
+            if not os.path.exists(path):
+                continue
+            rows = json.loads(read(cfg["manifest"]))
+            key = cfg["group_by"]
+            self.assertTrue(all(key in r for r in rows),
+                            f"{sid} 声明了 group_by={key}，但 manifest 里没有这个字段")
+            groups = {r.get(key) for r in rows}
+            self.assertLess(len(groups), len(rows),
+                            f"{sid} 声明了 group_by={key}，但每条记录都是独立分组（等于没聚合）")
+            self.assertTrue(cfg.get("group_order"),
+                            f"{sid} 声明了 group_by，必须同时声明 group_order（组内顺序 = 灯箱翻页顺序）")
+
+    def test_prompt_field_non_empty(self):
+        """声明了 prompt 映射的站，manifest 里该字段必须存在且非空。"""
+        src = self.sources()
+        for sid in SITES:
+            cfg = src.get(sid)
+            if not cfg or not cfg.get("prompt"):
+                continue
+            path = os.path.join(ROOT, cfg["manifest"])
+            if not os.path.exists(path):
+                continue
+            rows = json.loads(read(cfg["manifest"]))
+            key = cfg["prompt"]
+            empty = [r.get("id") for r in rows if not str(r.get(key) or "").strip()]
+            self.assertEqual(empty, [], f"{sid} 声明了 prompt={key}，但这些记录该字段是空的")
 
 
 class MidRule(unittest.TestCase):

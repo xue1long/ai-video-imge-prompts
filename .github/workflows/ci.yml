@@ -36,6 +36,15 @@ jobs:
       - name: Manager tests (HTTP API)
         run: python3.13 tests/test_manager.py
 
+      # 索引接线闸门：真跑一次 sync 到临时库，再逐站核对条目数。
+      # 抓到的是「站点页面一切正常，但素材管理器里没有这条素材」这类漏改——
+      # 站点清单、聚合声明、索引实现三者只要有一处没跟上，这里就会红。
+      # sync 只读 manifest（都入库了），不碰图片，干净检出上能跑。
+      - name: Index wiring (sync into a temp DB)
+        run: |
+          python3.13 index/sync.py --force --db "$RUNNER_TEMP/gallery-ci.db"
+          python3.13 index/check_wiring.py --db "$RUNNER_TEMP/gallery-ci.db"
+
       - name: Build with minimum Python (3.8)
         run: |
           # prompts 站的数据源（data/prompts_*.json、data/gallery_*.js，约 220 MB）

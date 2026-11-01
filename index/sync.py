@@ -158,7 +158,15 @@ def facet_pairs(facets_cfg, rec, flags=None):
 
 
 def sync_rows(conn, sid, cfg, recs):
-    """portrait / costume / pose / pose-depth / shisei：manifest 一行就是一条作品。"""
+    """通用处理：一行一条；或按 cfg["group_by"] 声明的键聚合成一条。
+
+    多图站（如 midjourney-explore：一次作业出 4 格、共用一段提示词）
+    必须在 SOURCES 里声明 group_by，否则这 4 格会散成 4 条独立素材，
+    WebUI 灯箱里就翻不到一起。声明后：1 个分组 = 1 个 item，
+    分组内的多张图作为它的多个 asset，ordinal = 组内序号（灯箱翻页顺序）。
+    """
+    if cfg.get("group_by"):
+        return sync_grouped(conn, sid, cfg, recs, cfg["group_by"])
     original_kind = ORIGINAL_TIER.get(sid, "full")
     count = 0
     for rec in recs:
@@ -213,54 +221,74 @@ def sync_rows(conn, sid, cfg, recs):
     return count
 
 
-def sync_midjourney_explore(conn, cfg, root):
-    """midjourney-explore 站：manifest 一行一张图，同一作业(jobId)的 4 格共用一段提示词。
+def sync_grouped(conn, sid, cfg, recs, group_key):
+    """按 cfg["group_by"] 指定的字段聚合：1 个分组 = 1 条素材（item），组内多图挂成多个 asset。
 
-    按**作业**聚合成一条作品（item），4 张图作为它的 4 个 asset 挂上去，
-    ordinal 用作业内的格子序号（index 字段）。WebUI 的灯箱按 item 的 assets 翻页，
-    这样同一提示词的 4 格就在同一个灯箱里连着翻，而不是散成 4 条独立素材。
+    组内排序用 cfg["group_order"]（默认 "index"），它决定 asset 的 ordinal，
+    也就是 WebUI 灯箱里的翻页顺序。组级字段（标题 / 提示词 / 作者等）取组内第一条。
     """
-    recs = load(root, cfg["manifest"])
+    order_key = cfg.get("group_order") or "index"
     groups = {}
     for rec in recs:
-        gid = rec.get("jobId") or rec.get("id", "")
+        gid = rec.get(group_key) or rec.get("id", "")
         groups.setdefault(gid, []).append(rec)
 
-    prefix = "sites/midjourney-explore/"
+    prefix = f"sites/{sid}/"
+    original_kind = ORIGINAL_TIER.get(sid, "full")
+    # 组级字段（作者 / 模型 / 来源 / 时间）在各站叫法不同，统一走 SOURCES 的 extra 映射。
+    extra = cfg.get("extra") or {}
+
+    def group_field(rec, col, fallback=""):
+        key = extra.get(col)
+        if key and rec.get(key) not in (None, ""):
+            return rec.get(key)
+        return rec.get(fallback) or ""
+
     for gid, grp in groups.items():
-        grp = sorted(grp, key=lambda r: r.get("index") or 0)
+        grp = sorted(grp, key=lambda r: r.get(order_key) or 0)
         head = grp[0]
-        item_id = f"midjourney-explore:{gid}"
-        prompt = norm(head.get("prompt"))
+        item_id = f"{sid}:{gid}"
+        title_key = cfg.get("title")
+        title = norm(head.get(title_key)) if title_key else ""
+        title_alt = norm(head.get(cfg["title_alt"])) if cfg.get("title_alt") else ""
+        prompt = norm(head.get("prompt")) if head.get("prompt") else ""
+        prompt_raw = norm(head.get(cfg["keywords"])) if cfg.get("keywords") else ""
+
         store.add_item(
             conn,
             id=item_id,
-            collection="midjourney-explore",
+            collection=sid,
             ext_id=gid,
-            title=norm(head.get("title")) or gid,
-            title_alt=prompt,
+            title=title or gid,
+            title_alt=title_alt,
             prompt=prompt,
-            prompt_raw=prompt,
-            author=head.get("username") or "",
-            source_url=head.get("sourceUrl") or "",
-            published_at=str(head.get("enqueueTime") or ""),
-            model=head.get("version") or "",
+            prompt_raw=prompt_raw,
+            author=str(group_field(head, "author")),
+            source_url=str(group_field(head, "source_url")),
+            published_at=str(group_field(head, "published_at")),
+            model=str(group_field(head, "model")),
         )
         write_tags(conn, item_id, facet_pairs(cfg["facets"], head))
 
         for ordinal, rec in enumerate(grp):
-            original = rec.get("full_path")
-            if not original:
+            present = {kind: rec.get(key) for kind, key in cfg["files"] if rec.get(key)}
+            if not present:
                 continue
+            original_path = present.get(original_kind) or next(iter(present.values()))
+            if cfg.get("size"):
+                w_key, h_key = cfg["size"]
+                width, height = rec.get(w_key) or None, rec.get(h_key) or None
+            else:
+                width, height = rec.get("宽") or None, rec.get("高") or None
             asset_id, _ = store.add_asset(
-                conn, prefix + original, "sites", 0, rec.get("width"), rec.get("height")
+                conn, prefix + original_path, "sites", rec.get("原图字节") or 0, width, height
             )
-            for kind, key in cfg["files"]:
-                p = rec.get(key)
-                if p and kind != "full":
-                    store.add_derivative(conn, asset_id, kind, prefix + p)
-            store.add_derivative(conn, asset_id, "full", prefix + original)
-            store.link_asset(conn, item_id, asset_id, role="full", ordinal=ordinal)
+            for kind, path in sorted(present.items()):
+                if kind == original_kind:
+                    continue
+                store.add_derivative(conn, asset_id, kind, prefix + path)
+            store.add_derivative(conn, asset_id, original_kind, prefix + original_path)
+            store.link_asset(conn, item_id, asset_id, role=original_kind, ordinal=ordinal)
     return len(groups)
 
 
@@ -342,11 +370,6 @@ def sync(root, db_path, force=False, verbose=True):
             continue
         if sid == "prompts":
             n = sync_prompts(conn, cfg, root)
-            seen = set()
-            for rec in load(root, cfg["manifest"]):
-                seen.update(rec.keys())
-        elif sid == "midjourney-explore":
-            n = sync_midjourney_explore(conn, cfg, root)
             seen = set()
             for rec in load(root, cfg["manifest"]):
                 seen.update(rec.keys())

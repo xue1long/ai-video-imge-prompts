@@ -53,6 +53,7 @@ SOURCES = {
         "manifest": "sites/pose/manifest.json",
         "title": "姿势名",
         "title_alt": None,
+        "split_by_design": "同一姿势的 5 个视角在站内是独立条目（browse 按视角筛选），刻意不聚合",
         "facets": {"系列": "系列", "分類": "分類", "视角": "视角", "编号": "编号"},
         "files": [("thumb", "thumb_path"), ("full", "full_path")],
         "size": None,
@@ -61,6 +62,7 @@ SOURCES = {
     "pose-depth": {
         "manifest": "sites/pose-depth/manifest.json",
         "title": "姿势名",
+        "split_by_design": "同一姿势的 5 个视角在站内是独立条目（browse 按视角筛选），刻意不聚合",
         "facets": {"系列": "系列", "分類": "分類", "视角": "视角", "编号": "编号"},
         "files": [("thumb", "thumb_path"), ("full", "full_path")],
         "size": None,
@@ -108,6 +110,11 @@ SOURCES = {
         "bytes": None,
         "keywords": "prompt",
         "prompt": "prompt",
+        # 同一次作业出 4 格、共用一段提示词：按 jobId 聚合成一条素材，
+        # 4 张图作为它的 4 个 asset（ordinal = index，灯箱里的翻页顺序）。
+        # 不声明 group_by 的话，4 格会散成 4 条独立素材，灯箱里翻不到一起。
+        "group_by": "jobId",
+        "group_order": "index",
         "extra": {
             "source_url": "sourceUrl",
             "published_at": "enqueueTime",
@@ -131,6 +138,11 @@ SOURCES = {
         "bytes": None,
         "keywords": "prompt",
         "prompt": "prompt",
+        # 同一次作业出 4 格、共用一段提示词：按 jobId 聚合成一条素材，
+        # 4 张图作为它的 4 个 asset（ordinal = index，灯箱里的翻页顺序）。
+        # 不声明 group_by 的话，4 格会散成 4 条独立素材，灯箱里翻不到一起。
+        "group_by": "jobId",
+        "group_order": "index",
         "extra": {
             "source_url": "sourceUrl",
             "published_at": "enqueueTime",
@@ -229,110 +241,74 @@ def fmt_tags(vals):
 
 
 def build_portrait_like(sid, cfg):
-    """portrait / costume / pose / pose-depth / shisei 的通用处理：一行一条。"""
-    rows = []
-    seen_keys = set()
-    for rec in load(cfg["manifest"]):
-        seen_keys.update(rec.keys())
-        title_key = cfg.get("title")
-        title = rec.get(title_key) if title_key else None
-        title_alt = None
-        if cfg.get("title_alt"):
-            title_alt = cut(rec.get(cfg["title_alt"]) or "")
-
-        facets = []
-        for ns, key in cfg["facets"].items():
-            val = rec.get(key)
-            if isinstance(val, list):
-                facets.extend((ns, v) for v in val)
-            elif val:
-                facets.append((ns, val))
-
-        row = {c: "" for c in CSV_COLS}
-        row["collection"] = sid
-        row["ext_id"] = rec.get("id", "")
-        row["item_id"] = rec.get("id", "")
-        row["title"] = title or rec.get("id", "")
-        row["title_alt"] = title_alt or ""
-        row["facets"] = fmt_facets(facets)
-
-        # costume 没有 prompt，但有关键词，作为 prompt 的弱替代（便于英文检索）
-        if cfg.get("keywords"):
-            row["prompt_raw"] = rec.get(cfg["keywords"]) or ""
-        # prompt 列：展示用正文。配置了就填，没配就留空
-        if cfg.get("prompt"):
-            row["prompt"] = cut(rec.get(cfg["prompt"]) or "")
-
-        for kind, key in cfg["files"]:
-            row[kind] = rec.get(key, "")
-
-        if cfg.get("size"):
-            w, h = cfg["size"]
-            row["width"] = rec.get(w) or ""
-            row["height"] = rec.get(h) or ""
-        if cfg.get("bytes"):
-            row["bytes"] = rec.get(cfg["bytes"]) or ""
-
-        # extra：把 manifest 的额外字段接到 CSV 的固定列上。
-        # {"source_url": "sourceUrl", "published_at": "createdAt", ...}
-        for col, key in (cfg.get("extra") or {}).items():
-            row[col] = rec.get(key, "")
-
-        rows.append(row)
-    return rows, seen_keys
-
-
-def build_midjourney_explore(cfg):
-    """midjourney-explore 站：同一作业(jobId)的 4 格聚合成一条，提示词取作业级原文。
-
-    与 sync.py 的 sync_midjourney_explore 同口径：一个作业一条素材，
-    CSV 的 thumb/mid/full 列取作业的第 1 格（列表缩略图用它）。
-    """
+    """通用处理：一行一条；或按 cfg["group_by"] 声明的键聚合成一条。"""
     manifest = load(cfg["manifest"])
     seen_keys = set()
-    groups = {}
     for rec in manifest:
         seen_keys.update(rec.keys())
-        gid = rec.get("jobId") or rec.get("id", "")
-        groups.setdefault(gid, []).append(rec)
 
     rows = []
-    for gid, grp in groups.items():
-        grp = sorted(grp, key=lambda r: r.get("index") or 0)
-        head = grp[0]
-        row = {c: "" for c in CSV_COLS}
-        row["collection"] = "midjourney-explore"
-        row["ext_id"] = gid
-        row["item_id"] = gid
-        row["title"] = head.get("title") or gid
-        row["title_alt"] = cut(head.get("prompt") or "")
-        row["prompt"] = cut(head.get("prompt") or "")
-        row["prompt_raw"] = cut(head.get("prompt") or "")
-
-        facets = []
-        for ns, key in cfg["facets"].items():
-            val = head.get(key)
-            if isinstance(val, list):
-                facets.extend((ns, v) for v in val)
-            elif val:
-                facets.append((ns, val))
-        row["facets"] = fmt_facets(facets)
-
-        for kind, key in cfg["files"]:
-            row[kind] = head.get(key, "")
-
-        if cfg.get("size"):
-            w, h = cfg["size"]
-            row["width"] = head.get(w) or ""
-            row["height"] = head.get(h) or ""
-        if cfg.get("bytes"):
-            row["bytes"] = head.get(cfg["bytes"]) or ""
-
-        for col, key in (cfg.get("extra") or {}).items():
-            row[col] = head.get(key, "")
-
-        rows.append(row)
+    if cfg.get("group_by"):
+        order_key = cfg.get("group_order") or "index"
+        groups = {}
+        for rec in manifest:
+            gid = rec.get(cfg["group_by"]) or rec.get("id", "")
+            groups.setdefault(gid, []).append(rec)
+        for gid, grp in groups.items():
+            rows.append(_row_for(sid, cfg, gid, sorted(grp, key=lambda r: r.get(order_key) or 0)))
+    else:
+        for rec in manifest:
+            rows.append(_row_for(sid, cfg, rec.get("id", ""), [rec]))
     return rows, seen_keys
+
+
+def _row_for(sid, cfg, gid, grp):
+    """把一组记录（组内第一条即 head）写成一行 CSV。"""
+    head = grp[0]
+    title_key = cfg.get("title")
+    title = head.get(title_key) if title_key else None
+    title_alt = None
+    if cfg.get("title_alt"):
+        title_alt = cut(head.get(cfg["title_alt"]) or "")
+
+    facets = []
+    for ns, key in cfg["facets"].items():
+        val = head.get(key)
+        if isinstance(val, list):
+            facets.extend((ns, v) for v in val)
+        elif val:
+            facets.append((ns, val))
+
+    row = {c: "" for c in CSV_COLS}
+    row["collection"] = sid
+    row["ext_id"] = gid
+    row["item_id"] = gid
+    row["title"] = title or gid
+    row["title_alt"] = title_alt or ""
+    row["facets"] = fmt_facets(facets)
+
+    # costume 没有 prompt，但有关键词，作为 prompt 的弱替代（便于英文检索）
+    if cfg.get("keywords"):
+        row["prompt_raw"] = head.get(cfg["keywords"]) or ""
+    # prompt 列：展示用正文。配置了就填，没配就留空
+    if cfg.get("prompt"):
+        row["prompt"] = cut(head.get(cfg["prompt"]) or "")
+
+    for kind, key in cfg["files"]:
+        row[kind] = head.get(key, "")
+
+    if cfg.get("size"):
+        w, h = cfg["size"]
+        row["width"] = head.get(w) or ""
+        row["height"] = head.get(h) or ""
+    if cfg.get("bytes"):
+        row["bytes"] = head.get(cfg["bytes"]) or ""
+
+    # extra：把 manifest 的额外字段接到 CSV 的固定列上。
+    # {"source_url": "sourceUrl", "published_at": "createdAt", ...}
+    for col, key in (cfg.get("extra") or {}).items():
+        row[col] = head.get(key, "")
+    return row
 
 
 def build_prompts(cfg):
@@ -449,12 +425,11 @@ def main():
         if sid == "prompts":
             rows, seen, unmatched, file_count = build_prompts(cfg)
             report.append((sid, len(rows), file_count, unmatched, unmapped_report(sid, seen, cfg)))
-        elif sid == "midjourney-explore":
-            rows, seen = build_midjourney_explore(cfg)
-            report.append((sid, len(rows), len(rows) * 4, 0, unmapped_report(sid, seen, cfg)))
         else:
             rows, seen = build_portrait_like(sid, cfg)
-            report.append((sid, len(rows), len(rows), 0, unmapped_report(sid, seen, cfg)))
+            # 分组站（group_by）一行素材对应多张图，文件数按图算，不是按行算
+            file_count = len(load(cfg["manifest"])) if cfg.get("group_by") else len(rows)
+            report.append((sid, len(rows), file_count, 0, unmapped_report(sid, seen, cfg)))
         all_rows.extend(rows)
 
     out = os.path.join(ROOT, args.out)
