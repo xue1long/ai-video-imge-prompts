@@ -39,7 +39,7 @@ sys.path.insert(0, SITE)
 
 from config import API, FEED, PAGE_COUNT, PAGE_START, PROXY, UA  # noqa: E402
 
-RETRY = 10
+RETRY = 20
 
 # 浏览器化的最小请求头集合。缺 Referer / Sec-Fetch-* 会被 CDN 直接 403。
 BROWSER_HEADERS = {
@@ -113,7 +113,7 @@ def fetch_page(opener, page, log):
         except Exception as e:
             last = e
             # 限流窗口可能很长（实测 8 次 75s 间隔仍被拒），退避要够狠
-            wait = 30 * (attempt + 1)
+            wait = min(600, 45 * attempt)
             log("    page %d 第 %d 次失败(%s)，%ds 后重试"
                 % (page, attempt + 1, type(e).__name__, wait))
             time.sleep(wait)
@@ -241,6 +241,14 @@ def main():
     skipped = 0
     t0 = time.time()
     page = PAGE_START
+    data_dir = os.path.join(SITE, "data")
+    os.makedirs(data_dir, exist_ok=True)
+
+    def save(jobs):
+        """增量落盘：限流窗口可能很长，中途失败也要保住已抓到的页。"""
+        with open(os.path.join(data_dir, "jobs.json"), "w", encoding="utf-8") as f:
+            json.dump(jobs, f, ensure_ascii=False)
+
     while page < PAGE_START + pages:
         items = fetch_page(opener, page, log)
         if not items:
@@ -257,15 +265,13 @@ def main():
             seen.add(s["id"])
             jobs.append(s)
         log("  page %d 累计 %d 条作业  %.0fs" % (page, len(jobs), time.time() - t0))
+        save(jobs)          # 每页存一次
         page += 1
 
     # 榜单按热度排序，抓取顺序即热度序；同热度按 id 保证构建可复现
     jobs.sort(key=lambda j: j["id"])
 
-    data_dir = os.path.join(SITE, "data")
-    os.makedirs(data_dir, exist_ok=True)
-    with open(os.path.join(data_dir, "jobs.json"), "w", encoding="utf-8") as f:
-        json.dump(jobs, f, ensure_ascii=False)
+    save(jobs)
 
     import collections
     n_images = sum(len(j["indices"]) for j in jobs)
