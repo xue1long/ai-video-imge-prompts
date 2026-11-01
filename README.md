@@ -2,14 +2,14 @@
 
 # AI 图片素材库 · 单仓多站
 
-**六个 AI 绘画参考图库，一个仓库构建，一个目录部署**
+**七个 AI 绘画参考图库，一个仓库构建，一个目录部署**
 
-人像 · 姿势 · 深度姿势 · 服装 · CC0 姿势线稿 · 提示词生图集 · 56,502 张参考图 · 中日双语 · 浅色 / 深色
+人像 · 姿势 · 深度姿势 · 服装 · CC0 姿势线稿 · 提示词生图集 · Midjourney 提示词 · 123,759 张参考图 · 中日双语 · 浅色 / 深色
 
 [![CI](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml/badge.svg)](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml)
 [![online](https://img.shields.io/badge/online-photoai.life-2563eb?style=flat-square)](https://photoai.life/)
-[![sites](https://img.shields.io/badge/sites-6-0ea5e9?style=flat-square)](#六个站点)
-[![images](https://img.shields.io/badge/images-37%2C509-8b5cf6?style=flat-square)](#六个站点)
+[![sites](https://img.shields.io/badge/sites-7-0ea5e9?style=flat-square)](#七个站点)
+[![images](https://img.shields.io/badge/images-123%2C759-8b5cf6?style=flat-square)](#七个站点)
 [![Python](https://img.shields.io/badge/python-3.8%2B-3776ab?style=flat-square&logo=python&logoColor=white)](#快速开始)
 [![License](https://img.shields.io/badge/code-MIT-22c55e?style=flat-square)](#许可与致谢)
 
@@ -17,7 +17,7 @@
 
 **简体中文** · [English](README_en.md) · [日本語](README_ja.md)
 
-[六个站点](#六个站点) · [快速开始](#快速开始) · [图片加载](#图片加载) · [部署](#部署) · [文档](#文档)
+[七个站点](#七个站点) · [快速开始](#快速开始) · [图片加载](#图片加载) · [部署](#部署) · [文档](#文档)
 
 </div>
 
@@ -44,7 +44,7 @@
 
 </details>
 
-## 六个站点
+## 七个站点
 
 | 站点 | 内容 | 规模 | 素材授权 |
 | --- | --- | --- | :---: |
@@ -54,10 +54,11 @@
 | [服装集](https://photoai.life/costume/) | 不含真人的服装图，86 个标签分面筛选 | 1,407 件 / 4,221 张 | 禁止再分发 |
 | [Shisei 姿势线稿](https://photoai.life/shisei/) | 无脸人偶线稿，四个系列、每个姿势 5 个视角，偏性感的默认模糊 | 280 个姿势 / 1,133 张 | **CC0** |
 | [提示词生图集](https://photoai.life/prompts/) | AI 生图成图与提示词对照，两个模型（Imge-2 / Nano Banana）、可按模型与 41 个官方分类筛选，一条提示词的多张成图归为一条素材 | 26,458 条 / 41,261 张 | **CC BY 4.0** |
+| [Midjourney 提示词集](https://photoai.life/prompthero-midjourney/) | Midjourney 提示词与成图对照，v1–v7 与 Niji 共 13 个版本、14 个分类，含成人内容分区（默认模糊） | 12,998 条 | 禁止再分发 |
 
 每个站都有：网格分页加载、筛选与搜索、灯箱（`←` `→` 翻页，`Esc` 关闭，手机可滑动）、原图下载、主题与语言切换。页面是单个 `index.html`，数据内嵌，没有框架、CDN 和外部字体。
 
-> **人像集和 Shisei 是 CC0**，姿势、深度姿势、服装三站的素材禁止再分发，**提示词生图集为 CC BY 4.0（可商用、须署名，作者与来源逐条保留）**。Shisei 的姿势目录沿用 ai-pose-gallery，只注明出处。详见各站的 `sites/<id>/NOTICE.md`。
+> **人像集和 Shisei 是 CC0**，姿势、深度姿势、服装、Midjourney 提示词集四站的素材禁止再分发，**提示词生图集为 CC BY 4.0（可商用、须署名，作者与来源逐条保留）**。Shisei 的姿势目录沿用 ai-pose-gallery，只注明出处。Midjourney 提示词集的素材由 PromptHero 用户上传，引用须回链原站。详见各站的 `sites/<id>/NOTICE.md`。
 
 ## 快速开始
 
@@ -67,9 +68,9 @@
 git clone https://github.com/xue1long/ai-video-imge-prompts.git
 cd ai-image-gallery
 
-python tools/fetch.py      # 下载全部图片（首次约 7.4 GB，之后只补缺失）
+python tools/fetch.py      # 下载全部图片（首次约 47 GB，之后只补缺失）
 python tools/mid.py        # 生成灯箱中图（约 290 MB）
-python tools/build.py      # 构建六个站 + 入口页
+python tools/build.py      # 构建七个站 + 入口页
 python tools/release.py    # 组装 dist/（图片硬链接，不额外占盘）
 python tools/serve.py      # 预览 http://127.0.0.1:8080/
 ```
@@ -140,7 +141,7 @@ ai-image-gallery/
 └── docs/               # 文档与截图
 ```
 
-图片不进 git：6.8 GB 二进制放进仓库，每次 clone 都要拉一遍，各站授权也不允许。`release.py` 把 43,019 个图片文件硬链接进 `dist/`，同一文件系统下不额外占盘。
+图片不进 git：约 47 GB 二进制放进仓库，每次 clone 都要拉一遍，各站授权也不允许。`release.py` 把图片文件硬链接进 `dist/`，同一文件系统下不额外占盘。
 
 ## 素材管理器（本地 WebUI）
 

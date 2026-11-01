@@ -5,7 +5,7 @@
 
 ## 项目是什么
 
-**一个仓库构建、构建六个 AI 绘画参考图库**：人像集 / 姿势集 / 深度姿势集 / 服装集 / Shisei CC0 姿势线稿 / 提示词生图集，共 **56,502 张参考图**，中日双语、浅色 / 深色双主题。
+**一个仓库构建、构建七个 AI 绘画参考图库**：人像集 / 姿势集 / 深度姿势集 / 服装集 / Shisei CC0 姿势线稿 / 提示词生图集 / Midjourney 提示词集，共 **123,759 张参考图**，中日双语、浅色 / 深色双主题。
 
 - 线上入口：<https://photoai.life/>
 - 仓库：<https://github.com/xue1long/ai-video-imge-prompts>
@@ -18,7 +18,7 @@
 - 静态站无 Node、无前端构建。**`index/`（本地素材管理器）是唯一的数据库应用**：SQLite 单文件 `gallery.db`（标准库 `sqlite3`），HTTP 用标准库 `http.server`，前端仍是单文件原生 JS。
 - **CI**：GitHub Actions（`.github/workflows/ci.yml`），ubuntu-24.04 + Python 3.8/3.13 + Node 22。
 
-## 六个站点（`sites.json` 是唯一清单）
+## 七个站点（`sites.json` 是唯一清单）
 
 | id | 名称 | 规模 | 素材授权 | imageDirs / tiers |
 | --- | --- | --- | :---: | --- |
@@ -27,9 +27,10 @@
 | `pose-depth` | 深度姿势集 | 同批 288 姿势的深度图 / 1,439 张 | 禁止再分发 | thumbs, mid, img / thumb, full |
 | `costume` | 服装集 | 1,407 件 / 4,221 张 / 86 标签 | 禁止再分发 | thumbs, img, png / thumb, img, png |
 | `shisei` | Shisei CC0 姿势线稿 | 280 姿势 / 1,133 张（每姿势**最多** 5 视角，上游质检未过的视角不收录） | **CC0** | thumbs, mid, img / thumb, mid, full |
+| `prompthero-midjourney` | Midjourney 提示词集 | 12,998 条提示词与成图（v1–v7 与 Niji 共 13 个版本；含成人内容 2,841 条，默认模糊且不生成落地页） | 禁止再分发 | thumbs, mid, img / thumb, mid, full |
 | `prompts` | 提示词生图集 | 26,458 条提示词 / 41,261 张（两个模型：Imge-2 22,268 张 / Nano Banana 18,993 张，两者都有 41 个官方分类；一条提示词的全部成图归为一条素材；数据按模型分片 `data/gallery_<key>.js`，缩略图来自上游 CDN；另有站主自制图放 `userimg/`、灯箱标「自制」，**不在 CC BY 4.0 内**） | **CC BY 4.0**（须署名） | thumbs, img / thumb, full |
 
-来源：portrait ← ai-portrait-gallery.pages.dev；pose ← ai-pose-gallery.pages.dev；pose-depth ← ai-pose-depth-gallery.pages.dev；costume ← ai-costume-gallery.pages.dev；shisei ← shisei.indaloop.app（GitHub `wquguru/shisei` v0.3.0，raw 源）；prompts ← youmind.com（两条模型线：`gpt-image-2-prompts` / `nano-banana-pro-prompts`，YouMind 官方 API `youmarketing-api/prompts`，`cms-assets.youmind.com` 图源，`imageBase` 已声明；分类靠 `categories` 参数逐类反查，见 `sites/prompts/tag_categories.py`）。
+来源：portrait ← ai-portrait-gallery.pages.dev；pose ← ai-pose-gallery.pages.dev；pose-depth ← ai-pose-depth-gallery.pages.dev；costume ← ai-costume-gallery.pages.dev；shisei ← shisei.indaloop.app（GitHub `wquguru/shisei` v0.3.0，raw 源）；prompts ← youmind.com（两条模型线：`gpt-image-2-prompts` / `nano-banana-pro-prompts`，YouMind 官方 API `youmarketing-api/prompts`，`cms-assets.youmind.com` 图源，`imageBase` 已声明；分类靠 `categories` 参数逐类反查，见 `sites/prompts/tag_categories.py`）；prompthero-midjourney ← prompthero.com/midjourney-prompts（前端 tRPC 接口 `/api/trpc/prompt.search`，匿名可调；衍生图在 `img.prompthero.com`、原图在 `cdn.prompthero.com`，故 `imageBases` 列为两个前缀）。
 
 ## 目录结构
 
@@ -46,7 +47,7 @@ ai-image-gallery/
 │   └── pose_source.py  #   姿势两站共用的原站解析与 manifest 生成
 ├── hub/                # 入口页生成器（build_hub.py / make_icons.py）+ 入口页资源
 ├── tools/
-│   ├── fetch.py        #   下载图片（幂等；首次约 6.8 GB）
+│   ├── fetch.py        #   下载图片（幂等；首次约 47 GB）
 │   ├── mid.py          #   生成灯箱中图（约 290 MB，需 Pillow）
 │   ├── verify.py       #   校验图片存在性、体积、可读宽高、中图齐全
 │   ├── build.py        #   构建各站 index.html + 数据导出 + SEO 文件，并重建入口页
@@ -55,7 +56,7 @@ ai-image-gallery/
 │   └── serve.py        #   以 dist/ 为站点根起本地 HTTP 服务
 ├── deploy/             # DEPLOY.md 部署手册 + nginx.conf
 ├── index/              # 本地素材管理器（唯一用数据库的部分）
-│   ├── catalog.py      #   ★ 字段映射表唯一来源：6 份 manifest → 统一 CSV
+│   ├── catalog.py      #   ★ 字段映射表唯一来源：7 份 manifest → 统一 CSV
 │   ├── sync.py         #   manifest → gallery.db（复用上表的映射，不重写）
 │   ├── store.py        #   唯一碰 SQL 的模块：建表、写入、查询
 │   ├── serve.py        #   11 个端点 + 静态页面（单进程同源，端口 8787）
@@ -71,9 +72,9 @@ ai-image-gallery/
 ## 常用命令
 
 ```bash
-python tools/fetch.py      # 下载全部图片（首次约 7.4 GB，之后只补缺失）
+python tools/fetch.py      # 下载全部图片（首次约 47 GB，之后只补缺失）
 python tools/mid.py        # 生成灯箱中图（约 290 MB）
-python tools/build.py      # 构建六个站 + 入口页
+python tools/build.py      # 构建七个站 + 入口页
 python tools/release.py    # 组装 dist/
 python tools/serve.py      # 预览 http://127.0.0.1:8080/
 python tests/run.py        # 不依赖图片的检查
@@ -112,11 +113,13 @@ python tests/test_manager.py  # 素材管理器测试（需 Pillow），只走 H
 8. **部署**：站点根 = `tools/release.py` 产出的 `dist/`（扁平结构：`index.html` + `portrait/` + `pose/` + …），nginx 不需要 `alias`。线上更新先发到暂存目录（`--out dist-stage`），检查后逐站原子换入 `dist/`。**git commit 即版本**，不用 `releases/<版本>/public` + `current` 软链。
 9. **`release.py` 发布前会校验图片，缺图就中止**（只下了部分档位时加 `--skip-verify`）；它会先删除再重建目标站点目录。`--no-images` 只放站点文件、不放图片，**不能用来保留线上旧图**。
 10. **素材管理器的边界写在目录结构里**：`sites/` 只读（采集素材永不物理删除，只做视图隐藏）；`library/` 可写（导入素材允许删除）。任何代码路径都不得删除 `volume=sites` 的文件。
-11. **`index/catalog.py` 的 `SOURCES` 是字段映射的唯一来源**，`sync.py` 复用它，不另写一份。加第 7 个集合时映射表加一条即可。
+11. **`index/catalog.py` 的 `SOURCES` 是字段映射的唯一来源**，`sync.py` 复用它，不另写一份。加新集合时映射表加一条即可。
 12. **`sync` 必须保住用户标注**：全量重建前把 `manual`/`auto` 标签、收藏、视图隐藏、`own` 集合存进临时表并在重建后放回（`store.reset` / `restore_user_data`）。否则「加一张图」会把几百小时的打标抹掉。
 13. **manifest 里的路径是站点相对的**（`img/...`，不是 `sites/<id>/img/...`）。`sync` 负责加 `sites/<集合>/` 前缀；漏了会让 `pose` 与 `pose-depth` 被当成同一批文件去重。
 14. **prompts 站的抓取与构建中间数据不入库**：`data/prompts_*.json`（132 MB）、`data/gallery_*.js`（84 MB）、`data/dims.json`、`data/*_id2cats.json` 合计约 220 MB，都能由 `import_youmind.py` / `scripts/manifest.py` / `build_gallery.py` 重新生成，`.gitignore` 已排除。**入库的只有 `manifest.json`（14 MB，`fetch.py` 与测试都要读它）**、`data/gallery.js`、`data/landing.json`、`data/gpt2_categories.json` 和页面本身。所以 CI 构建带 `--skip prompts`，全新克隆要先把数据拉下来才能本地构建该站 —— 这是有意的取舍，不是漏提交。
 15. **给提示词加自己的成图走覆盖层，不改上游数据**：素材管理器「添加图片」（`POST /api/items/{id}/attach`）把图存进 `library/`，`sites/prompts/sync_user_assets.py` 导出成 `userimg/` + `data/user_assets.json`（按 originId 归属，两者都入库），`build_gallery.py` 再把它们追加到该提示词的 `files[]` 末尾。**绝不写进 `data/prompts_<key>.json`** —— 那是 `import_youmind.py` 的产物，每次重抓整份重写。图片放 `userimg/` 而不是 `img/<key>/`：后者目录名就是模型分片键，混进去会被当成新模型，且 `fetch.py` 只认 manifest 里的文件。
+16. **数据量大到撑破页面体积上限时分片外置**：单页内嵌全部数据会撞上 450 KB 上限（`Pages.test_page_size_budget`）。做法见 `sites/prompthero-midjourney/`：页面只内嵌一份小索引 `data/gallery.js`，每个分类的数据写在 `data/gallery_<cat>.js`（`JSON.parse` 赋值），切换分类时才懒加载。**分片不入库**（`.gitignore` 已排除），但可由入库的 `manifest.json` 重建，所以 CI 构建该站**不需要** `--skip`（与 `prompts` 站不同：它的数据源本身不入库）。
+17. **有成人内容的站默认模糊，且不进落地页与 sitemap**：`prompthero-midjourney` 的 NSFW 条目在网格里默认 `blur(16px)`，点开单张或用页头开关才清晰；成人分类不生成静态落地页，也不出现在 `sitemap.xml` 与根 sitemap。实现参考 `shared/pose_gallery.py` 的 `blurRatings` 机制（`data-r="1"` + `html.blur-on` + `localStorage` 偏好）。
 
 ## 性能约定（三档图）
 
@@ -132,5 +135,5 @@ python tests/test_manager.py  # 素材管理器测试（需 Pillow），只走 H
 
 - 素材著作权归各原作者，本项目为个人学习用途的镜像；**代码 MIT，素材按各原站条件使用**。
 - 仓库**不含素材图片**（thumbs / mid / img / png 全部不入库），克隆后必须先 `fetch.py` 才能看到内容；但仓库**含 25 个 UI 与文档图片**：`hub/` 的 og-cover / favicon / apple-touch-icon / icon-512、各站 `og-cover.jpg`、`docs/screenshots/` 11 张界面截图。
-- `sites/portrait/NOTICE.md` 中，原作者对「再分发图片数据本身」另有**请求**（CC0 许可与该请求需并读）；`pose` / `pose-depth` / `costume` 明确禁止再分发；`prompts` 为 CC BY 4.0，署名要求见 `sites/prompts/NOTICE.md`。
+- `sites/portrait/NOTICE.md` 中，原作者对「再分发图片数据本身」另有**请求**（CC0 许可与该请求需并读）；`pose` / `pose-depth` / `costume` / `prompthero-midjourney` 明确禁止再分发；`prompts` 为 CC BY 4.0，署名要求见 `sites/prompts/NOTICE.md`。
 - `hub/` 与 `sites/*/index.html` 都是生成产物。

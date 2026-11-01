@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AI 绘画 Midjourney 提示词参考集：12,998 条提示词与成图 · PromptHero 镜像</title>
+<meta name="description" content="Midjourney 提示词与成图对照集：12,998 条提示词，覆盖 v1–v7 与 Niji，按人像、摄影、概念艺术、角色设计等 14 个分类筛选，含成人内容分区（默认模糊）。">
+<meta name="keywords" content="Midjourney提示词,Midjourney prompt,AI绘画提示词,提示词参考,PromptHero,提示词大全">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="canonical" href="https://example.com/prompthero-midjourney/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="参考素材库">
+<meta property="og:title" content="Midjourney 提示词参考集 · 12,998 条提示词与成图">
+<meta property="og:description" content="Midjourney 提示词与成图对照，可按分类、版本筛选；成人内容分区默认模糊。">
+<meta property="og:url" content="https://example.com/prompthero-midjourney/">
+<meta property="og:image" content="https://example.com/prompthero-midjourney/og-cover.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Midjourney 提示词参考集 · 12,998 条">
+<meta name="twitter:description" content="Midjourney 提示词与成图对照集，按分类与版本筛选。">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#f7f6f3;--panel:#fff;--tx:#191b1f;--tx2:#525b6a;--tx3:#8a93a3;
+  --line:#e3e7ed;--ac:#c2410c;--scrim:rgba(12,14,18,.72);
+}
+html[data-theme="dark"]{
+  --bg:#0e1014;--panel:#161a21;--tx:#e8ebf0;--tx2:#a6b0c0;--tx3:#6d7787;
+  --line:#252b35;--ac:#fb923c;--scrim:rgba(0,0,0,.82);
+}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);
+  font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  font-size:14px;line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,40px)}
+a{color:var(--ac)}
+.top{position:sticky;top:0;z-index:30;background:var(--bg);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;height:58px}
+.home{display:flex;align-items:baseline;gap:8px;text-decoration:none;color:var(--tx)}
+.home .h1{font-weight:500;font-size:16px}
+.home .h2{font-size:13px;color:var(--tx2)}
+.topright{display:flex;gap:8px}
+.sw{border:1px solid var(--line);background:var(--panel);color:var(--tx2);
+  border-radius:999px;padding:6px 13px;font-size:12.5px;cursor:pointer;font-family:inherit}
+.sw:hover{border-color:var(--tx3)}
+.eyebrow{font-size:11.5px;letter-spacing:.08em;color:var(--tx3);margin:22px 0 6px}
+h1{font-size:clamp(20px,3.4vw,28px);font-weight:500;margin:0 0 10px;line-height:1.35}
+.lead{color:var(--tx2);margin:0 0 6px;max-width:74ch}
+.lead2{color:var(--tx3);margin:0 0 16px;max-width:74ch;font-size:13px}
+.stats{display:flex;gap:22px;flex-wrap:wrap;margin:0 0 18px;padding:12px 0;
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.stats div{display:flex;flex-direction:column}
+.stats b{font-size:19px;font-weight:500;font-variant-numeric:tabular-nums}
+.stats span{font-size:11.5px;color:var(--tx3)}
+.tools{position:relative;display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+#q{flex:1;min-width:200px;padding:9px 14px;border:1px solid var(--line);border-radius:10px;
+  background:var(--panel);color:var(--tx);font-size:13.5px;font-family:inherit}
+#q:focus{outline:none;border-color:var(--ac)}
+.sel{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{border:1px solid var(--line);background:var(--panel);color:var(--tx2);border-radius:999px;
+  padding:8px 14px;font-size:12.5px;cursor:pointer;font-family:inherit}
+.chip:hover{border-color:var(--tx3);color:var(--tx)}
+.chip.on{border-color:var(--ac);color:var(--ac)}
+.menus{position:absolute;top:100%;left:0;z-index:20;margin-top:6px;background:var(--panel);
+  border:1px solid var(--line);border-radius:12px;padding:8px;max-height:60vh;overflow:auto;
+  min-width:220px;box-shadow:0 8px 28px rgba(0,0,0,.12)}
+.menus button{display:block;width:100%;text-align:left;padding:7px 11px;border:0;border-radius:8px;
+  background:none;color:var(--tx2);font-size:13px;cursor:pointer;font-family:inherit}
+.menus button:hover{background:var(--bg);color:var(--tx)}
+.menus button.on{color:var(--ac)}
+.count{font-size:12.5px;color:var(--tx3);margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
+.card{position:relative;margin:0;cursor:pointer;background:var(--panel);
+  border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.card:hover{border-color:var(--tx3)}
+.ph{position:relative;aspect-ratio:3/4;background:var(--bg);overflow:hidden}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.card .cap{padding:8px 10px 10px;font-size:12px;color:var(--tx2);line-height:1.45;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .meta{display:flex;gap:8px;align-items:center;padding:0 10px 9px;font-size:11px;color:var(--tx3)}
+.badge{font-size:10px;padding:1px 6px;border-radius:999px;border:1px solid var(--ac);color:var(--ac)}
+/* 成人内容默认模糊：点开单张或开全局开关才清晰 */
+html.blur-on .card[data-n="1"]:not(.unblur) .ph img{filter:blur(16px)}
+html.blur-on .card[data-n="1"]:not(.unblur) .ph::after{
+  content:attr(data-blur);position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  font-size:11.5px;color:#fff;background:rgba(12,14,18,.66);padding:5px 11px;border-radius:999px;
+  white-space:nowrap;pointer-events:none}
+.switch.blursw button{width:auto;padding:7px 12px;font-size:12px;border:1px solid var(--line);
+  background:var(--panel);color:var(--tx2);border-radius:999px;cursor:pointer;font-family:inherit}
+.empty{text-align:center;color:var(--tx2);padding:60px 0;font-size:14px}
+.empty span{color:var(--tx3);font-size:12.5px}
+.more{display:flex;justify-content:center;padding:26px 0 10px}
+.more button{border:1px solid var(--line);background:var(--panel);color:var(--tx2);
+  border-radius:999px;padding:10px 22px;font-size:13px;cursor:pointer;font-family:inherit}
+.more button:hover{border-color:var(--tx3)}
+.seo-intro{margin-top:10px}
+footer{color:var(--tx3);font-size:12px;padding:26px 0 40px;border-top:1px solid var(--line);margin-top:26px}
+footer a{color:var(--tx2)}
+.modal{position:fixed;inset:0;z-index:60;background:var(--scrim);display:flex;
+  align-items:center;justify-content:center;gap:18px;padding:20px}
+.modal[hidden]{display:none}
+.stage{position:relative;flex:1;min-width:0;height:88vh;display:flex;align-items:center;justify-content:center}
+.stage img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;
+  background:var(--panel);opacity:0;transition:opacity .22s ease}
+.stage img.on{opacity:1}
+.spin{position:absolute;width:26px;height:26px;border:2px solid rgba(255,255,255,.28);
+  border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.panel{flex:0 0 min(430px,38vw);color:#fff;max-height:88vh;overflow:auto}
+.ptxt{font-size:13px;line-height:1.7;background:rgba(255,255,255,.08);padding:13px;
+  border-radius:10px;white-space:pre-wrap;word-break:break-word;margin:0 0 12px}
+.prow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.btn{display:inline-block;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.08);
+  color:#fff;border-radius:999px;padding:8px 14px;font-size:12.5px;cursor:pointer;
+  text-decoration:none;font-family:inherit}
+.btn:hover{background:rgba(255,255,255,.16)}
+.close,.nav{position:absolute;z-index:5;background:rgba(255,255,255,.1);border:0;color:#fff;
+  width:38px;height:38px;border-radius:50%;font-size:22px;cursor:pointer;line-height:1}
+.close{top:16px;right:16px}
+.nav{top:50%;margin-top:-19px}
+.prev{left:16px}.next{right:16px}
+.pmeta{font-size:11.5px;color:rgba(255,255,255,.72);margin:0}
+@media(max-width:860px){
+  .modal{flex-direction:column;justify-content:flex-start;padding:52px 14px 14px}
+  .stage{height:46vh;flex:none;width:100%}
+  .panel{flex:none;width:100%;max-height:44vh}
+}
+.seo-intro{--si-tx:var(--tx,var(--fg,#16191f));--si-tx2:var(--tx2,var(--muted,#525b6a));--si-tx3:var(--tx3,var(--muted,#8a93a3));--si-line:var(--line,#e3e7ed);--si-bg:var(--panel,var(--paper,#fff));--si-ac:var(--ac,var(--fg,#2563eb));max-width:var(--si-max,1180px);margin:0 auto;padding:0 clamp(16px,4vw,48px) 56px}.seo-card{border:1px solid var(--si-line);border-radius:16px;background:var(--si-bg);padding:22px clamp(18px,3vw,28px);font-size:13.5px;line-height:1.75;color:var(--si-tx2)}.seo-eyebrow{margin:0 0 6px;font-size:11px;font-weight:600;letter-spacing:.14em;color:var(--si-tx3)}.seo-lead{margin:0 0 14px;color:var(--si-tx);font-size:14.5px;max-width:880px}.seo-facts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px;padding:0;list-style:none}.seo-facts li{border:1px solid var(--si-line);border-radius:999px;padding:3px 11px;font-size:12px;color:var(--si-tx)}.seo-facts li span{color:var(--si-tx3);margin-right:6px}.seo-links{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0 0 4px;font-size:13px}.seo-links a{color:var(--si-tx2);text-decoration:none;border-bottom:1px solid transparent}.seo-links a:hover{color:var(--si-ac);border-bottom-color:currentColor}.seo-links .seo-all{color:var(--si-ac);font-weight:600}.seo-more{margin-top:12px;border-top:1px dashed var(--si-line);padding-top:10px}.seo-more summary{cursor:pointer;color:var(--si-tx3);font-size:12.5px;list-style:none}.seo-more summary::-webkit-details-marker{display:none}.seo-more summary::before{content:'＋';margin-right:6px}.seo-more[open] summary::before{content:'－'}.seo-more p{margin:10px 0 0;max-width:880px}.seo-more dl{margin:6px 0 0;max-width:880px}.seo-more dt{margin-top:12px;color:var(--si-tx);font-weight:600}.seo-more dd{margin:3px 0 0}@media(max-width:600px){.seo-card{border-radius:12px;padding:18px 16px}}
+</style>
+<script>
+/* 主题与语言：先读本地偏好，避免刷新闪白 */
+(function(){
+  try{
+    var t = localStorage.getItem("ph.theme");
+    if(t) document.documentElement.setAttribute("data-theme", t);
+    var l = localStorage.getItem("ph.lang");
+    if(l) document.documentElement.setAttribute("data-lang", l);
+  }catch(e){}
+})();
+</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"这些提示词是真人写的吗？","acceptedAnswer":{"@type":"Answer","text":"不是。提示词由 PromptHero 社区用户上传，多为 Midjourney 生成时使用的英文提示词，本站未做改写，只做索引与中文化界面。"}},{"@type":"Question","name":"可以商用吗？","acceptedAnswer":{"@type":"Answer","text":"本站素材版权归各上传者所有。上游服务条款只把分发权授予 PromptHero 平台，未授予第三方再分发权，因此本站仅供个人学习与参考；公开引用请回链原站。"}},{"@type":"Question","name":"怎么用这些提示词？","acceptedAnswer":{"@type":"Answer","text":"灯箱里可以直接复制提示词原文（含 --ar、--stylize 等参数），粘贴进 Midjourney 的提示词框即可。成图只是效果参考，不是唯一答案。"}},{"@type":"Question","name":"成人内容为什么是模糊的？","acceptedAnswer":{"@type":"Answer","text":"带「成人内容」标记的条目默认模糊，点开单张或用页头开关可以查看清晰图。这些条目不生成静态落地页，也不出现在 sitemap 里。"}},{"@type":"Question","name":"和原站是什么关系？","acceptedAnswer":{"@type":"Answer","text":"原站是英文站，条目按模型与热度分页。本站把它整理成可按分类、版本筛选的画廊，并补齐中文界面与主题切换；提示词原文保持不变。"}}]}</script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="home" href="../"><span class="h1">PromptHero</span><span class="h2">Midjourney 提示词</span></a>
+    <div class="topright">
+      <button id="themeBtn" class="sw" type="button" aria-label="主题"></button>
+      <button id="langBtn" class="sw" type="button"></button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <p class="eyebrow">PROMPTHERO-MJ-01 · MIDJOURNEY 提示词与成图 · 本地镜像</p>
+  <h1 id="pagetitle">AI 绘画 Midjourney 提示词参考集：12,998 条提示词与成图 · PromptHero 镜像</h1>
+  <p class="lead">12,998 条 Midjourney 提示词与对应成图，按分类与版本筛选，灯箱内可复制提示词原文。</p>
+  <p class="lead2">成人内容分区默认模糊，点开单张或用页头开关查看清晰图。</p>
+
+  <div class="stats" id="stats"></div>
+
+  <section class="tools" aria-label="筛选">
+    <input id="q" type="search" autocomplete="off" placeholder="搜索提示词内容">
+    <div class="sel">
+      <button class="chip" id="catBtn" type="button" aria-haspopup="true" aria-expanded="false">全部分类</button>
+      <button class="chip" id="verBtn" type="button" aria-haspopup="true" aria-expanded="false">全部版本</button>
+      <button class="chip" id="sortBtn" type="button" aria-haspopup="true" aria-expanded="false">按收藏</button>
+      <div class="switch blursw" role="group"><button id="blurBtn" type="button"></button></div>
+    </div>
+    <div class="menus" id="catMenu" hidden></div>
+    <div class="menus" id="verMenu" hidden></div>
+    <div class="menus" id="sortMenu" hidden>
+      <button type="button" data-sort="fav">按收藏</button>
+      <button type="button" data-sort="new">按最新</button>
+      <button type="button" data-sort="view">按浏览</button>
+    </div>
+  </section>
+
+  <p class="count" id="count"></p>
+  <div class="grid" id="grid"></div>
+  <p class="empty" id="empty" hidden>没有匹配的提示词<br><span>换个关键词，或把筛选条件放宽一些。</span></p>
+  <div class="more"><button id="more" type="button" hidden>加载更多</button></div>
+</main>
+
+<section class="seo-intro" aria-label="关于本站"><div class="seo-card"><p class="seo-eyebrow">关于本站</p><p class="seo-lead">这是一个 Midjourney 提示词与成图对照集：收录 12998 条提示词，每条都配有对应的生成图，覆盖 v1 到 v7 以及 Niji 模式，可按分类与版本筛选。</p><ul class="seo-facts"><li><span>提示词</span>12998 条</li><li><span>分类</span>14 个</li><li><span>语言</span>中文 / 日本語</li><li><span>来源</span>PromptHero</li></ul><nav class="seo-links" aria-label="按分类浏览"><a href="cat/photography/">摄影 · 1682</a><a href="cat/portraits/">人像 · 2324</a><a href="cat/fashion/">时尚 · 388</a><a href="cat/uncategorized/">未分类 · 2248</a><a href="cat/anime/">动漫 · 524</a><a href="cat/concept-art/">概念艺术 · 1296</a><a href="cat/character-design/">角色设计 · 679</a><a href="cat/3d-renders/">3D 渲染 · 161</a><a href="cat/interior-design/">室内设计 · 253</a><a href="cat/architecture/">建筑 · 174</a><a href="cat/logo-icon-design/">标志与图标 · 113</a><a href="cat/landscapes/">风景 · 314</a><a class="seo-all" href="browse/">全部分类与版本 →</a></nav><details class="seo-more"><summary>更多介绍与常见问题</summary><p>提示词原文保持英文原样（含 --ar、--stylize 等参数），灯箱内可直接复制；带「成人内容」标记的条目默认模糊，且不生成可被搜索引擎收录的页面。</p><dl><dt>这些提示词是真人写的吗？</dt><dd>不是。提示词由 PromptHero 社区用户上传，多为 Midjourney 生成时使用的英文提示词，本站未做改写，只做索引与中文化界面。</dd><dt>可以商用吗？</dt><dd>本站素材版权归各上传者所有。上游服务条款只把分发权授予 PromptHero 平台，未授予第三方再分发权，因此本站仅供个人学习与参考；公开引用请回链原站。</dd><dt>怎么用这些提示词？</dt><dd>灯箱里可以直接复制提示词原文（含 --ar、--stylize 等参数），粘贴进 Midjourney 的提示词框即可。成图只是效果参考，不是唯一答案。</dd><dt>成人内容为什么是模糊的？</dt><dd>带「成人内容」标记的条目默认模糊，点开单张或用页头开关可以查看清晰图。这些条目不生成静态落地页，也不出现在 sitemap 里。</dd><dt>和原站是什么关系？</dt><dd>原站是英文站，条目按模型与热度分页。本站把它整理成可按分类、版本筛选的画廊，并补齐中文界面与主题切换；提示词原文保持不变。</dd></dl></details></div></section>
+
+<footer class="wrap" id="foot"></footer>
+
+<div class="modal" id="modal" hidden>
+  <button class="close" id="close" type="button" aria-label="关闭">×</button>
+  <button class="nav prev" id="prev" type="button" aria-label="上一张">‹</button>
+  <button class="nav next" id="next" type="button" aria-label="下一张">›</button>
+  <div class="stage" id="stage">
+    <img id="big" alt="">
+    <div class="spin" id="spin"></div>
+  </div>
+  <div class="panel" id="panel">
+    <p class="ptxt" id="ptxt"></p>
+    <div class="prow">
+      <button id="copyBtn" class="btn" type="button">复制提示词</button>
+      <a id="originBtn" class="btn" target="_blank" rel="noopener noreferrer">打开原站</a>
+      <a id="dlBtn" class="btn" download>下载原图</a>
+    </div>
+    <p class="pmeta" id="pmeta"></p>
+  </div>
+</div>
+
+<script src="data/gallery.js"></script>
+<script>
+var IDX = window.__GALLERY__;
+var $ = function(s){ return document.querySelector(s); };
+var lang = document.documentElement.getAttribute("data-lang") || "zh";
+var UI = {"title": "AI 绘画 Midjourney 提示词参考集：12,998 条提示词与成图 · PromptHero 镜像", "home": "参考素材库", "homeAria": "返回参考素材库首页", "eyebrow": "PROMPTHERO-MJ-01 · MIDJOURNEY 提示词与成图 · 本地镜像", "brand1": "PromptHero", "brand2": "Midjourney 提示词", "sub1": "12,998 条 Midjourney 提示词与对应成图，按分类与版本筛选，灯箱内可复制提示词原文。", "sub2": "成人内容分区默认模糊，点开单张或用页头开关查看清晰图。", "statPrompt": "提示词", "statImg": "成图", "statCat": "分类", "statVer": "版本", "all": "全部", "search": "搜索提示词内容", "filter": "筛选", "catAll": "全部分类", "verAll": "全部版本", "sortFav": "按收藏", "sortNew": "按最新", "sortView": "按浏览", "countImg": "{n} 条提示词", "emptyTitle": "没有匹配的提示词", "emptyDesc": "换个关键词，或把筛选条件放宽一些。", "kCat": "分类", "kVer": "版本", "kFav": "收藏", "kView": "浏览", "copyPrompt": "复制提示词", "copied": "已复制", "copyFail": "复制失败", "openOrigin": "打开原站", "dlFull": "下载原图", "hint": "<kbd>←</kbd><kbd>→</kbd> 翻页　<kbd>Esc</kbd> 关闭", "footer": "素材来源：<a href=\"https://prompthero.com/midjourney-prompts\" target=\"_blank\" rel=\"noopener noreferrer\">PromptHero</a>（PROMPTHERO-MJ-01）。素材由用户上传，版权归各原作者；本站为个人学习用途的中文索引镜像，请勿再分发图片文件本身，引用请回链原站。", "themeLight": "浅色", "themeDark": "深色", "langJa": "日本語", "langZh": "中文", "themeAria": "主题", "langAria": "语言", "blurOff": "取消模糊", "blurOn": "恢复模糊", "blurTap": "点开查看", "nsfwBadge": "成人内容"};
+var PAGE_SIZE = 240;var KEY = "ph";
+
+var state = { q:"", cat:"", ver:"", sort:"fav", shown:0, rows:[] };
+var _loaded = {}, _loading = {};
+
+/* —— 分类分片：进站只加载默认分类，切分类时才拉另一份 —— */
+function loadShard(key){
+  if(_loaded[key]) return Promise.resolve();
+  if(_loading[key]) return _loading[key];
+  _loading[key] = new Promise(function(res, rej){
+    var s = document.createElement("script");
+    s.src = "data/gallery_" + key + ".js";
+    s.async = true;
+    s.onload = function(){
+      var sh = (window.__SHARDS__||{})[key];
+      if(!sh) return rej(new Error("分片为空: " + key));
+      _loaded[key] = sh.items || [];
+      res();
+    };
+    s.onerror = function(){ rej(new Error("分片加载失败: " + key)); };
+    document.head.appendChild(s);
+  });
+  return _loading[key];
+}
+
+function catList(){
+  return IDX.cats.map(function(c){ return { v:c.c, z:c.z, n:c.n, k:c.k, a:c.a }; });
+}
+function verList(){
+  return IDX.vers.map(function(v){ return { v:v.k, z:v.z, n:v.n }; });
+}
+function catLabel(v){
+  var l = catList(); for(var i=0;i<l.length;i++) if(l[i].v===v) return l[i].z;
+  return v;
+}
+function verLabel(v){
+  var l = verList(); for(var i=0;i<l.length;i++) if(l[i].v===v) return l[i].z;
+  return v;
+}
+function isAdultCat(c){
+  var l = catList(); for(var i=0;i<l.length;i++) if(l[i].v===c) return !!l[i].a;
+  return false;
+}
+
+/* 默认分类：条目最多的非成人分类；成人分类不进落地页，但画廊里可筛 */
+function defaultCat(){
+  var l = catList(), best = "";
+  for(var i=0;i<l.length;i++){ if(!l[i].a && !best) best = l[i].v; }
+  return best;
+}
+
+function applyStatic(){
+  document.title = UI.title;
+  $("#pagetitle").textContent = UI.title;
+  $("#q").placeholder = UI.search;
+  $("#langBtn").textContent = lang === "zh" ? "日本語" : "中文";
+  themeLabel();
+  blurLabel();
+}
+function tx(key){ return UI[key]; }
+
+function t(key, zh, ja){
+  if(lang === "zh") return zh;
+  return ja;
+}
+
+/* —— 主题与语言 —— */
+function themeLabel(){
+  var dark = document.documentElement.getAttribute("data-theme") === "dark";
+  $("#themeBtn").textContent = dark ? t("themeLight","浅色","ライト") : t("themeDark","深色","ダーク");
+  $("#themeBtn").setAttribute("aria-label", t("themeAria","主题","表示テーマ"));
+}
+$("#themeBtn").addEventListener("click", function(){
+  var cur = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", cur);
+  try{ localStorage.setItem(KEY+".theme", cur); }catch(e){}
+  themeLabel();
+});
+$("#langBtn").addEventListener("click", function(){
+  lang = lang === "zh" ? "ja" : "zh";
+  document.documentElement.setAttribute("data-lang", lang);
+  try{ localStorage.setItem(KEY+".lang", lang); }catch(e){}
+  UI = lang === "zh" ? {"title": "AI 绘画 Midjourney 提示词参考集：12,998 条提示词与成图 · PromptHero 镜像", "home": "参考素材库", "homeAria": "返回参考素材库首页", "eyebrow": "PROMPTHERO-MJ-01 · MIDJOURNEY 提示词与成图 · 本地镜像", "brand1": "PromptHero", "brand2": "Midjourney 提示词", "sub1": "12,998 条 Midjourney 提示词与对应成图，按分类与版本筛选，灯箱内可复制提示词原文。", "sub2": "成人内容分区默认模糊，点开单张或用页头开关查看清晰图。", "statPrompt": "提示词", "statImg": "成图", "statCat": "分类", "statVer": "版本", "all": "全部", "search": "搜索提示词内容", "filter": "筛选", "catAll": "全部分类", "verAll": "全部版本", "sortFav": "按收藏", "sortNew": "按最新", "sortView": "按浏览", "countImg": "{n} 条提示词", "emptyTitle": "没有匹配的提示词", "emptyDesc": "换个关键词，或把筛选条件放宽一些。", "kCat": "分类", "kVer": "版本", "kFav": "收藏", "kView": "浏览", "copyPrompt": "复制提示词", "copied": "已复制", "copyFail": "复制失败", "openOrigin": "打开原站", "dlFull": "下载原图", "hint": "<kbd>←</kbd><kbd>→</kbd> 翻页　<kbd>Esc</kbd> 关闭", "footer": "素材来源：<a href=\"https://prompthero.com/midjourney-prompts\" target=\"_blank\" rel=\"noopener noreferrer\">PromptHero</a>（PROMPTHERO-MJ-01）。素材由用户上传，版权归各原作者；本站为个人学习用途的中文索引镜像，请勿再分发图片文件本身，引用请回链原站。", "themeLight": "浅色", "themeDark": "深色", "langJa": "日本語", "langZh": "中文", "themeAria": "主题", "langAria": "语言", "blurOff": "取消模糊", "blurOn": "恢复模糊", "blurTap": "点开查看", "nsfwBadge": "成人内容"} : {"title": "Midjourney プロンプト参考集：12,998 件のプロンプトと生成画像 · PromptHero ミラー", "home": "参照素材集", "homeAria": "参照素材集のトップへ", "eyebrow": "PROMPTHERO-MJ-01 · MIDJOURNEY プロンプトと生成画像 · ミラー", "brand1": "PromptHero", "brand2": "Midjourney プロンプト", "sub1": "Midjourney のプロンプト 12,998 件と生成画像の対照集。カテゴリとバージョンで絞り込め、ライトボックスで原文をコピーできます。", "sub2": "成人向けカテゴリは初期状態でぼかし表示。個別にタップするかヘッダーのスイッチで解除できます。", "statPrompt": "プロンプト", "statImg": "画像", "statCat": "カテゴリ", "statVer": "バージョン", "all": "すべて", "search": "プロンプト本文を検索", "filter": "絞り込み", "catAll": "すべてのカテゴリ", "verAll": "すべてのバージョン", "sortFav": "お気に入り順", "sortNew": "新着順", "sortView": "閲覧順", "countImg": "{n} 件のプロンプト", "emptyTitle": "条件に合うプロンプトがありません", "emptyDesc": "キーワードを変えるか、絞り込みを緩めてください。", "kCat": "カテゴリ", "kVer": "バージョン", "kFav": "お気に入り", "kView": "閲覧", "copyPrompt": "プロンプトをコピー", "copied": "コピーしました", "copyFail": "コピー失敗", "openOrigin": "元サイトを開く", "dlFull": "原寸画像をダウンロード", "hint": "<kbd>←</kbd><kbd>→</kbd> ページ　<kbd>Esc</kbd> 閉じる", "footer": "素材元：<a href=\"https://prompthero.com/midjourney-prompts\" target=\"_blank\" rel=\"noopener noreferrer\">PromptHero</a>（PROMPTHERO-MJ-01）。素材はユーザー投稿で著作権は各作者に帰属します。本サイトは個人学習用の中国語ミラーであり、画像の再配布はご遠慮ください。引用時は元サイトへリンクしてください。", "themeLight": "ライト", "themeDark": "ダーク", "langJa": "日本語", "langZh": "中文", "themeAria": "表示テーマ", "langAria": "言語", "blurOff": "ぼかしを解除", "blurOn": "ぼかす", "blurTap": "タップで表示", "nsfwBadge": "成人向け"};
+  applyStatic(); syncChips(); render();
+});
+
+/* —— 成人内容默认模糊 —— */
+var SHOW_ALL = false;
+try{ SHOW_ALL = localStorage.getItem(KEY+".unblur") === "1"; }catch(e){}
+var unblurred = {};
+function blurLabel(){
+  $("#blurBtn").textContent = SHOW_ALL ? t("blurOn","恢复模糊","ぼかす") : t("blurOff","取消模糊","ぼかしを解除");
+  $("#blurBtn").setAttribute("aria-pressed", SHOW_ALL ? "true" : "false");
+}
+function applyBlur(){
+  document.documentElement.classList.toggle("blur-on", !SHOW_ALL);
+}
+$("#blurBtn").addEventListener("click", function(){
+  SHOW_ALL = !SHOW_ALL;
+  try{ localStorage.setItem(KEY+".unblur", SHOW_ALL ? "1" : "0"); }catch(e){}
+  applyBlur(); blurLabel();
+});
+applyBlur();
+
+/* —— 筛选与排序 —— */
+function buildMenus(){
+  var cm = $("#catMenu"), vm = $("#verMenu");
+  cm.innerHTML = catList().map(function(c){
+    return '<button type="button" data-cat="'+esc(c.v)+'">'+esc(c.z)+' <small>'+c.n+'</small></button>';
+  }).join("");
+  vm.innerHTML = verList().map(function(v){
+    return '<button type="button" data-ver="'+esc(v.v)+'">'+esc(v.z)+' <small>'+v.n+'</small></button>';
+  }).join("");
+}
+function esc(s){
+  return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function openMenu(which){
+  ["catMenu","verMenu","sortMenu"].forEach(function(id){
+    var el = $("#"+id);
+    if(id === which){ el.hidden = !el.hidden; }
+    else el.hidden = true;
+  });
+  $("#catBtn").setAttribute("aria-expanded", which==="catMenu" && !$("#catMenu").hidden ? "true":"false");
+}
+$("#catBtn").addEventListener("click", function(){ openMenu("catMenu"); });
+$("#verBtn").addEventListener("click", function(){ openMenu("verMenu"); });
+$("#sortBtn").addEventListener("click", function(){ openMenu("sortMenu"); });
+document.addEventListener("click", function(e){
+  if(!e.target.closest(".tools")){
+    ["catMenu","verMenu","sortMenu"].forEach(function(id){ $("#"+id).hidden = true; });
+  }
+  var b = e.target.closest("[data-cat]");
+  if(b){ state.cat = b.getAttribute("data-cat"); state.ver=""; syncChips(); ensure(); return; }
+  var v = e.target.closest("[data-ver]");
+  if(v){ state.ver = v.getAttribute("data-ver"); state.cat=""; syncChips(); ensure(); return; }
+  var s = e.target.closest("[data-sort]");
+  if(s){ state.sort = s.getAttribute("data-sort"); syncChips(); render(); return; }
+});
+function syncChips(){
+  $("#catBtn").textContent = state.cat ? catLabel(state.cat) : tx("catAll","全部分类","すべてのカテゴリ");
+  $("#catBtn").classList.toggle("on", !!state.cat);
+  $("#verBtn").textContent = state.ver ? verLabel(state.ver) : tx("verAll","全部版本","すべてのバージョン");
+  $("#verBtn").classList.toggle("on", !!state.ver);
+  var sl = { fav: tx("sortFav","按收藏","お気に入り順"), new: tx("sortNew","按最新","新着順"), view: tx("sortView","按浏览","閲覧順") };
+  $("#sortBtn").textContent = sl[state.sort] || sl.fav;
+}
+$("#q").addEventListener("input", function(){ state.q = this.value.trim().toLowerCase(); state.shown = 0; render(); });
+
+/* —— 数据装载 —— */
+function ensure(){
+  var need = [];
+  if(state.cat){ need.push(catKey(state.cat)); }
+  else if(state.ver){ need.push(catKey(state.ver)); }
+  else { need = catList().map(function(c){ return c.k; }); }
+  var todo = need.filter(function(k){ return !_loaded[k]; });
+  if(!todo.length){ rebuild(); render(); return; }
+  Promise.all(todo.map(loadShard)).then(function(){ rebuild(); render(); })
+    .catch(function(e){ $("#foot").textContent = String((e&&e.message)||e); });
+}
+/* 版本筛选：版本不是独立的分片维度，落在各分类分片里，取出后再按版本过滤 */
+function catKey(c){
+  var l = catList();
+  for(var i=0;i<l.length;i++) if(l[i].v===c) return l[i].k;
+  return c;
+}
+function rebuild(){
+  var rows = [];
+  if(state.cat){
+    rows = (_loaded[catKey(state.cat)] || []).slice();
+  } else if(state.ver){
+    var vs = state.ver;
+    catList().forEach(function(c){
+      (_loaded[c.k] || []).forEach(function(r){ if(r.v === vs) rows.push(r); });
+    });
+  } else {
+    catList().forEach(function(c){ rows = rows.concat(_loaded[c.k] || []); });
+  }
+  if(state.q){
+    rows = rows.filter(function(r){ return (r.p||"").toLowerCase().indexOf(state.q) >= 0; });
+  }
+  if(state.sort === "fav") rows.sort(function(a,b){ return (b.f||0)-(a.f||0); });
+  else if(state.sort === "new") rows.sort(function(a,b){ return (b.d||"").localeCompare(a.d||""); });
+  else rows.sort(function(a,b){ return (b.w||0)-(a.w||0); });
+  state.rows = rows;
+}
+
+/* —— 渲染 —— */
+function cardHTML(r, i){
+  var adult = r.n ? ' data-n="1"' : "";
+  var blurTxt = r.n ? ' data-blur="'+esc(tx("blurTap","点开查看","タップで表示"))+'"' : "";
+  var un = unblurred[r.i] ? " unblur" : "";
+  var badge = r.n ? '<span class="badge">'+esc(tx("nsfwBadge","成人内容","成人向け"))+'</span>' : "";
+  return '<article class="card'+un+'" tabindex="0" data-i="'+i+'"'+adult+'>'
+    + '<div class="ph"'+blurTxt+'><img src="'+esc(r.s)+'" alt="'+esc(r.t||r.p||"Midjourney 提示词成图")+'" loading="lazy" decoding="async"></div>'
+    + '<div class="cap">'+esc(r.t||r.p||"")+'</div>'
+    + '<div class="meta">'+badge+'<span>'+esc(r.v||"-")+'</span><span>♥ '+(r.f||0)+'</span></div>'
+    + '</article>';
+}
+function render(){
+  var grid = $("#grid");
+  var rows = state.rows;
+  $("#empty").hidden = rows.length > 0;
+  $("#count").innerHTML = UI.countImg.replace("{n}", "<b>" + rows.length + "</b>");
+  var slice = rows.slice(state.shown, state.shown + PAGE_SIZE);
+  grid.insertAdjacentHTML("beforeend", slice.map(cardHTML).join(""));
+  state.shown += slice.length;
+  $("#more").hidden = state.shown >= rows.length;
+}
+$("#more").addEventListener("click", function(){ render(); });
+gridReset();
+function gridReset(){ $("#grid").innerHTML = ""; state.shown = 0; }
+
+/* 滚动到底自动加载 */
+var io = new IntersectionObserver(function(es){
+  es.forEach(function(en){ if(en.isIntersecting && !$("#more").hidden) render(); });
+}, { rootMargin: "400px" });
+io.observe($("#more"));
+
+/* —— 灯箱 —— */
+var cur = -1;
+/* 中图路径规则：img/x.png → mid/x.webp（与 tools/mid.py 的 mid_rel 一致）。
+   manifest 的 m 字段是上游实际提供的档位（1080，或上游只有 640 时回落到 640）；
+   上游没生成衍生图的条目 m 字段是缩略图 URL，此时 midOf 给出的路径不存在，
+   灯箱用 m 字段，midOf 作为规则参考与兜底。 */
+const midOf = function(p){ return "mid/" + String(p).replace(/\\/g, "/").replace(/^img\//, "").replace(/\.[^./]+$/, "") + ".webp" };
+function open(i){
+  cur = i;
+  var r = state.rows[i];
+  if(!r) return;
+  if(r.n){ unblurred[r.i] = true; document.querySelectorAll('.card[data-i="'+i+'"]').forEach(function(c){ c.classList.add("unblur"); }); }
+  $("#ptxt").textContent = r.p || "";
+  $("#pmeta").textContent = [catLabel(r.c), r.v, "♥ " + (r.f||0), (r.w||0) + " views"].filter(Boolean).join(" · ");
+  $("#originBtn").href = r.u;
+  $("#dlBtn").href = r.g;
+  var big = $("#big");
+  big.classList.remove("on");
+  $("#spin").style.display = "block";
+  big.src = r.m;                      /* 先显示中图 */
+  big.onload = function(){ big.classList.add("on"); $("#spin").style.display = "none"; };
+  $("#modal").hidden = false;
+}
+function close(){ $("#modal").hidden = true; cur = -1; }
+$("#close").addEventListener("click", close);
+$("#modal").addEventListener("click", function(e){ if(e.target === $("#modal")) close(); });
+$("#prev").addEventListener("click", function(){ if(cur>0) open(cur-1); });
+$("#next").addEventListener("click", function(){ if(cur < state.rows.length-1) open(cur+1); });
+document.addEventListener("keydown", function(e){
+  if($("#modal").hidden) return;
+  if(e.key === "Escape") close();
+  else if(e.key === "ArrowLeft") { if(cur>0) open(cur-1); }
+  else if(e.key === "ArrowRight") { if(cur < state.rows.length-1) open(cur+1); }
+});
+$("#grid").addEventListener("click", function(e){
+  var c = e.target.closest(".card");
+  if(c) open(parseInt(c.getAttribute("data-i"), 10));
+});
+$("#copyBtn").addEventListener("click", function(){
+  var r = state.rows[cur]; if(!r) return;
+  var btn = this;
+  function ok(){ btn.textContent = tx("copied","已复制","コピーしました"); setTimeout(function(){ btn.textContent = UI.copyPrompt; }, 1600); }
+  function bad(){ btn.textContent = tx("copyFail","复制失败","コピー失敗"); setTimeout(function(){ btn.textContent = UI.copyPrompt; }, 1600); }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(r.p||"").then(ok, bad);
+  } else {
+    var ta = document.createElement("textarea");
+    ta.value = r.p||""; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); ok(); }catch(err){ bad(); }
+    document.body.removeChild(ta);
+  }
+});
+
+/* —— 启动 —— */
+buildMenus();
+syncChips();
+applyStatic();
+
+/* 从落地页带 #cat=… / #ver=… 进来时直接定位到对应筛选 */
+function readHash(){
+  var h = (location.hash || "").replace(/^#/, "");
+  if(!h) return;
+  h.split("&").forEach(function(kv){
+    var i = kv.indexOf("=");
+    if(i < 0) return;
+    var k = kv.slice(0, i), v = decodeURIComponent(kv.slice(i + 1));
+    if(k === "cat") state.cat = v;
+    else if(k === "ver") state.ver = v;
+  });
+}
+readHash();
+syncChips();
+
+ensure().then(function(){
+  var st = $("#stats");
+  st.innerHTML = '<div><b>'+IDX.total.toLocaleString()+'</b><span>'+tx("statPrompt","提示词","プロンプト")+'</span></div>'
+    + '<div><b>'+IDX.cats.length+'</b><span>'+tx("statCat","分类","カテゴリ")+'</span></div>'
+    + '<div><b>'+IDX.vers.length+'</b><span>'+tx("statVer","版本","バージョン")+'</span></div>'
+    + '<div><b>'+IDX.nsfw.toLocaleString()+'</b><span>'+tx("nsfwBadge","成人内容","成人向け")+'</span></div>';
+  var f = $("#foot");
+  f.innerHTML = UI.footer + ' · <a href="browse/">' + tx("filter","分类与版本","カテゴリとバージョン") + '</a>';
+});
+</script>
+</body>
+</html>

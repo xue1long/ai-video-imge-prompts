@@ -96,6 +96,28 @@ SOURCES = {
         "size": None,
         "bytes": None,
     },
+    "prompthero-midjourney": {
+        "manifest": "sites/prompthero-midjourney/manifest.json",
+        # title 是提示词原文的前 80 字；title_alt 用上游的描述（含浏览/收藏数）
+        "title": "title",
+        "title_alt": "description",
+        # 上游分类是英文原文；版本是 Midjourney 的版本号
+        "facets": {"分类": "category", "版本": "modelVersion"},
+        "files": [("thumb", "thumb_path"), ("mid", "mid_path"), ("full", "full_path")],
+        "size": ("width", "height"),
+        "bytes": None,
+        "keywords": "prompt",
+        "prompt": "prompt",
+        # NSFW 条目在 manifest 里 isNsfw=1
+        "nsfw_field": "isNsfw",
+        "extra": {
+            "source_url": "sourceUrl",
+            "published_at": "createdAt",
+            "model": "modelVersion",
+            "fav_count": "favCount",
+            "view_count": "viewCount",
+        },
+    },
 }
 
 CSV_COLS = [
@@ -119,10 +141,16 @@ CSV_COLS = [
     "bytes",
     "width",
     "height",
+    "fav_count",
+    "view_count",
 ]
 
 # 每个 manifest 里允许出现但不需要入库的键（纯 URL，本地已有副本）
-IGNORABLE = {"thumb_url", "full_url", "mid_url", "img_url", "png_url", "id", "原图字节"}
+IGNORABLE = {"thumb_url", "full_url", "mid_url", "img_url", "png_url", "id", "原图字节",
+             # 派生档位的回落标记：只用于下载时选档，不是素材属性
+             "thumbFallback", "midFallback",
+             # 与 id 重复的完整 slug（id 已是它）
+             "slug"}
 
 # CSV 里 prompt 的截断长度。完整内容走 SQLite（Step 1），不进 CSV。
 # 22k 条 prompt 平均上千字符，不截断会让 CSV 涨到 57 MB，Excel 打不开。
@@ -180,7 +208,10 @@ def build_portrait_like(sid, cfg):
 
         # costume 没有 prompt，但有关键词，作为 prompt 的弱替代（便于英文检索）
         if cfg.get("keywords"):
-            row["prompt_raw"] = rec.get("keywords") or ""
+            row["prompt_raw"] = rec.get(cfg["keywords"]) or ""
+        # prompt 列：展示用正文。配置了就填，没配就留空
+        if cfg.get("prompt"):
+            row["prompt"] = cut(rec.get(cfg["prompt"]) or "")
 
         for kind, key in cfg["files"]:
             row[kind] = rec.get(key, "")
@@ -191,6 +222,11 @@ def build_portrait_like(sid, cfg):
             row["height"] = rec.get(h) or ""
         if cfg.get("bytes"):
             row["bytes"] = rec.get(cfg["bytes"]) or ""
+
+        # extra：把 manifest 的额外字段接到 CSV 的固定列上。
+        # {"source_url": "sourceUrl", "published_at": "createdAt", ...}
+        for col, key in (cfg.get("extra") or {}).items():
+            row[col] = rec.get(key, "")
 
         rows.append(row)
     return rows, seen_keys
@@ -280,12 +316,13 @@ def build_prompts(cfg):
 def unmapped_report(sid, seen, cfg):
     """报告 manifest 里出现、但映射表没消费的字段。"""
     consumed = set(IGNORABLE)
-    for k in ("title", "title_alt", "bytes", "keywords", "tags_field"):
+    for k in ("title", "title_alt", "bytes", "keywords", "prompt", "tags_field", "nsfw_field"):
         if cfg.get(k):
             consumed.add(cfg[k])
     if cfg.get("size"):
         consumed.update(cfg["size"])
     consumed.update(key for _, key in cfg["files"])
+    consumed.update((cfg.get("extra") or {}).values())
     consumed.update(cfg["facets"].values())
     consumed.update(cfg.get("facets", {}).keys())
     missing = sorted(k for k in seen if k not in consumed and not k.endswith("_url"))

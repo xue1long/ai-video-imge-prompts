@@ -13,7 +13,7 @@
 | 系统 | Ubuntu 20.04+ / Debian 11+ |
 | git | 任意版本（更新用 `tools/update.py`，见 §4） |
 | Python | 3.8+；`tools/mid.py` 需要 Pillow（`apt install python3-pil`），其余只用标准库 |
-| 磁盘 | ≥ 10 GB 可用（图片 6.8 GB + 中图约 290 MB；硬链接不额外占盘） |
+| 磁盘 | ≥ 60 GB 可用（图片约 47 GB + 中图约 290 MB；硬链接不额外占盘） |
 | 内存 | ≥ 512 MB |
 | 域名 | 已解析到本机 IP |
 
@@ -35,7 +35,7 @@ apt install -y git python3 python3-pil nginx
 git clone https://github.com/xue1long/ai-video-imge-prompts.git /srv/ai-image-gallery
 cd /srv/ai-image-gallery
 
-# ① 下载图片（约 6.8 GB，只需一次）
+# ① 下载图片（约 47 GB，只需一次）
 python3 tools/fetch.py
 
 # ② 生成灯箱中图（约 290 MB，几分钟；之后只补缺失）
@@ -307,5 +307,6 @@ python3 tools/release.py --out dist-stage
 | 深度姿势集 | 禁止再分发 + **禁止批量下载** | ⚠️ 同上，且 `fetch.py` 属被禁止行为 |
 | 服装集 | 禁止再分发 | ⚠️ 同姿势集 |
 | Shisei 姿势线稿 | 图片 CC0 1.0；姿势目录仅注明出处 | ✅ 图片可自由分发；suggestive 姿势默认模糊，不进落地页与 sitemap |
+| Midjourney 提示词集 | 素材由 PromptHero 用户上传，版权归各原作者 | ⚠️ 同姿势集；成人内容分区默认模糊，不进落地页与 sitemap |
 
 建议：如需公开，至少加访问控制（`nginx.conf` 末尾有配置示例）。

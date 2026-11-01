@@ -1,0 +1,34 @@
+{
+ "dirs": [
+  "browse",
+  "cat",
+  "ver"
+ ],
+ "pages": [
+  "browse",
+  "cat/photography",
+  "cat/portraits",
+  "cat/fashion",
+  "cat/uncategorized",
+  "cat/anime",
+  "cat/concept-art",
+  "cat/character-design",
+  "cat/3d-renders",
+  "cat/interior-design",
+  "cat/architecture",
+  "cat/logo-icon-design",
+  "cat/landscapes",
+  "ver/6",
+  "ver/7",
+  "ver/5.2",
+  "ver/niji-mode",
+  "ver/6.1",
+  "ver/niji-v6",
+  "ver/5",
+  "ver/5.1",
+  "ver/4",
+  "ver/1",
+  "ver/3",
+  "ver/2"
+ ]
+}

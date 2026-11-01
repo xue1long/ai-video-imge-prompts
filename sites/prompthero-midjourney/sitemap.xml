@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://example.com/prompthero-midjourney/</loc><changefreq>monthly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/browse/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/cat/photography/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/cat/portraits/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/cat/fashion/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/cat/uncategorized/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/cat/anime/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/cat/concept-art/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/cat/character-design/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/cat/3d-renders/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/cat/interior-design/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/cat/architecture/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/cat/logo-icon-design/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/cat/landscapes/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/ver/6/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/ver/7/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/ver/5.2/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/ver/niji-mode/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/ver/6.1/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/ver/niji-v6/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/ver/5/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/ver/5.1/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/ver/4/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/ver/1/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/ver/3/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/prompthero-midjourney/ver/2/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+</urlset>

@@ -1,0 +1,119 @@
+{
+ "model": "Midjourney",
+ "total": 12998,
+ "nsfw": 2841,
+ "categories": [
+  [
+   "nsfw",
+   2825
+  ],
+  [
+   "portraits",
+   2324
+  ],
+  [
+   "uncategorized",
+   2248
+  ],
+  [
+   "photography",
+   1682
+  ],
+  [
+   "concept-art",
+   1296
+  ],
+  [
+   "character-design",
+   679
+  ],
+  [
+   "anime",
+   524
+  ],
+  [
+   "fashion",
+   388
+  ],
+  [
+   "landscapes",
+   314
+  ],
+  [
+   "interior-design",
+   253
+  ],
+  [
+   "architecture",
+   174
+  ],
+  [
+   "3d-renders",
+   161
+  ],
+  [
+   "logo-icon-design",
+   113
+  ],
+  [
+   "nsfw-good",
+   17
+  ]
+ ],
+ "versions": [
+  [
+   "6",
+   4320
+  ],
+  [
+   "5.2",
+   3567
+  ],
+  [
+   "6.1",
+   1898
+  ],
+  [
+   "7",
+   964
+  ],
+  [
+   "Niji Mode",
+   658
+  ],
+  [
+   "5.1",
+   550
+  ],
+  [
+   "Niji V6",
+   488
+  ],
+  [
+   "5",
+   381
+  ],
+  [
+   "4",
+   125
+  ],
+  [
+   "1",
+   16
+  ],
+  [
+   "3",
+   16
+  ],
+  [
+   "2",
+   14
+  ],
+  [
+   "-",
+   1
+  ]
+ ],
+ "noCopies": 26,
+ "no1080": 676
+}

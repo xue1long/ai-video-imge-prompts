@@ -143,7 +143,7 @@ def _page(site, *, slug, title, h1, description, crumbs, body, ld, depth):
 <footer><div class="wrap">
 <p>{esc(site.name)} · {esc(site.tagline)}</p>
 <p>{esc(site.license_note)} 素材作者：<a href="{esc(site.author_url)}" rel="noopener">{esc(site.author)}</a> · 原站：<a href="{esc(site.source)}" rel="noopener">{esc(site.source)}</a></p>
-<p><a href="{up}">返回{esc(site.name)}画廊</a> · <a href="{up}browse/">全部分类与标签</a> · <a href="{up}../">photoai.life 四个参考图库</a></p>
+<p><a href="{up}">返回{esc(site.name)}画廊</a> · <a href="{up}browse/">全部分类与标签</a> · <a href="{up}../">photoai.life 参考素材库</a></p>
 </div></footer>
 </body>
 </html>

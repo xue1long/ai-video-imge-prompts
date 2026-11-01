@@ -40,7 +40,9 @@ jobs:
         run: |
           # prompts 站的数据源（data/prompts_*.json、data/gallery_*.js，约 220 MB）
           # 不入库、可由 import_youmind.py 重拉，干净检出上构建它必然失败，所以跳过。
-          # 其余五站照常构建并逐文件比对，闸门不变。
+          # 其余站照常构建并逐文件比对，闸门不变。
+          # prompthero-midjourney 站虽然也把数据分片外置，但分片可由入库的
+          # manifest.json 重建，因此照常参与比对。
           python3.8 tools/build.py --skip prompts
           git diff --exit-code -- hub sites \
             || { echo "::error::构建产物与仓库不一致，请运行 python tools/build.py 并提交"; exit 1; }

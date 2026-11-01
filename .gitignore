@@ -23,6 +23,14 @@ sites/prompts/data/dims.json
 # 构建产物：按模型分片的内嵌数据（gallery_*.js 不会匹配 gallery.js）
 sites/prompts/data/gallery_*.js
 
+# ── PromptHero 站：按分类分片的数据 ──────────────────────────
+# 分片由 scripts/build_gallery.py 从 manifest.json 重建；
+# 入库的只有 data/gallery.js（分类与版本索引）。
+sites/prompthero-midjourney/data/gallery_*.js
+# manifest.csv 是 manifest.py 的派生可读导出（6.6 MB，无脚本消费），
+# 需要时可随时由 python scripts/manifest.py 重新生成。
+sites/prompthero-midjourney/manifest.csv
+
 # ── 构建与发布产物 ────────────────────────────────────
 dist/
 sites/*/dist/

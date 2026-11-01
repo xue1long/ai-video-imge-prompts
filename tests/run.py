@@ -18,11 +18,17 @@ from mid import mid_rel  # noqa: E402
 
 CFG = load_cfg()
 SITES = [s["id"] for s in CFG["sites"]]
+# 数据源不入库的站：干净检出上构建必然失败，CI 用 --skip 跳过。
+# prompts 站的 data/prompts_*.json 约 220 MB，.gitignore 已排除。
+SKIP_BUILD = ["prompts"]
+# 数据分片外置的站：data/gallery.js 是索引（入库），data/gallery_<key>.js 是分片（不入库）
+SHARD_INDEX = ["prompts", "prompthero-midjourney"]
 PAGES = ["hub/index.html"] + [f"sites/{s}/{f}" for s in SITES for f in ("index.html", "404.html")]
 BUILD_OUTPUT = ["hub/index.html", "hub/robots.txt", "hub/sitemap.xml", "hub/llms.txt"] + [
     f"sites/{s}/{f}" for s in SITES for f in ("index.html", "404.html", "robots.txt", "sitemap.xml")] + [
     f"sites/{s}/data/landing.json" for s in SITES] + [
-    f"sites/prompts/data/gallery.js"]      # prompts 站数据外置，构建产物同样校验一致性
+    # 数据外置的站：索引文件同样入库，构建产物也要校验一致性
+    f"sites/{s}/data/gallery.js" for s in SHARD_INDEX if s not in SKIP_BUILD]
 
 
 def landing_meta(root, sid):
@@ -37,11 +43,15 @@ def landing_pages(root=ROOT):
     """各站 data/landing.json 记录的静态落地页（相对仓库根的路径）"""
     return [f"sites/{s}/{pg}/index.html" for s in SITES for pg in landing_meta(root, s)["pages"]]
 
-
 def generated_files(root):
-    """落地页目录里实际存在的全部文件，用来发现多出或缺少的页面"""
+    """落地页目录里实际存在的全部文件，用来发现多出或缺少的页面。
+
+    SKIP_BUILD 里的站不参与：它们的构建在干净检出上跑不起来，
+    落地页不会被重新生成，比对会误报。"""
     out = set()
     for s in SITES:
+        if s in SKIP_BUILD:
+            continue
         for d in landing_meta(root, s)["dirs"]:
             for dp, _, fns in os.walk(os.path.join(root, "sites", s, d)):
                 out |= {os.path.relpath(os.path.join(dp, fn), root).replace(os.sep, "/") for fn in fns}
@@ -82,7 +92,8 @@ class Build(unittest.TestCase):
             # 删掉复制过去的落地页，确认它们完全由构建重新生成
             for f in generated_files(dst):
                 os.remove(os.path.join(dst, f))
-            r = subprocess.run([sys.executable, os.path.join("tools", "build.py")], cwd=dst,
+            r = subprocess.run([sys.executable, os.path.join("tools", "build.py"),
+                                "--skip", ",".join(SKIP_BUILD)], cwd=dst,
                                capture_output=True, text=True, encoding="utf-8")
             self.assertEqual(r.returncode, 0, r.stdout[-2000:] + r.stderr[-2000:])
             committed, fresh = generated_files(ROOT), generated_files(dst)
@@ -227,10 +238,13 @@ class Landing(unittest.TestCase):
 
     def test_gallery_hash_params_known(self):
         # 「在画廊中查看」带的 #参数必须是画廊能识别的
+        # 各站的分面维度不同：cat（分类）、tag（标签）、series（系列）、
+        # sec（分区）、hair（发型）、ver（版本）
         for rel in self.pages:
             for hsh in re.findall(r'class="cta" href="[^"]*#([^"]+)"', read(rel)):
                 for kv in html.unescape(hsh).split("&"):
-                    self.assertIn(kv.split("=")[0], {"cat", "tag", "series", "sec", "hair"}, f"{rel}: {hsh}")
+                    self.assertIn(kv.split("=")[0],
+                                  {"cat", "tag", "series", "sec", "hair", "ver"}, f"{rel}: {hsh}")
 
     def test_adult_series_not_expanded(self):
         # 姿势两站：双人系列不生成落地页，性感系与上半身不展开到分类
@@ -322,13 +336,15 @@ class Manifests(unittest.TestCase):
                 self.assertEqual(len(paths), len(set(paths)), f"{s['id']} {t} 路径重复")
 
     def test_urls_point_to_source(self):
-        # 图片地址要在原站下；图片另有出处的站点（如 Shisei 用上游 GitHub 固定标签）写 imageBase
+        # 图片地址要在原站下；图片另有出处的站点（如 Shisei 用上游 GitHub 固定标签）写 imageBase。
+        # 图片分散在多个 CDN 域名的站点（如 PromptHero 衍生图在 img、原图在 cdn）写 imageBases 列表。
         for s in CFG["sites"]:
-            base = s.get("imageBase", s["source"])
+            bases = s.get("imageBases") or [s.get("imageBase", s["source"])]
             rows = json.loads(read(f"sites/{s['id']}/manifest.json"))
             for t in s["tiers"]:
-                off = [r[t + "_url"] for r in rows if not r[t + "_url"].startswith(base)]
-                self.assertEqual(off, [], f"{s['id']} {t} 的 URL 不在 {base} 下")
+                off = [r[t + "_url"] for r in rows
+                       if not any(r[t + "_url"].startswith(b) for b in bases)]
+                self.assertEqual(off, [], f"{s['id']} {t} 的 URL 不在 {bases} 下")
 
     def test_image_dirs_match_paths(self):
         # release.py 只硬链接 imageDirs；manifest 里的图片都应落在这些目录里

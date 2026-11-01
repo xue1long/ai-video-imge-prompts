@@ -71,6 +71,7 @@ ORIGINAL_TIER = {
     "pose-depth": "full",
     "shisei": "full",
     "prompts": "full",
+    "prompthero-midjourney": "full",
 }
 
 # 分面命名空间 → 中文名表。没列出的命名空间 name_zh 与 name 相同。
@@ -191,6 +192,12 @@ def sync_rows(conn, sid, cfg, recs):
         if not present:
             continue
         original_path = present.get(original_kind) or next(iter(present.values()))
+        # 宽高：cfg["size"] 是 (宽键, 高键)；没配就退回旧的中文键
+        if cfg.get("size"):
+            w_key, h_key = cfg["size"]
+            width, height = rec.get(w_key) or None, rec.get(h_key) or None
+        else:
+            width, height = rec.get("宽") or None, rec.get("高") or None
         write_files(
             conn,
             item_id,
@@ -198,8 +205,8 @@ def sync_rows(conn, sid, cfg, recs):
             original_kind,
             original_path,
             rec.get("原图字节") or 0,
-            rec.get("宽") or None,
-            rec.get("高") or None,
+            width,
+            height,
             prefix=f"sites/{sid}/",
         )
         count += 1
