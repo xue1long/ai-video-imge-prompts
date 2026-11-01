@@ -305,6 +305,9 @@ footer a{color:var(--tx2)}
   display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
 .lb .foot code{background:#1c1c20;border:1px solid #2a2a2e;border-radius:6px;padding:2px 8px;
   max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* p 值（风格参考码）：单独配色，点击即复制，方便粘回 Midjourney 用 */
+.lb .foot #lbSref{color:#e8c98a;border-color:#4a4028;cursor:copy}
+.lb .foot #lbSref:hover{background:#2a2418}
 html[lang=ja] .zh{display:none}
 html[lang=zh] .ja{display:none}
 __LANDING_CSS__
@@ -364,6 +367,7 @@ __LANDING_CSS__
   </div>
   <div class="foot">
     <span id="lbMeta"></span>
+    <code id="lbSref" hidden></code>
     <code id="lbPrompt"></code>
   </div>
 </div>
@@ -518,6 +522,20 @@ function openLightbox(key){
   img.alt = job.p || "";
   $("#lbTitle").textContent = (job.u || "") + " · " + it.a;
   $("#lbMeta").textContent = it.a + " · " + (it.w||"?") + "×" + (it.h||"?");
+  // p 值：风格参考码，显示在提示词上方（与原站一致：sref 2918660786）
+  var sref = $("#lbSref");
+  if (job.s) { sref.textContent = "sref " + job.s; sref.hidden = false; }
+  else { sref.textContent = ""; sref.hidden = true; }
+  // 点 sref 码即复制（方便直接粘回 Midjourney 的 --sref 参数）
+  sref.onclick = function(){
+    if (!job.s) return;
+    var el = this;
+    navigator.clipboard.writeText(job.s).then(function(){
+      var old = el.textContent;
+      el.textContent = "已复制 " + job.s;
+      setTimeout(function(){ el.textContent = old; }, 1400);
+    }).catch(function(){});
+  };
   $("#lbPrompt").textContent = job.p || "";
   $("#lbOrigin").onclick = function(){ window.open(job.o, "_blank", "noopener"); };
   $("#lbDl").onclick = function(){
@@ -631,7 +649,7 @@ refresh();
 
 
 def build_jobs(rows, job_list):
-    """作业表：作业号 → {p: 提示词, u: 作者, o: 原站链接}。
+    """作业表：作业号 → {p: 提示词, u: 作者, o: 原站链接, s: 风格参考码(p 值)}。
 
     提示词平均 404 字符，200 条共约 80 KB；内嵌进 index.html 后页面仍在 450 KB 内。
     """
@@ -643,6 +661,8 @@ def build_jobs(rows, job_list):
                 "u": r["username"],
                 "o": r["sourceUrl"],
                 "v": r["version"] or "",
+                # p 值：风格参考码，原站点开图片会在图上方显示「sref 2918660786」
+                "s": r.get("sref") or "",
             }
     return [jobs[j] for j in job_list]
 

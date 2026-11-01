@@ -39,7 +39,7 @@ sys.path.insert(0, SITE)
 
 from config import API, FEED, PAGE_COUNT, PAGE_START, PROXY, UA  # noqa: E402
 
-RETRY = 5
+RETRY = 10
 
 # 浏览器化的最小请求头集合。缺 Referer / Sec-Fetch-* 会被 CDN 直接 403。
 BROWSER_HEADERS = {
@@ -112,7 +112,8 @@ def fetch_page(opener, page, log):
             return data if isinstance(data, list) else []
         except Exception as e:
             last = e
-            wait = 5 * (attempt + 1)
+            # 限流窗口可能很长（实测 8 次 75s 间隔仍被拒），退避要够狠
+            wait = 30 * (attempt + 1)
             log("    page %d 第 %d 次失败(%s)，%ds 后重试"
                 % (page, attempt + 1, type(e).__name__, wait))
             time.sleep(wait)
@@ -156,6 +157,28 @@ def aspect_of(job):
     return "%d:%d" % (w // g, h // g)
 
 
+def style_refs(prompt):
+    """风格参考（sref）码列表。
+
+    上游 prompt.styleRef 是数组，每项带 `t` 字段：
+      · t == "url"  → 图片 URL 型的参考（不是码，不收）
+      · t 是数字串  → 就是页面上显示的 p 值（如 sref 2918660786）
+    之前只存了 hasStyleRef 这个布尔标记，把码本身丢掉了——
+    原站点开图片会在图上方显示「sref <码>」，本站也要显示。
+    """
+    out = []
+    for item in (prompt.get("styleRef") or []):
+        if not isinstance(item, dict):
+            continue
+        t = item.get("t")
+        if t is None or t == "url":
+            continue
+        code = str(t).strip()
+        if code and code not in out:
+            out.append(code)
+    return out
+
+
 def slim(job):
     """只留 manifest.py 需要的字段，避免 data/jobs.json 过大。"""
     if not job.get("id"):
@@ -184,6 +207,8 @@ def slim(job):
         "enqueueTime": job.get("enqueue_time") or 0,
         "jobType": job.get("job_type") or "",
         "hasStyleRef": 1 if (prompt.get("styleRef") or []) else 0,
+        # p 值：风格参考码（原站点开图片会显示「sref 2918660786」）
+        "sref": style_refs(prompt),
         "indices": idx,
         "totalIndices": len(items),
         "sourceUrl": "https://www.midjourney.com/explore?tab=styles_top",

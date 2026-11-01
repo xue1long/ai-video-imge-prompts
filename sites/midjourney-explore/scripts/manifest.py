@@ -60,6 +60,8 @@ def main():
                 "width": j["width"],
                 "height": j["height"],
                 "hasStyleRef": j["hasStyleRef"],
+                # p 值：风格参考码，逗号分隔（同一条作业的 4 格共用）
+                "sref": ",".join(j.get("sref") or []),
                 "sourceUrl": j["sourceUrl"],
                 "thumb_url": base + "_640_N.webp",
                 "thumb_path": "thumbs/%s_%d.webp" % (job_id, i),
@@ -78,7 +80,7 @@ def main():
         json.dump(out, f, ensure_ascii=False, indent=1)
 
     cols = ["id", "jobId", "index", "aspect", "version", "username",
-            "enqueueTime", "width", "height", "prompt", "sourceUrl",
+            "enqueueTime", "width", "height", "prompt", "sref", "sourceUrl",
             "thumb_path", "mid_path", "full_path"]
     with open(os.path.join(SITE, "manifest.csv"), "w", encoding="utf-8-sig", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols)

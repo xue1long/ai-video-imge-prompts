@@ -104,35 +104,8 @@ SOURCES = {
         "title": "title",
         "title_alt": "prompt",
         # 官网 Explore 榜没有官方分类，唯一稳定可枚举的维度是画面宽高比
-        "facets": {"宽高比": "aspect", "版本": "version"},
-        "files": [("thumb", "thumb_path"), ("mid", "mid_path"), ("full", "full_path")],
-        "size": ("width", "height"),
-        "bytes": None,
-        "keywords": "prompt",
-        "prompt": "prompt",
-        # 同一次作业出 4 格、共用一段提示词：按 jobId 聚合成一条素材，
-        # 4 张图作为它的 4 个 asset（ordinal = index，灯箱里的翻页顺序）。
-        # 不声明 group_by 的话，4 格会散成 4 条独立素材，灯箱里翻不到一起。
-        "group_by": "jobId",
-        "group_order": "index",
-        "extra": {
-            "source_url": "sourceUrl",
-            "published_at": "enqueueTime",
-            "model": "version",
-            "author": "username",
-            "author_display": "displayName",
-            "style_ref": "hasStyleRef",
-            "grid_index": "index",
-            "job_id": "jobId",
-        },
-    },
-    "midjourney-explore": {
-        "manifest": "sites/midjourney-explore/manifest.json",
-        # title 是提示词原文的前 80 字；title_alt 用完整提示词
-        "title": "title",
-        "title_alt": "prompt",
-        # 官网 Explore 榜没有官方分类，唯一稳定可枚举的维度是画面宽高比
-        "facets": {"宽高比": "aspect", "版本": "version"},
+        # 「风格参考」是 p 值（原站点开图片显示 sref 2918660786），做成标签便于检索
+        "facets": {"宽高比": "aspect", "版本": "version", "风格参考": "sref"},
         "files": [("thumb", "thumb_path"), ("mid", "mid_path"), ("full", "full_path")],
         "size": ("width", "height"),
         "bytes": None,

@@ -377,6 +377,29 @@ class IndexMapping(unittest.TestCase):
         import catalog
         return catalog.SOURCES
 
+    def test_no_duplicate_source_keys(self):
+        """SOURCES 字面量里不能有重复键。
+
+        Python 的字典字面量遇到重复键会**静默取最后一个**——前一份配置看着还在，
+        实际完全不生效。改前一份却不报错，是最难查的一类配置漂移。
+        """
+        import ast
+        path = os.path.join(ROOT, "index", "catalog.py")
+        with open(path, encoding="utf-8") as f:
+            tree = ast.parse(f.read())
+        found = False
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign):
+                continue
+            if getattr(node.targets[0], "id", "") != "SOURCES":
+                continue
+            found = True
+            keys = [k.value for k in node.value.keys if isinstance(k, ast.Constant)]
+            dup = sorted({k for k in keys if keys.count(k) > 1})
+            self.assertEqual(dup, [], f"catalog.SOURCES 里有重复键 {dup}："
+                                     f"字典字面量会静默取最后一个，前一份配置不生效")
+        self.assertTrue(found, "catalog.py 里找不到 SOURCES 字面量")
+
     def test_every_site_has_a_source_mapping(self):
         # sites.json ↔ catalog.SOURCES 必须双向一一对应：
         # 少一边 = 站点建好了却没进索引（或索引里有个已删的站）。
