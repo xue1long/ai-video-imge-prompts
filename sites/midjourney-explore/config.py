@@ -9,12 +9,27 @@
 
 采集端点与代理配置放在这里，scripts/extract.py 与 scripts/manifest.py 共用。
 
-关于 tab=styles_top：
-    站点的 tab 标签（styles_top / styles_hot / styles_random / top / hot …）在前端
-    全部走同一个接口 /api/explore?page=N&feed=top —— tab 只是界面上的叫法，
-    底层数据是同一份「社区热门榜」。实测把 tab 换成任何 styles_* 值，返回的
-    字节完全一致（MD5 相同），因此本站只取 feed=top 这一份榜单，不做多 tab 区分。
-    详见 docs/ADDING_A_SITE.md 第五节「先抓前端 bundle 定位接口」。
+关于「内容类型」与 tab（2026-11-02 更正）：
+    Explore 页是**两个维度的组合**，不是一个扁平的 tab 列表：
+      · 排序（左侧 / 顶部）：For You / Random / Hot / Top day|week|month / Likes
+      · 内容类型（右上角）：Images / Videos / **Styles**
+    本站的 feed=top 只覆盖「Images 内容类型 + Top day 排序」这一格。
+
+    **Styles 是一个独立的内容类型，没有被本站在采集**（已确认，见下）：
+    它是 Style Explorer，展示的是 Style Reference code（风格码，如 2918660786）
+    以及每个码对应的一组示例图，与「作业 + 4 格成图」的数据结构完全不同。
+    官方文档《Website Overview》原文：「Open the Explore page and click the
+    Styles tab in the top-right corner」，可按 Random / Popular 排序、按词模糊搜索。
+
+    ⚠️ 旧结论已作废：本文件此前记载「tab 全部走同一个接口，官网没有独立于热门榜的
+    风格榜数据源」。该结论**不成立** —— 当初的实测是把 URL 里的 `?tab=` 换成
+    styles_* 看 HTML 字节是否一致，但 `?tab=` 是前端路由参数，SPA 返回同一份 shell
+    是正常行为，推不出「没有独立数据源」；而 Styles 根本不是 URL tab，是页面右上角的
+    内容类型开关。2026-11-02 复测：`?tab=styles_top` 已返回普通图片网格（顶部只有
+    Top day / Images / Videos），说明这个 tab 值已被上游当默认图片流处理。
+
+    **待办**：Styles 的接口端点与参数尚未实测（需要可用的出口 IP + CF 通行证）。
+    确认后按独立数据线采集，不要塞进现成的 jobs 流程。
 """
 import os
 
@@ -32,7 +47,7 @@ PROXY = os.environ.get("FETCH_PROXY", "")
 
 # ── 站点身份 ─────────────────────────────────────────
 CODE = "MJ-EXPLORE-01"
-SOURCE = "https://www.midjourney.com/explore?tab=styles_top"
+SOURCE = "https://www.midjourney.com/explore?tab=top"
 ORIGIN = "https://www.midjourney.com"
 
 # 图片 CDN：每条作业的每一格图，路径为 {job_id}/{index}_{size}_N.webp

@@ -409,7 +409,7 @@
         }
       ],
       "license": "restricted",
-      "source": "https://www.midjourney.com/explore?tab=styles_top",
+      "source": "https://www.midjourney.com/explore?tab=top",
       "cover": "thumbs/860837af-91b8-471e-8a50-f62cd2804c70_0.webp",
       "coverPos": "center 35%",
       "tiers": [
@@ -422,7 +422,7 @@
       ],
       "author": {
         "name": "Midjourney 社区",
-        "url": "https://www.midjourney.com/explore?tab=styles_top"
+        "url": "https://www.midjourney.com/explore?tab=top"
       },
       "imageBase": "https://cdn.midjourney.com/",
       "imagePolicy": {

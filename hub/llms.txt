@@ -12,7 +12,7 @@
 - [深度姿势集](https://example.com/pose-depth/)：同一批 288 个姿势的 1439 张灰度深度图，可直接作为 ControlNet depth 控制图。 授权：同姿势集；原站另禁止批量下载或用工具自动获取。 原站：https://ai-pose-depth-gallery.pages.dev/
 - [CC0 姿势线稿](https://example.com/shisei/)：280 个姿势、1133 张无脸人偶线稿（全身・标准、上半身、全身・性感、双人），每个姿势最多 5 个视角；偏性感的姿势默认模糊。 授权：图片 CC0 1.0，可商用、可再分发；姿势目录沿用 ai-pose-gallery，仅注明出处。 原站：https://shisei.indaloop.app/
 - [提示词生图集](https://example.com/prompts/)：26458 条 AI 生图提示词与 41261 张对照成图，覆盖 2 个模型、41 个分类；展示中文提示词、复制英文原文。此外还可将自己跑出的图挂到提示词下。 授权：图片与提示词文本 CC BY 4.0，共享、改编与商用均可，须署名；标注为「自制」的图不在该授权内。 原站：https://youmind.com/gpt-image-2-prompts/explore
-- [Midjourney 探索榜](https://example.com/midjourney-explore/)：Midjourney 官网 Explore 热门榜的镜像。每条社区作业附原始英文提示词，可按画面宽高比筛选。 授权： 原站：https://www.midjourney.com/explore?tab=styles_top
+- [Midjourney 探索榜](https://example.com/midjourney-explore/)：Midjourney 官网 Explore 热门榜的镜像。每条社区作业附原始英文提示词，可按画面宽高比筛选。 授权： 原站：https://www.midjourney.com/explore?tab=top
 - [Midjourney 提示词集](https://example.com/prompthero-midjourney/)：12998 条 Midjourney 提示词与成图，覆盖 13 个版本、14 个分类；提示词原文可直接复制，含成人内容分区（默认模糊）。 授权：素材由 PromptHero 用户上传，版权归各原作者；允许免费用于作品制作与参考，禁止再分发、转载、转售图片文件本身，引用须回链原站。 原站：https://prompthero.com/midjourney-prompts
 
 ## 分类与标签索引

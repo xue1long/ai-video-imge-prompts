@@ -10,14 +10,30 @@
 - 采集日期：2026-11-01、2026-11-02（批次目录 `data/daily/<YYYY-MM-DD>/`，历史批次不覆盖）
 - 模型版本：当前批次全部为 Midjourney v8.2。
 
-## 关于 `tab=styles_top`
+## 收录范围：只含 Images 内容类型，不含 Styles
 
-站点的 tab 标签（`styles_top` / `styles_hot` / `styles_random` / `top` / `hot` …）在前端
-**全部调用同一个接口** `/api/explore?page=N&feed=top`——`feed` 永远是 `top`，
-tab 只是界面上的叫法。实测把 tab 换成任何 `styles_*` 值，返回内容的 MD5 完全相同。
+Explore 页是**两个维度的组合**，不是一个扁平的 tab 列表：
 
-也就是说，官网并没有一个独立于「热门榜」的「风格榜」数据源；`styles_top` 展示的就是
-Explore 的热门作品流。本站据此只取 `feed=top` 这一份榜单，不做多 tab 区分。
+- **排序**（左侧 / 顶部）：For You / Random / Hot / Top day|week|month / Likes
+- **内容类型**（右上角）：Images / Videos / **Styles**
+
+本站采集的是 **`feed=top`（Top day 排序）+ Images 内容类型**这一格。
+
+**Styles 没有采集。** 它是 Style Explorer：展示 Style Reference code（风格码，如
+`2918660786`）以及每个码对应的一组示例图，可按 Random / Popular 排序、按词模糊搜索。
+官方文档《Website Overview》：「Open the Explore page and click the Styles tab in the
+top-right corner」。它的数据结构是「风格码 + 示例图组」，与本站现用的「作业 + 4 格成图」
+完全不同，不能塞进同一个 jobs 流程。
+
+> ⚠️ **2026-11-02 更正**：本节此前写「官网并没有一个独立于热门榜的风格榜数据源；
+> `styles_top` 展示的就是 Explore 的热门作品流」。该结论**不成立**，已作废。
+> 当初的实测是把 URL 里的 `?tab=` 换成 `styles_*` 看 HTML 字节是否相同 —— 但 `?tab=`
+> 是前端路由参数，单页应用返回同一份 shell 属正常行为，推不出「没有独立数据源」；
+> 而 Styles 并非 URL tab，而是页面右上角的内容类型开关。复测确认 `?tab=styles_top`
+> 现在返回普通图片网格（顶部只有 Top day / Images / Videos）。
+>
+> **Styles 的接口端点与参数尚未实测**（需要可用出口 IP + CF 通行证）。确认后按独立
+> 数据线采集。
 
 ## 授权
 
@@ -67,4 +83,4 @@ Explore 的热门作品流。本站据此只取 `feed=top` 这一份榜单，不
 | 公开榜单在 `page=4` 起返回空数组 | 采集 4 页，共 200 条作业 |
 | 每条作业固定 4 格，但其中 3 格被上游标记 `server_filtered` | 官网首页只展示 1 格；实测被标记的格子在 CDN 上同样能取到完整图片，故全部收录 |
 | 上游 `prompt.ar` 是 `{"w":9,"h":16}` 这样的字典，部分条目为 `null` | 统一归一到最简比例（如 `9:16`）；`ar` 缺失时由 `width/height` 推算 |
-| `feed` 参数对 `styles_*` 无效 | 只取 `feed=top`（见上文「关于 tab=styles_top」） |
+| Styles（风格码）是独立内容类型，不在 `feed=top` 的返回里 | **当前未采集**，见上文「收录范围」（待实测接口后按独立数据线接入） |
