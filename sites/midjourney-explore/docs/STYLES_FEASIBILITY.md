@@ -473,33 +473,66 @@ cdn.midjourney.com/styles/0_<码>/still_life_<尺寸>_N.webp
 | 文件 | 作用 |
 |---|---|
 | `scripts/dump_styles.py` | 取码。`--cdp` 接管已开 Chrome / `--state` 用会话文件起全新 Chrome / `--profile --login` 等人工登录 |
+| `scripts/capture_session.py` | **取会话**。等人工登录 → 导出 `storage_state` → 自动跑一次接口自检。会话过期后重跑这一个就行 |
 | `scripts/fetch_styles.py` | 下图。`--size` / `--codes` / `--limit` / `--force`，幂等跳过已存在文件 |
-| `data/styles.json` | 清单（feed / captured_at / 200 条 code）—— **入库** |
+| `data/styles.json` | 清单（feed / captured_at / 累计 code / snapshots 快照账本）—— **入库** |
 | `data/styles_images.json` | 每个码每类图的命中状态 —— **入库** |
 | `styles/<码>/{portrait,landscape,still_life}.webp` | 图片本体，`.gitignore` 已加 `sites/*/styles/`，**不入库** |
+
+会话文件位置（**必须在仓库外**）：
+
+```text
+%USERPROFILE%\.workbuddy\secrets\midjourney-session.json
+```
+
+不要放 `.scratch/`：那是 gitignore 的临时区，清理临时文件时会连会话一起删掉（2026-11-03 已实际发生一次，因为排查时看错目录层级又误判成「已丢失」）。
 
 用法：
 
 ```bash
 cd sites/midjourney-explore
-python scripts/dump_styles.py --state ../../.scratch/mj_session.json   # 取码
-python scripts/fetch_styles.py --size 1024                            # 下图
+python scripts/dump_styles.py --state "%USERPROFILE%\.workbuddy\secrets\midjourney-session.json"   # 取码
+python scripts/fetch_styles.py --size 1024                                                        # 下图
 ```
 
-**实跑结果（2026-11-03，`styles_top`，1024 档，两次快照合并）**：
+会话过期时（接口返回 401 / 500）：
+
+```bash
+# 1) 起一个独立 profile 的 Chrome（不要用默认目录，见 11.5 第 1 条）
+chrome.exe --user-data-dir="%USERPROFILE%\.workbuddy\mj-profile" --remote-debugging-port=9333 \
+           "https://www.midjourney.com/auth/signin"
+# 2) 人工登录后跑
+python scripts/capture_session.py --cdp http://127.0.0.1:9333
+```
+
+**实跑结果（2026-11-03，`styles_top`，1024 档，三次快照合并）**：
 
 | 项 | 数值 |
 |---|---|
-| 码 | **261**（首跑 200 + 20 分钟后新增 61；`data/styles.json` 与磁盘目录完全一致） |
-| 图片 | **783 张**（portrait / landscape / still_life 各 261） |
-| 失败 | **0 个 404、0 个错误**（两次合计 783 次请求全部命中） |
-| 体积 | 191 MB（单张 14–690 KB；三类平均 251 / 276 / 240 KB） |
-| 耗时 | 首跑 600 张 10 分 45 秒；补 183 张 3 分 50 秒（`--sleep 0.25~0.3`） |
+| 码 | **329**（首跑 200 + 41 分钟后 +61 + 1 小时后 +68；`data/styles.json` 与磁盘目录完全一致） |
+| 图片 | **987 张**（portrait / landscape / still_life 各 329） |
+| 失败 | **0 个 404、0 个错误**（三次合计 987 次请求全部命中） |
+| 体积 | 235 MB（单张 14–690 KB；三类平均 251 / 276 / 240 KB） |
+| 耗时 | 首跑 600 张 10 分 45 秒；补 183 张 3 分 50 秒；补 204 张 3 分 45 秒（`--sleep 0.25~0.3`） |
+
+三次快照的重合度：第 1↔2 次重合 139/200（30% 换血），第 2↔3 次重合 132/200（34% 换血）。
+攒库速率稳定在**每轮 60~70 个新码**，想扩到四位数码量需要 10 轮以上。
 
 ### 11.5 仍未解决的边界
 
-1. **登录态会过期**。没有自动续期机制，过期后需要人工重登一次再导出
-   `storage_state`。因此**不能挂进每日定时任务**，只能按周/月手动刷新。
+1. **登录态会过期，且取会话必须人工登录一次**。会话文件在
+   `%USERPROFILE%\.workbuddy\secrets\midjourney-session.json`，实测有效期：
+
+   | cookie | 到期 | 说明 |
+   |---|---|---|
+   | `__Host-Midjourney.AuthUserTokenV3_r` / `_i` | 约 30 天 | 真正的登录凭据 |
+   | `cf_clearance` | 约 1 年 | 与 Chrome 的 TLS 指纹绑定 |
+   | `__cf_bm` / `_dd_s` | 小时级 | 短期 cookie，浏览器会自动续 |
+
+   过期后必须人工重登（`capture_session.py`），因此**不能挂进每日定时任务**，
+   只能按周/月手动刷新。**取会话时绝不要用默认 `user-data-dir` 开调试端口**：
+   Chrome 156 禁止这样做，用 junction 映射默认目录会让 ABE v20 cookie 解不开并被
+   Chrome 删除，登录态不可恢复（2026-11-02 已实际发生）。一律用独立的空 profile。
 2. **只测了 `styles_top`**。`styles_random / styles_hot / styles_top_week /
    styles_top_month` 三个 feed 未实测数据量与重叠度。
 3. **数据本身很薄**。一个风格只有「码 + 三张图」，没有提示词、没有作者。

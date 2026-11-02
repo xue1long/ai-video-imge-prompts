@@ -106,17 +106,22 @@ FETCH_PROXY=http://127.0.0.1:7897 python tools/fetch.py --site midjourney-explor
 
 ## 风格数据线（Styles）
 
-原站右上角的 Styles 是**独立内容类型**，不在 `feed=top` 的返回里。它有两个脚本：
+原站右上角的 Styles 是**独立内容类型**，不在 `feed=top` 的返回里。它有三个脚本：
 
 ```bash
 cd sites/midjourney-explore
 
 # 1) 取码（需要登录态，见下）
-python scripts/dump_styles.py --state ../../.scratch/mj_session.json
+python scripts/dump_styles.py --state "%USERPROFILE%\.workbuddy\secrets\midjourney-session.json"
 
 # 2) 下图（不需要登录，CDN 直连）
 python scripts/fetch_styles.py --size 1024
+
+# 会话过期时：起独立 profile 的 Chrome 人工登录，再跑
+python scripts/capture_session.py --cdp http://127.0.0.1:9333
 ```
+
+会话文件放在 `%USERPROFILE%\.workbuddy\secrets\midjourney-session.json`，**不要放 `.scratch/`**（那里会被清理）。`__Host-Midjourney.AuthUserTokenV3_*` 约 30 天有效，`cf_clearance` 约 1 年。
 
 产物：
 
@@ -124,7 +129,7 @@ python scripts/fetch_styles.py --size 1024
 |---|---|---|
 | `data/styles.json` | 清单：feed / captured_at / 累计码表 / 每次抓取快照 | 是 |
 | `data/styles_images.json` | 每码每类图的命中状态 | 是 |
-| `styles/<码>/portrait.webp` 等 | 三类示例图，每码三张（261 码共 783 张，191 MB） | 否（`.gitignore`） |
+| `styles/<码>/portrait.webp` 等 | 三类示例图，每码三张（329 码共 987 张，235 MB） | 否（`.gitignore`） |
 
 **每个码有三张语义化单图**：`portrait` / `landscape` / `still_life`，
 同一风格的三个不同题材。CDN 上只有 128 / 384 / 640 / 1024 四档。

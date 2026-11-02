@@ -43,7 +43,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SITE = os.path.dirname(HERE)                      # sites/midjourney-explore
 sys.path.insert(0, SITE)
 
-from config import API, FEED, PAGE_COUNT, PAGE_START, PROXY, UA  # noqa: E402
+from config import API, FEED, PAGE_COUNT, PAGE_START, PROXY, SOURCE, UA  # noqa: E402
 
 RETRY = 20
 
@@ -228,7 +228,8 @@ def slim(job):
         "sref": style_refs(prompt),
         "indices": idx,
         "totalIndices": len(items),
-        "sourceUrl": "https://www.midjourney.com/explore?tab=styles_top",
+        # 数据来源页（语义字段）：必须是真实的采集入口，不是取通行证用的那个 URL
+        "sourceUrl": SOURCE,
     }
 
 

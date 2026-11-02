@@ -8,21 +8,26 @@
   `500 {"error":"Internal server error"}`（cf_clearance 与 Chrome 的 TLS 指纹绑定，
   四组请求变体全部失败）。因此本脚本用 Playwright 在页面里执行 fetch。
 
-两种运行模式：
+三种运行模式：
     # 1) 接管一个已登录的 Chrome（调试端口）
     python scripts/dump_styles.py --cdp http://127.0.0.1:9333
 
-    # 2) 用会话文件在全新 Chrome 里跑（不依赖已打开的窗口）
-    python scripts/dump_styles.py --state ../../.scratch/mj_session.json
+    # 2) 用会话文件在全新 Chrome 里跑（不依赖已打开的窗口，推荐）
+    python scripts/dump_styles.py --state "%USERPROFILE%\\.workbuddy\\secrets\\midjourney-session.json"
 
     # 3) 都没有时：起一个 Chrome 并等待人工登录
-    python scripts/dump_styles.py --profile ../../.scratch/cprof3 --login
+    python scripts/dump_styles.py --profile "%USERPROFILE%\\.workbuddy\\mj-profile" --login
 
 输出：data/styles.json（feed / captured_at / count / items[code,id,width,height,type]）
 
-登录态来源：人工在 Chrome 里登录 midjourney.com 后，用
-    context.storage_state(path="mj_session.json")
-导出；脚本不含任何凭证，也不会打印 cookie 值。
+登录态来源：人工在 Chrome 里登录 midjourney.com 后，用 scripts/capture_session.py 导出
+    python scripts/capture_session.py --cdp http://127.0.0.1:9333
+**会话文件必须放在仓库外**（`%USERPROFILE%\.workbuddy\secrets\`），不要用 `.scratch/`：
+`.scratch/` 是 gitignore 的临时区，清理时会被一并删掉。脚本不打印任何 cookie 值。
+
+会话有效期（2026-11-03 实测）：`__Host-Midjourney.AuthUserTokenV3_*` 约 30 天，
+`cf_clearance` 约 1 年，`__cf_bm` / `_dd_s` 是小时级短期 cookie（由浏览器自动续）。
+过期表现为接口返回 401/500，此时重跑 capture_session.py 即可。
 """
 import argparse
 import datetime
