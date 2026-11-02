@@ -39,9 +39,9 @@ sites/midjourney-explore/data/gallery_*.js
 # 需要时可随时由 python scripts/manifest.py 重新生成。
 sites/midjourney-explore/manifest.csv
 # 采集器的草稿文件：抓取中途失败时留在这里，不入库
-# （正式数据是 data/jobs.json，只有结果完整时才会被替换）
-sites/midjourney-explore/data/jobs.new.json
-sites/midjourney-explore/data/jobs.new.json.tmp
+# （正式数据是 data/daily/<日期>/jobs.json，只有结果完整时才会被替换）
+sites/midjourney-explore/data/daily/*/jobs.new.json
+sites/midjourney-explore/data/daily/*/jobs.new.json.tmp
 
 # ── 构建与发布产物 ────────────────────────────────────
 dist/
