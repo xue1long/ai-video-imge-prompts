@@ -14,7 +14,7 @@
 ## 技术栈
 
 - **Python 3.8+**：`tools/` 全部脚本只用标准库；`tools/mid.py` 生成中图、`index/actions.py` 生成导入缩略图需要 **Pillow**（`pip install pillow`）。
-- **输出是纯静态站点**：无框架、无 CDN、无外部字体，单站一个 `index.html` + 数据内嵌（例外：`prompts` 站的 4.1 万张图外置为**按模型分片**的 `data/gallery_<key>.js`，`data/gallery.js` 只是模型索引；进站只加载默认模型，切模型时按需注入，`JSON.parse` 加载 + 每批 240 条增量渲染，index.html 保持约 40KB；`midjourney-explore` 站按宽高比分片 `data/gallery_<asp>.js`，提示词按作业去重存进 `data/gallery.js` 的作业表，index.html 约 126KB）。
+- **输出是纯静态站点**：无框架、无 CDN、无外部字体，单站一个 `index.html` + 数据内嵌（例外：`prompts` 站的 4.1 万张图外置为**按模型分片**的 `data/gallery_<key>.js`，`data/gallery.js` 只是模型索引；进站只加载默认模型，切模型时按需注入，`JSON.parse` 加载 + 每批 240 条增量渲染，index.html 保持约 40KB；`midjourney-explore` 站是**单一数据文件** `data/gallery.js`（作业表 + 每格地址），提示词按作业去重，index.html 约 28KB）。
 - 静态站无 Node、无前端构建。**`index/`（本地素材管理器）是唯一的数据库应用**：SQLite 单文件 `gallery.db`（标准库 `sqlite3`），HTTP 用标准库 `http.server`，前端仍是单文件原生 JS。
 - **CI**：GitHub Actions（`.github/workflows/ci.yml`），ubuntu-24.04 + Python 3.8/3.13 + Node 22。
 
@@ -29,7 +29,7 @@
 | `shisei` | Shisei CC0 姿势线稿 | 280 姿势 / 1,133 张（每姿势**最多** 5 视角，上游质检未过的视角不收录） | **CC0** | thumbs, mid, img / thumb, mid, full |
 | `prompthero-midjourney` | Midjourney 提示词集 | 12,998 条提示词与成图（v1–v7 与 Niji 共 13 个版本；含成人内容 2,841 条，默认模糊且不生成落地页） | 禁止再分发 | thumbs, mid, img / thumb, mid, full |
 | `prompts` | 提示词生图集 | 26,458 条提示词 / 41,261 张（两个模型：Imge-2 22,268 张 / Nano Banana 18,993 张，两者都有 41 个官方分类；一条提示词的全部成图归为一条素材；数据按模型分片 `data/gallery_<key>.js`，缩略图来自上游 CDN；另有站主自制图放 `userimg/`、灯箱标「自制」，**不在 CC BY 4.0 内**） | **CC BY 4.0**（须署名） | thumbs, img / thumb, full |
-| `midjourney-explore` | Midjourney 探索榜 | 200 条社区作业 / 800 张成图（官网 Explore 榜共 4 页；每条作业 4 格全收；全部为 v8.2；数据按宽高比分片 `data/gallery_<asp>.js`） | 禁止再分发 | thumbs, mid, img / thumb, mid, full |
+| `midjourney-explore` | Midjourney 探索榜 | 400 条社区作业 / 1600 张成图（官网 Explore 榜共 4 页，每批次 200 作业；每条作业 4 格全收；全部为 v8.2；**按天累积采集**，批次目录 `data/daily/<日期>/`，历史不覆盖；**原图走 CDN 直链，本地只留 thumb + mid**） | 禁止再分发 | thumbs, mid / thumb, mid |
 
 来源：portrait ← ai-portrait-gallery.pages.dev；pose ← ai-pose-gallery.pages.dev；pose-depth ← ai-pose-depth-gallery.pages.dev；costume ← ai-costume-gallery.pages.dev；shisei ← shisei.indaloop.app（GitHub `wquguru/shisei` v0.3.0，raw 源）；prompts ← youmind.com（两条模型线：`gpt-image-2-prompts` / `nano-banana-pro-prompts`，YouMind 官方 API `youmarketing-api/prompts`，`cms-assets.youmind.com` 图源，`imageBase` 已声明；分类靠 `categories` 参数逐类反查，见 `sites/prompts/tag_categories.py`）；prompthero-midjourney ← prompthero.com/midjourney-prompts（前端 tRPC 接口 `/api/trpc/prompt.search`，匿名可调；衍生图在 `img.prompthero.com`、原图在 `cdn.prompthero.com`，故 `imageBases` 列为两个前缀）；midjourney-explore ← midjourney.com/explore（前端只读接口 `/api/explore?page=N&feed=top`，匿名可调；图源在 `cdn.midjourney.com`，**必须带 Cloudflare 的 `__cf_bm` 通行证 cookie，否则一律 403**，由 `sites/midjourney-explore/scripts/fetch_hook.py` 处理）。
 

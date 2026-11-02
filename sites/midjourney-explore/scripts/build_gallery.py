@@ -30,10 +30,12 @@ sys.path.insert(0, os.path.join(ROOT, "shared"))
 
 import landing as landing_mod                                   # noqa: E402
 from config import ASPECT_ZH, CONFIG, ORIGIN, SOURCE, UI        # noqa: E402
+from image_policy import site_entry, tier_addr                  # noqa: E402
 
 SITE_URL = os.environ.get("SITE_URL",
                           "https://example.com/midjourney-explore").rstrip("/")
 PAGE_SIZE = 120          # 增量渲染：每批渲染多少张
+SITE_CFG = site_entry("midjourney-explore")
 
 
 def load_manifest():
@@ -43,89 +45,150 @@ def load_manifest():
     return json.load(open(p, encoding="utf-8"))
 
 
+def assert_manifest_integrity(rows, site=None, baseline=None):
+    """采集静默失败会让站点悄悄少数据 —— 构建期硬失败，别等上线后才发现。
+
+    检查三件事：
+      1. manifest 非空；
+      2. 每个 data/daily/<日期>/jobs.json 非空，且其行都进了 manifest；
+      3. manifest 行数不比上次少（防止历史批次被覆盖）。
+    """
+    site = site or SITE
+    baseline = baseline or os.path.join(site, "data", ".manifest_baseline")
+    ddir = os.path.join(site, "data", "daily")
+    # daily 的 jobs.json 存的是「作业」，其 id 对应 manifest 的 jobId（作业级）
+    job_ids = {r["jobId"] for r in rows if r.get("jobId")}
+    problems = []
+    if not rows:
+        problems.append("manifest 为空")
+
+    if os.path.isdir(ddir):
+        for name in sorted(os.listdir(ddir)):
+            p = os.path.join(ddir, name, "jobs.json")
+            if not os.path.isfile(p):
+                continue
+            with open(p, encoding="utf-8") as f:
+                batch = json.load(f)
+            if not batch:
+                problems.append("%s 批次为空（采集失败？）" % name)
+                continue
+            miss = sum(1 for r in batch if r.get("id") not in job_ids)
+            if miss:
+                problems.append("%s 有 %d 条作业未进 manifest" % (name, miss))
+
+    prev = 0
+    if os.path.exists(baseline):
+        try:
+            with open(baseline, encoding="utf-8") as f:
+                prev = int(f.read().strip() or 0)
+        except ValueError:
+            prev = 0
+    if len(rows) < prev:
+        problems.append("manifest 从 %d 行缩到 %d 行（历史可能被覆盖）" % (prev, len(rows)))
+
+    if problems:
+        sys.exit("数据完整性检查失败：\n  - " + "\n  - ".join(problems))
+
+    with open(baseline, "w", encoding="utf-8", newline="\n") as f:
+        f.write(str(len(rows)))
+    return len(rows)
+
+
 def aspect_slug(aspect):
     """宽高比 → URL 安全的分片键与目录名。"""
     return (aspect or "other").replace(":", "-").lower()
 
 
-def build_shards(rows):
-    """按宽高比分片。
+def build_data(rows, cfg):
+    """全站单一数据体：作业表 + 条目 + 分面值域。
 
-    分片的原因：800 张图每条都带提示词原文（平均 404 字符），
-    全部内嵌会让 index.html 超过 450 KB 上限（实测 1091 KB）。
-    按宽高比分片后，页面只内嵌一份小索引，切分面时才懒加载对应分片。
-
-    提示词按「作业」去重：同一条作业的 4 格共用一段提示词，
-    分片里存 j（作业号）+ jt（该作业的提示词在作业表里的下标）。
+    整改后站点只用一份 data/gallery.js，不再按采集日切分片：当前量级
+    （千条级）单文件完全够用；按日规模浏览由检索端 WebUI 承担，
+    静态站只做「近期预览」。批次降为条目上的 b 字段，供前端筛选。
     """
-    shards = {}
-    for r in rows:
-        shards.setdefault(aspect_slug(r["aspect"]), []).append(r)
-
-    # 作业表：作业号 → {p: 提示词, u: 作者, o: 原站链接}
     jobs = {}
+    job_index = {}
+    job_list = []
+    items = []
     for r in rows:
-        if r["jobId"] not in jobs:
-            jobs[r["jobId"]] = {"p": r["prompt"], "u": r["username"], "o": r["sourceUrl"]}
-    job_list = list(jobs.keys())
+        jid = r["jobId"]
+        if jid not in jobs:
+            jobs[jid] = {"p": r["prompt"], "u": r["username"], "o": r["sourceUrl"],
+                         "v": r["version"] or "", "s": r.get("sref") or ""}
+            job_index[jid] = len(job_list)
+            job_list.append(jid)
+        items.append({
+            "i": r["id"],
+            "j": job_index[jid],
+            "b": r.get("batch") or "-",
+            # 取图策略要求的编码（见 shared/image_policy.py 的约定）：
+            #   <字段>     展示地址（直连上游时是上游 URL，否则是站内相对路径）
+            #   <字段>Url  上游地址，仅本地优先时写出，作为加载失败的回落目标
+            #   <字段>Path 站内相对路径，仅直连上游时写出，供按路径推导的规则使用
+            **_addr(SITE_CFG, "thumb", r, "t"),
+            **_addr(SITE_CFG, "mid", r, "m"),
+            **_addr(SITE_CFG, "full", r, "g"),
+            "a": r["aspect"] or "-",
+            "w": r["width"],
+            "h": r["height"],
+            "n": r["enqueueTime"],
+        })
 
-    out = {}
-    for key, items in shards.items():
-        data = []
-        for r in items:
-            data.append({
-                "i": r["id"],
-                "j": job_list.index(r["jobId"]),
-                "t": r["thumb_path"],
-                "f": r["full_path"],
-                "a": r["aspect"] or "-",
-                "w": r["width"],
-                "h": r["height"],
-                "n": r["enqueueTime"],
-            })
-        out[key] = data
-    return out, job_list
+    counts = {}
+    batch_counts = {}
+    batch_jobs = {}
+    for r in rows:
+        a = r["aspect"] or "-"
+        counts[a] = counts.get(a, 0) + 1
+        b = r.get("batch") or "-"
+        batch_counts[b] = batch_counts.get(b, 0) + 1
+        batch_jobs.setdefault(b, set()).add(r["jobId"])
+
+    return {
+        "aspects": [{"k": aspect_slug(k), "n": ASPECT_ZH.get(k, k), "c": v, "r": k}
+                    for k, v in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))],
+        # 批次（采集日）：新的在前。c = 该批次图片数，j = 该批次作业数
+        "batches": [{"k": b, "n": (b[5:] if len(b) > 5 else b), "c": batch_counts[b],
+                     "j": len(batch_jobs[b])}
+                    for b in sorted(batch_counts, reverse=True)],
+        "total": len(rows),
+        "nJobs": len(job_list),
+        "jobs": [jobs[j] for j in job_list],
+        "items": items,
+        "ui": cfg["ui"],
+        "desc": cfg["desc"],
+    }
 
 
-def write_shards(shards):
-    """写出 data/gallery_<aspect>.js。每个分片一个 JSON.parse 赋值。"""
+def _addr(site, tier, rec, fkey):
+    """该档位的展示地址与伴随字段（见 shared/image_policy.py 的编码约定）。
+
+    online 档（如本站的 full）：地址就是上游 URL，本地没有副本 —— 此时
+    **不写 <字段>Path**：那个路径指向不存在的文件，留着只会误导下游
+    （页面按路径推导图片时会算出必然 404 的地址）。
+    """
+    path = rec.get(tier + "_path") or ""
+    url = rec.get(tier + "_url") or ""
+    display, fallback, keep_path = tier_addr(site, tier, path, url)
+    out = {fkey: display}
+    if fallback:
+        out[fkey + "Url"] = fallback
+    if keep_path and path:
+        out[fkey + "Path"] = path
+    return out
+
+
+def write_data(data):
+    """写出 data/gallery.js（唯一数据文件），并清掉旧的多分片残留。"""
     data_dir = os.path.join(SITE, "data")
     os.makedirs(data_dir, exist_ok=True)
     for fn in os.listdir(data_dir):
-        if fn.startswith("gallery_") and fn.endswith(".js") and fn != "gallery.js":
+        if fn.startswith("gallery_") and fn.endswith(".js"):
             os.remove(os.path.join(data_dir, fn))
-    for key, data in shards.items():
-        path = os.path.join(data_dir, "gallery_%s.js" % key)
-        payload = json.dumps({"items": data}, ensure_ascii=False, separators=(",", ":"))
-        with open(path, "w", encoding="utf-8", newline="\n") as f:
-            f.write("window.__SHARDS__=window.__SHARDS__||{};window.__SHARDS__[%s]=JSON.parse(%s);\n"
-                    % (json.dumps(key), json.dumps(payload)))
-    return len(shards)
-
-
-def write_index(rows, shards, job_list):
-    """data/gallery.js：宽高比索引 + 计数 + 作业表（入库）。
-
-    作业表放这里而不是分片里：每条作业的提示词平均 404 字符，
-    200 条共约 80 KB；内嵌进 index.html 后页面仍在 450 KB 内，
-    且切分面时不必再取提示词。
-    """
-    counts = {}
-    for r in rows:
-        counts[r["aspect"] or "-"] = counts.get(r["aspect"] or "-", 0) + 1
-    idx = {
-        "aspects": [{"k": aspect_slug(k), "n": ASPECT_ZH.get(k, k), "c": v, "r": k}
-                    for k, v in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))],
-        "total": len(rows),
-        "jobs": len(job_list),
-        "shards": sorted(shards.keys()),
-        "ui": UI,
-        "desc": CONFIG["desc"],
-    }
-    with open(os.path.join(SITE, "data", "gallery.js"), "w", encoding="utf-8", newline="\n") as f:
+    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    with open(os.path.join(data_dir, "gallery.js"), "w", encoding="utf-8", newline="\n") as f:
         f.write("window.__GALLERY__=JSON.parse(%s);\n"
-                % json.dumps(json.dumps(idx, ensure_ascii=False), ensure_ascii=False))
-    return idx
+                % json.dumps(payload, ensure_ascii=False))
 
 
 def esc(s):
@@ -146,9 +209,9 @@ def alt_of(r):
     return text
 
 
-def build_facets(rows):
+def build_facets(rows, cfg):
     """按宽高比分面。分面不足 6 张的不单独成页（landing.write_site 会过滤）。"""
-    sp = CONFIG["seoPages"]
+    sp = cfg["seoPages"]
     by_aspect = {}
     for r in rows:
         by_aspect.setdefault(r["aspect"] or "-", []).append(r)
@@ -185,7 +248,7 @@ def build_facets(rows):
         author=sp["author"], author_url=sp["authorUrl"], source=SOURCE,
         faq=sp["faq"], accent=sp["accent"],
         index_title=sp["name"] + " · 全部宽高比",
-        index_intro=sp["introParas"](len(rows), len({r["jobId"] for r in rows}))[0])
+        index_intro=sp["introParas"](len({r["jobId"] for r in rows}), len(rows))[0])
     return site, facets
 
 
@@ -292,16 +355,17 @@ html[data-theme=dark] .chips button.on{color:#06201d}
 footer{border-top:1px solid var(--line);margin-top:44px;padding:22px 0 44px;color:var(--tx3);font-size:12.5px}
 footer a{color:var(--tx2)}
 .lb{position:fixed;inset:0;background:rgba(8,8,10,.94);display:none;z-index:100;
-  grid-template-rows:auto 1fr auto;padding:14px}
+  grid-template-rows:auto 1fr auto;grid-template-columns:minmax(0,1fr);padding:14px}
 .lb.on{display:grid}
 .lb .bar{display:flex;gap:10px;align-items:center;color:#e8e8ea;font-size:13px}
 .lb .bar b{font-weight:600;margin-right:auto}
 .lb .bar button{border:1px solid #3a3a3e;background:#1c1c20;color:#e8e8ea;border-radius:999px;
   padding:5px 12px;font:inherit;font-size:12.5px;cursor:pointer}
-.lb .stage{display:flex;align-items:center;justify-content:center;min-height:0;position:relative}
+.lb .stage{display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;
+  position:relative;overflow:hidden}
 .lb .stage img{max-width:100%;max-height:100%;object-fit:contain;transition:opacity .18s}
 .lb .stage img.mid{position:absolute;inset:0;margin:auto}
-.lb .foot{color:#a1a1aa;font-size:12px;text-align:center;padding-top:8px;
+.lb .foot{color:#a1a1aa;font-size:12px;text-align:center;padding-top:8px;min-width:0;
   display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
 .lb .foot code{background:#1c1c20;border:1px solid #2a2a2e;border-radius:6px;padding:2px 8px;
   max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -344,6 +408,7 @@ __LANDING_CSS__
     </select>
     <button class="btn" id="clearBtn" type="button">__CLEAR__</button>
   </div>
+  <div class="chips" id="batchChips"></div>
   <div class="chips" id="aspChips"></div>
 
   <ul class="grid" id="grid"></ul>
@@ -374,8 +439,6 @@ __LANDING_CSS__
 
 <script src="data/gallery.js"></script>
 <script>
-/* 作业表：每条作业一段提示词，4 格共用。提示词原文不改写。 */
-const JOBS = __JOBS__;
 const IDX = window.__GALLERY__;
 /* 分面键是 slug（文件名安全，如 2-3），分片条目里存的是原始宽高比（如 2:3）。
    两者不在一个空间，直接比较永远不相等 —— 点任意分面都会得到空网格。
@@ -384,10 +447,11 @@ const ASP_RAW = {};
 IDX.aspects.forEach(a => { ASP_RAW[a.k] = a.r; });
 const T = IDX.ui.zh, J = IDX.ui.ja;
 const PAGE_SIZE = __PAGE_SIZE__;
-const midOf = p => p.replace(/^img\//, "mid/").replace(/\.png$/, ".webp");
 
 const $ = s => document.querySelector(s);
-let state = { q: "", asp: null, sort: "hot", shown: 0, items: [], loaded: {} };
+/* 数据只有一份（IDX.items / IDX.jobs）：批次与宽高比都只是前端筛选条件。
+   规模浏览交给检索端 WebUI，静态站只做近期预览，所以不再按批次切分片。 */
+let state = { q: "", asp: null, batch: null, sort: "hot", shown: 0 };
 
 function Txt(k, vars){
   var t = (document.documentElement.dataset.lang === "ja" ? J : T)[k] || "";
@@ -397,38 +461,17 @@ function Txt(k, vars){
 function esc(s){ return String(s).replace(/[&<>"']/g, function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
 
-/* ── 分片懒加载 ───────────────────────────────── */
-function shardKeys(){
-  return state.asp ? [state.asp] : IDX.shards;
-}
-function loadShard(key){
-  if (state.loaded[key]) return Promise.resolve(state.loaded[key]);
-  return new Promise(function(res, rej){
-    var s = document.createElement("script");
-    s.src = "data/gallery_" + key + ".js";
-    s.onload = function(){
-      var d = (window.__SHARDS__ || {})[key];
-      state.loaded[key] = d ? d.items : [];
-      res(state.loaded[key]);
-    };
-    s.onerror = function(){ rej(new Error("分片加载失败: " + key)); };
-    document.head.appendChild(s);
-  });
-}
-function loadCurrent(){
-  var keys = shardKeys();
-  return Promise.all(keys.map(loadShard)).then(function(arrs){
-    var out = [];
-    for (var i = 0; i < arrs.length; i++) out = out.concat(arrs[i]);
-    state.items = out;
-  });
+/* 作业表随数据一起来：条目里的 j 是全站作业下标。 */
+function jobOf(it){
+  return IDX.jobs[it.j] || {};
 }
 
 /* ── 筛选 ─────────────────────────────────────── */
 function filtered(){
   var q = state.q.trim().toLowerCase();
-  var out = state.items.filter(function(it){
-    var job = JOBS[it.j] || {};
+  var out = IDX.items.filter(function(it){
+    var job = jobOf(it);
+    if (state.batch && it.b !== state.batch) return false;
     if (state.asp && it.a !== ASP_RAW[state.asp]) return false;
     if (!q) return true;
     return (job.p || "").toLowerCase().indexOf(q) >= 0
@@ -440,28 +483,59 @@ function filtered(){
   return out;
 }
 function renderChips(){
+  /* 宽高比计数按**当前批次内的条目**实时算 —— 索引里是累计数，
+     切到某一批后对不上（页面写 1600 张、实际只出 800 张那种误导）。 */
+  var pool = IDX.items.filter(function(it){ return !state.batch || it.b === state.batch; });
+  var aspCount = {};
+  for (var i = 0; i < pool.length; i++){
+    var k = pool[i].a;
+    if (k) aspCount[k] = (aspCount[k] || 0) + 1;
+  }
   var el = $("#aspChips");
   var html = '<button type="button" class="' + (state.asp === null ? "on" : "") + '" data-asp="">'
-           + Txt("aspAll") + "<small>" + IDX.total + "</small></button>";
+           + Txt("aspAll") + "<small>" + pool.length + "</small></button>";
   IDX.aspects.forEach(function(a){
+    var c = aspCount[ASP_RAW[a.k]] || 0;
+    if (!c) return;
     html += '<button type="button" class="' + (state.asp === a.k ? "on" : "") + '" data-asp="'
-         + esc(a.k) + '">' + esc(a.n) + "<small>" + a.c + "</small></button>";
+         + esc(a.k) + '">' + esc(a.n) + "<small>" + c + "</small></button>";
   });
   el.innerHTML = html;
   el.querySelectorAll("button").forEach(function(b){
     b.onclick = function(){
       state.asp = b.dataset.asp || null;
-      state.shown = 0;
-      $("#grid").innerHTML = "";
-      renderChips();
-      refresh();
+      resetGrid();
+    };
+  });
+
+  /* 采集日（批次）：普通筛选条件，不再触发分片加载 */
+  var bl = $("#batchChips");
+  var bh = '<button type="button" class="' + (state.batch === null ? "on" : "") + '" data-batch="">'
+         + Txt("batchAll") + "<small>" + IDX.total + "</small></button>";
+  IDX.batches.forEach(function(b){
+    bh += '<button type="button" class="' + (state.batch === b.k ? "on" : "") + '" data-batch="'
+        + esc(b.k) + '">' + esc(b.n) + "<small>" + b.c + "</small></button>";
+  });
+  bl.innerHTML = bh;
+  bl.querySelectorAll("button").forEach(function(b){
+    b.onclick = function(){
+      state.batch = b.dataset.batch || null;
+      /* 换批次后原来的宽高比可能已无对应项，一并复位，避免空网格 */
+      state.asp = null;
+      resetGrid();
     };
   });
 }
 
+/* 筛选条件变化后的统一复位：重画 chips + 清网格 + 重渲染 */
+function resetGrid(){
+  renderChips();
+  refresh();
+}
+
 /* ── 渲染 ─────────────────────────────────────── */
 function card(it){
-  var job = JOBS[it.j] || {};
+  var job = jobOf(it);
   var ar = (it.w && it.h) ? it.w + "/" + it.h : "1/1";
   var alt = (job.p || "").trim();
   if (alt.length < 6) alt = alt + " · Midjourney 探索榜 · " + (job.u || "");
@@ -500,14 +574,9 @@ function bindCards(){
   });
 }
 function refresh(){
-  loadCurrent().then(function(){
-    state.shown = 0;
-    $("#grid").innerHTML = "";
-    render();
-  }).catch(function(){
-    $("#empty").hidden = false;
-    $("#empty").innerHTML = "<h2>" + Txt("emptyTitle") + "</h2><div>" + Txt("emptyDesc") + "</div>";
-  });
+  state.shown = 0;
+  $("#grid").innerHTML = "";
+  render();
 }
 
 /* ── 灯箱 ─────────────────────────────────────── */
@@ -517,7 +586,7 @@ function openLightbox(key){
   lbList = filtered();
   for (var i = 0; i < lbList.length; i++) if (lbList[i].i === key) { it = lbList[i]; break; }
   if (!it) return;
-  var job = JOBS[it.j] || {};
+  var job = jobOf(it);
   lbKey = key;
   $("#lb").classList.add("on");
   document.body.style.overflow = "hidden";
@@ -545,16 +614,16 @@ function openLightbox(key){
   $("#lbOrigin").onclick = function(){ window.open(job.o, "_blank", "noopener"); };
   $("#lbDl").onclick = function(){
     var a = document.createElement("a");
-    a.href = it.f; a.download = ""; a.target = "_blank";
+    a.href = it.g; a.download = ""; a.target = "_blank";
     document.body.appendChild(a); a.click(); a.remove();
   };
   var pre = new Image();
   pre.onload = function(){
-    mid.src = midOf(it.fPath || it.f);
+    mid.src = it.m;
     requestAnimationFrame(function(){ mid.style.opacity = "1"; });
   };
   pre.onerror = function(){ mid.style.opacity = "0"; };
-  pre.src = midOf(it.fPath || it.f);
+  pre.src = it.m;
   $("#lbCopy").onclick = function(){
     var btn = this;
     navigator.clipboard.writeText(job.p || "").then(function(){
@@ -593,9 +662,9 @@ $("#sortSel").addEventListener("change", function(e){
   state.sort = e.target.value; state.shown = 0; $("#grid").innerHTML = ""; render();
 });
 $("#clearBtn").addEventListener("click", function(){
-  state.q = ""; state.asp = null; state.sort = "hot";
+  state.q = ""; state.asp = null; state.batch = null; state.sort = "hot";
   $("#q").value = ""; $("#sortSel").value = "hot";
-  state.shown = 0; $("#grid").innerHTML = ""; renderChips(); refresh();
+  resetGrid();
 });
 $("#more").addEventListener("click", render);
 $("#themeBtn").addEventListener("click", function(){
@@ -653,23 +722,38 @@ refresh();
 """
 
 
-def build_jobs(rows, job_list):
-    """作业表：作业号 → {p: 提示词, u: 作者, o: 原站链接, s: 风格参考码(p 值)}。
+def manifest_stats(rows):
+    """统计数字只从 manifest 现算 —— 唯一来源，不回写任何配置文件。"""
+    return {
+        "n_images": len(rows),
+        "n_jobs": len({r["jobId"] for r in rows}),
+        "n_authors": len({r["username"] for r in rows}),
+        "n_aspects": len({r["aspect"] for r in rows}),
+        "n_batches": len({r.get("batch") for r in rows}),
+    }
 
-    提示词平均 404 字符，200 条共约 80 KB；内嵌进 index.html 后页面仍在 450 KB 内。
+
+def with_counts(cfg, counts):
+    """返回填好数量占位符的**副本**，不改动传入的 cfg。
+
+    配置是构建的输入，不能被就地改写 —— 就地改会让模块级 UI/SEO 与 CONFIG
+    分叉（页面会漏出 {n_images} 这种字面量）。一次性构建也不该影响其它读取方。
     """
-    jobs = {}
-    for r in rows:
-        if r["jobId"] not in jobs:
-            jobs[r["jobId"]] = {
-                "p": r["prompt"],
-                "u": r["username"],
-                "o": r["sourceUrl"],
-                "v": r["version"] or "",
-                # p 值：风格参考码，原站点开图片会在图上方显示「sref 2918660786」
-                "s": r.get("sref") or "",
-            }
-    return [jobs[j] for j in job_list]
+    def fmt(v):
+        if isinstance(v, str):
+            try:
+                return v.format(**counts)
+            except (KeyError, IndexError, ValueError):
+                return v      # 不是模板字符串，原样保留
+        if isinstance(v, dict):
+            return {k: fmt(x) for k, x in v.items()}
+        if isinstance(v, tuple):
+            return tuple(fmt(x) for x in v)
+        if isinstance(v, list):
+            return [fmt(x) for x in v]
+        return v
+
+    return {k: fmt(v) for k, v in cfg.items()}
 
 
 def write_404():
@@ -729,32 +813,28 @@ def copy_og_cover():
 
 def main():
     rows = load_manifest()
-    n_images = len(rows)
-    n_jobs = len({r["jobId"] for r in rows})
-    n_authors = len({r["username"] for r in rows})
-    n_aspects = len({r["aspect"] for r in rows})
+    assert_manifest_integrity(rows)
+    stats = manifest_stats(rows)
+    n_images, n_jobs = stats["n_images"], stats["n_jobs"]
+    n_authors, n_aspects = stats["n_authors"], stats["n_aspects"]
 
-    shards, job_list = build_shards(rows)
-    n_shards = write_shards(shards)
-    idx = write_index(rows, shards, job_list)
-    # 索引里带上界面文案与描述，供页面内联读取
-    idx["ui"] = UI
-    idx["desc"] = CONFIG["desc"]
+    # 文案数量按实际数据填进**副本**；模块级 CONFIG 保持只读（配置是输入）
+    cfg = with_counts(CONFIG, stats)
 
-    jobs = build_jobs(rows, job_list)
+    write_data(build_data(rows, cfg))
 
     page = page_template()
     page = page.replace("__LANDING_CSS__", landing_mod.SEO_INTRO_CSS)
-    page = page.replace("__JOBS__", json.dumps(jobs, ensure_ascii=False, separators=(",", ":")))
     page = page.replace("__PAGE_SIZE__", str(PAGE_SIZE))
     page = page.replace("__SITE__", SITE_URL)
-    page = page.replace("__TITLE__", CONFIG["title"])
-    page = page.replace("__DESC__", CONFIG["desc"])
-    page = page.replace("__OGSITE__", CONFIG["ogSite"])
-    page = page.replace("__OGTITLE__", CONFIG["ogTitle"])
-    page = page.replace("__OGDESC__", CONFIG["ogDesc"])
-    page = page.replace("__TWTITLE__", CONFIG["twTitle"])
-    page = page.replace("__TWDESC__", CONFIG["twDesc"])
+    zh = cfg["ui"]["zh"]
+    page = page.replace("__TITLE__", cfg["title"])
+    page = page.replace("__DESC__", cfg["desc"])
+    page = page.replace("__OGSITE__", cfg["ogSite"])
+    page = page.replace("__OGTITLE__", cfg["ogTitle"])
+    page = page.replace("__OGDESC__", cfg["ogDesc"])
+    page = page.replace("__TWTITLE__", cfg["twTitle"])
+    page = page.replace("__TWDESC__", cfg["twDesc"])
     page = page.replace("__N_IMG__", str(n_images))
     page = page.replace("__N_JOB__", str(n_jobs))
     page = page.replace("__N_AUTHOR__", str(n_authors))
@@ -762,28 +842,28 @@ def main():
     page = page.replace("__H1__", "Midjourney 探索榜：社区精选成图与提示词")
     page = page.replace("__BRAND1__", "Midjourney")
     page = page.replace("__BRAND2__", "探索榜")
-    page = page.replace("__EYEBROW__", UI["zh"]["eyebrow"])
-    page = page.replace("__SUB1__", UI["zh"]["sub1"])
-    page = page.replace("__SUB2__", UI["zh"]["sub2"])
-    page = page.replace("__HOME__", UI["zh"]["home"])
-    page = page.replace("__THEMEA__", UI["zh"]["themeAria"])
-    page = page.replace("__THEMEL__", UI["zh"]["themeLight"])
-    page = page.replace("__LANGA__", UI["zh"]["langAria"])
-    page = page.replace("__LANGJA__", UI["zh"]["langJa"])
-    page = page.replace("__SEARCH__", UI["zh"]["search"])
+    page = page.replace("__EYEBROW__", zh["eyebrow"])
+    page = page.replace("__SUB1__", zh["sub1"])
+    page = page.replace("__SUB2__", zh["sub2"])
+    page = page.replace("__HOME__", zh["home"])
+    page = page.replace("__THEMEA__", zh["themeAria"])
+    page = page.replace("__THEMEL__", zh["themeLight"])
+    page = page.replace("__LANGA__", zh["langAria"])
+    page = page.replace("__LANGJA__", zh["langJa"])
+    page = page.replace("__SEARCH__", zh["search"])
     page = page.replace("__SORTLABEL__", "排序")
-    page = page.replace("__SORTHOT__", UI["zh"]["sortHot"])
-    page = page.replace("__SORTNEW__", UI["zh"]["sortNew"])
-    page = page.replace("__SORTASP__", UI["zh"]["sortAspect"])
-    page = page.replace("__CLEAR__", UI["zh"]["all"])
-    page = page.replace("__EMPTYTITLE__", UI["zh"]["emptyTitle"])
-    page = page.replace("__EMPTYDESC__", UI["zh"]["emptyDesc"])
+    page = page.replace("__SORTHOT__", zh["sortHot"])
+    page = page.replace("__SORTNEW__", zh["sortNew"])
+    page = page.replace("__SORTASP__", zh["sortAspect"])
+    page = page.replace("__CLEAR__", zh["all"])
+    page = page.replace("__EMPTYTITLE__", zh["emptyTitle"])
+    page = page.replace("__EMPTYDESC__", zh["emptyDesc"])
     page = page.replace("__MORE__", "加载更多")
-    page = page.replace("__COPYP__", UI["zh"]["copyPrompt"])
-    page = page.replace("__DLFULL__", UI["zh"]["dlFull"])
-    page = page.replace("__OPENORIGIN__", UI["zh"]["openOrigin"])
+    page = page.replace("__COPYP__", zh["copyPrompt"])
+    page = page.replace("__DLFULL__", zh["dlFull"])
+    page = page.replace("__OPENORIGIN__", zh["openOrigin"])
     page = page.replace("__CLOSE__", "关闭")
-    page = page.replace("__FOOTER__", UI["zh"]["footer"])
+    page = page.replace("__FOOTER__", zh["footer"])
 
     schema = {
         "@context": "https://schema.org",
@@ -800,18 +880,18 @@ def main():
     }
     page = page.replace("__SCHEMA__", json.dumps(schema, ensure_ascii=False, separators=(",", ":")))
     # FAQPage 结构化数据：独立一段 ld+json（shared/landing.py 统一生成）
-    page = page.replace("__FAQ_LD__", landing_mod.faq_ld_script(CONFIG["seoPages"]["faq"]))
+    page = page.replace("__FAQ_LD__", landing_mod.faq_ld_script(cfg["seoPages"]["faq"]))
 
     with open(os.path.join(SITE, "index.html"), "w", encoding="utf-8", newline="\n") as f:
         f.write(page)
 
     # 静态落地页
-    site, facets = build_facets(rows)
+    site, facets = build_facets(rows, cfg)
     urls = landing_mod.write_site(site, facets)
     landing_mod.sitemap(SITE_URL, urls, os.path.join(SITE, "sitemap.xml"))
 
     # 主画廊页底部的「关于本站」卡片（不依赖 JS，搜索引擎和 AI 直接可读）
-    inject_seo_intro(rows, urls)
+    inject_seo_intro(rows, urls, cfg)
 
     write_404()
     write_robots()
@@ -819,22 +899,23 @@ def main():
 
     size = os.path.getsize(os.path.join(SITE, "index.html")) / 1024
     print("index.html %.1f KB（%d 张图 / %d 条作业）" % (size, n_images, n_jobs))
-    print("分片 %d 个 · 作业表 %d 条" % (n_shards, len(job_list)))
+    print("数据单文件 gallery.js · 作业 %d 条 · 批次 %d 个"
+          % (n_jobs, stats["n_batches"]))
     print("落地页 %d 个" % len(urls))
 
 
-def inject_seo_intro(rows, urls):
+def inject_seo_intro(rows, urls, cfg):
     """把「关于本站」卡片插进主画廊页（不依赖 JS）。"""
     path = os.path.join(SITE, "index.html")
     html = open(path, encoding="utf-8").read()
-    sp = CONFIG["seoPages"]
+    sp = cfg["seoPages"]
     n_images = len(rows)
     n_jobs = len({r["jobId"] for r in rows})
     facts = [("成图", "%d 张" % n_images), ("作业", "%d 条" % n_jobs),
              ("作者", "%d 位" % len({r["username"] for r in rows})),
              ("授权", "禁止再分发")]
     links = [("browse/", "按宽高比浏览")]
-    card = landing_mod.static_intro(sp["introParas"](n_images, n_jobs), facts, links, sp["faq"])
+    card = landing_mod.static_intro(sp["introParas"](n_jobs, n_images), facts, links, sp["faq"])
     # 插到 </footer> 之前
     marker = "</footer>"
     if marker in html:

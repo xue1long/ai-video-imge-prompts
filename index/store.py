@@ -21,6 +21,19 @@ MIME = {
     ".bmp": "image/bmp",
 }
 
+
+def media_url(path):
+    """站内相对路径 → /media/…；已是 http(s) 的上游直链原样返回。
+
+    full=online 的资产地址是 CDN 直链，再拼 /media/ 会得到
+    /media/https://… 这种无效地址，浏览器必然 404。
+    """
+    if not path:
+        return ""
+    if path.startswith("http://") or path.startswith("https://"):
+        return path
+    return "/media/" + path
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS collection(
   slug TEXT PRIMARY KEY, name TEXT NOT NULL, sort INTEGER NOT NULL DEFAULT 0);
@@ -386,7 +399,7 @@ def _item_row(conn, row):
         "title": row["title"],
         "title_alt": row["title_alt"],
         "prompt_raw": row["prompt_raw"],
-        "thumb": "/media/" + thumb["p"] if thumb else "",
+        "thumb": media_url(thumb["p"]) if thumb else "",
         "fav": bool(fav),
         "hidden": bool(row["deleted_at"]),
         "tags": item_tags(conn, item_id),
@@ -567,7 +580,7 @@ def get_item(conn, item_id):
         ).fetchall()
         kinds = {d["kind"]: d["path"] for d in derivs}
         files = [
-            {"kind": k, "path": "/media/" + kinds[k]} for k in DERIVATIVE_ORDER if k in kinds
+            {"kind": k, "path": media_url(kinds[k])} for k in DERIVATIVE_ORDER if k in kinds
         ]
         out_assets.append(
             {
@@ -577,7 +590,7 @@ def get_item(conn, item_id):
                 "width": a["width"],
                 "height": a["height"],
                 "files": files,
-                "primary": files[0]["path"] if files else "/media/" + a["path"],
+                "primary": files[0]["path"] if files else media_url(a["path"]),
             }
         )
     meta = {}

@@ -17,13 +17,19 @@ Cloudflare 的两道坎（实测）：
      explore 页「拿通行证」，再访问接口与 CDN。
 
 产出：
-    data/jobs.json  采集到的作业（精简字段），供 manifest.py 使用
-    data/meta.json  采集统计（页数、条数、各分布）
+    data/daily/<YYYY-MM-DD>/jobs.json  该批次采集到的作业（精简字段），供 manifest.py 使用
+    data/daily/<YYYY-MM-DD>/meta.json  该批次采集统计（页数、条数、各分布）
 
-用法：
-    python extract.py                  # 全量采集（4 页）
+按批次留档：每天一份，批次之间不覆盖 —— 历史批次是资产，不是「上一版」。
+manifest.py 会把所有批次累积起来（含去重），站点与素材管理器消费的是累积结果。
+
+用法:
+    python extract.py                  # 全量采集（4 页），落到今天的批次
     python extract.py --pages 2        # 只采前 N 页（调试）
+    python extract.py --batch 2026-11-03 --force   # 重采指定批次（覆盖）
+    python extract.py --from-raw <file>             # 用缓存的原始响应复放，不请求上游
 """
+import datetime
 import http.cookiejar
 import json
 import os
@@ -191,7 +197,7 @@ def style_refs(prompt):
 
 
 def slim(job):
-    """只留 manifest.py 需要的字段，避免 data/jobs.json 过大。"""
+    """只留 manifest.py 需要的字段，避免批次的 jobs.json 过大。"""
     if not job.get("id"):
         return None
     prompt = job.get("prompt") or {}
@@ -230,25 +236,36 @@ def main():
     args = sys.argv[1:]
     pages = PAGE_COUNT
     raw_path = ""
+    batch = ""
+    force = False
     i = 0
     while i < len(args):
         if args[i] == "--pages" and i + 1 < len(args):
             pages = int(args[i + 1]); i += 2
         elif args[i] == "--from-raw" and i + 1 < len(args):
             raw_path = args[i + 1]; i += 2
+        elif args[i] == "--batch" and i + 1 < len(args):
+            batch = args[i + 1]; i += 2
+        elif args[i] == "--force":
+            force = True; i += 1
         else:
             i += 1
 
     def log(m):
         print(m, flush=True)
 
-    data_dir = os.path.join(SITE, "data")
+    # 每天一份，按批次留档：data/daily/<YYYY-MM-DD>/jobs.json
+    # 批次之间不覆盖——历史批次是资产，不是「上一版」。
+    if not batch:
+        batch = datetime.datetime.now().strftime("%Y-%m-%d")
+    data_dir = os.path.join(SITE, "data", "daily", batch)
     os.makedirs(data_dir, exist_ok=True)
     main_path = os.path.join(data_dir, "jobs.json")
     draft_path = os.path.join(data_dir, "jobs.new.json")
+    meta_path = os.path.join(data_dir, "meta.json")
 
     def existing_count():
-        """磁盘上已有的作业条数（覆盖守卫用）。"""
+        """本批次已有的作业条数（覆盖守卫用）。"""
         if not os.path.exists(main_path):
             return 0
         try:
@@ -258,6 +275,13 @@ def main():
             return 0
 
     old_count = existing_count()
+
+    # 批次不覆盖：每天一份，历史批次是资产。
+    # 重复采集同一批要显式 --force（先确认不是在浪费配额）。
+    if old_count and not force:
+        log("  批次 %s 已有采集结果（%d 条），不覆盖。" % (batch, old_count))
+        log("  要重采这一批请加 --force；换一天请用 --batch YYYY-MM-DD")
+        sys.exit(3)
 
     def write_draft(jobs):
         """草稿落盘：限流窗口可能很长，中途失败也要保住已抓到的页。
@@ -335,18 +359,18 @@ def main():
     # 典型触发场景：上游所有页面 429（IP 级限流），旧实现末尾无条件 save(jobs)，
     # 而全页失败时 jobs 是空数组 —— 200 条作业当场蒸发，退出码还是 0。
     if failed:
-        log("  拒绝覆盖 data/jobs.json：有页面抓取失败，本次结果不完整")
-        log("  原文件保持不变，新数据留在 data/jobs.new.json")
+        log("  拒绝写入本批次：有页面抓取失败，本次结果不完整")
+        log("  原文件保持不变，新数据留在 %s" % draft_path)
         sys.exit(2)
     if not jobs and old_count:
-        log("  拒绝覆盖 data/jobs.json：本轮一条作业都没解析出来")
-        log("  原文件保持不变，新数据留在 data/jobs.new.json")
+        log("  拒绝写入本批次：本轮一条作业都没解析出来")
+        log("  原文件保持不变，新数据留在 %s" % draft_path)
         sys.exit(2)
     if len(jobs) < old_count:
-        log("  注意：本次 %d 条少于磁盘上的 %d 条（上游榜单变了，或有作业字段缺失）"
+        log("  注意：本次 %d 条少于本批次原有的 %d 条（上游榜单变了，或有作业字段缺失）"
             % (len(jobs), old_count))
     os.replace(draft_path, main_path)
-    log("  已更新 data/jobs.json：%d 条（原 %d 条）" % (len(jobs), old_count))
+    log("  已写入 %s：%d 条（本批次原有 %d 条）" % (main_path, len(jobs), old_count))
 
     import collections
     n_images = sum(len(j["indices"]) for j in jobs)
@@ -367,11 +391,11 @@ def main():
         "styleRefCodes": sum(len(j.get("sref") or []) for j in jobs),
         "collectedAt": int(time.time()),
     }
-    with open(os.path.join(data_dir, "meta.json"), "w", encoding="utf-8") as f:
+    with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=1)
 
-    log("\n共 %d 条作业 / %d 张成图，写入 data/jobs.json"
-        % (meta["jobs"], meta["images"]))
+    log("\n共 %d 条作业 / %d 张成图，写入 %s"
+        % (meta["jobs"], meta["images"], main_path))
     log("版本：%s" % meta["versions"])
     log("宽高比：%s" % meta["aspects"])
     log("作者 %d 位 · 带风格参考 %d 条，其中带 sref 码 %d 条 / 共 %d 个码"

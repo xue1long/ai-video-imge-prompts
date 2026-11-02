@@ -71,8 +71,14 @@ def main():
 
         jobs, missing = [], 0
         for r in rows:
-            src = os.path.join(sd, r["full_path"])
-            dst = os.path.join(sd, mid_rel(r["full_path"]))
+            # full 档走 online 的站没有 full_path（本地不留原图），
+            # 没有原图就无从生成中图 —— 跳过，不算缺失。
+            full_path = r.get("full_path")
+            if not full_path:
+                missing += 1
+                continue
+            src = os.path.join(sd, full_path)
+            dst = os.path.join(sd, mid_rel(full_path))
             if not os.path.exists(src):
                 missing += 1
                 continue

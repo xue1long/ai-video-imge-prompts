@@ -380,28 +380,28 @@
       },
       "stats": [
         {
-          "v": "800",
+          "v": "1600",
           "l": {
             "zh": "成图",
             "ja": "画像"
           }
         },
         {
-          "v": "200",
+          "v": "400",
           "l": {
             "zh": "作业",
             "ja": "作品"
           }
         },
         {
-          "v": "200",
+          "v": "396",
           "l": {
             "zh": "作者",
             "ja": "作者"
           }
         },
         {
-          "v": "20",
+          "v": "23",
           "l": {
             "zh": "宽高比",
             "ja": "アスペクト"
@@ -414,13 +414,11 @@
       "coverPos": "center 35%",
       "tiers": [
         "thumb",
-        "mid",
-        "full"
+        "mid"
       ],
       "imageDirs": [
         "thumbs",
-        "mid",
-        "img"
+        "mid"
       ],
       "author": {
         "name": "Midjourney 社区",
@@ -430,7 +428,7 @@
       "imagePolicy": {
         "thumb": "local-only",
         "mid": "local-only",
-        "full": "local-only"
+        "full": "online"
       }
     },
     {

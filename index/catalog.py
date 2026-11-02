@@ -21,6 +21,49 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, "shared"))
+
+from image_policy import site_entry, tier_addr  # noqa: E402
+
+
+def file_addr(sid, kind, rec, key):
+    """该档位的展示地址：本地档用站内相对路径，直连上游的档用上游 URL。
+
+    key 写成 "路径键" 或 "路径键|上游地址键"；只有后者才可能走直连。
+    取图策略的唯一依据是 sites.json 的 imagePolicy（见 shared/image_policy.py），
+    这里与站点构建（sites/*/scripts/build_gallery.py）用同一套判断，口径不能两样。
+    """
+    path_key, _, url_key = key.partition("|")
+    path = rec.get(path_key) or ""
+    if not url_key:
+        return path
+    url = rec.get(url_key) or ""
+    display, _fallback, _keep = tier_addr(site_entry(sid), kind, path, url)
+    return display
+
+
+def file_specs(sid, cfg, rec):
+    """该记录各档位的 (地址, 回落地址)。
+
+    地址按 sites.json 的 imagePolicy 决定（与 file_addr 同一套判断）：
+    本地档是站内相对路径，直连上游的档是上游 URL —— 外链由 sync 原样入库，
+    不拼 sites/<集合>/ 前缀（拼了就是垃圾路径）。
+    """
+    site = site_entry(sid)
+    out = {}
+    for kind, key in cfg["files"]:
+        path_key, _, url_key = key.partition("|")
+        if not url_key:
+            url_key = (path_key[:-len("_path")] + "_url") if path_key.endswith("_path") else ""
+        path = rec.get(path_key) or ""
+        url = (rec.get(url_key) or "") if url_key else ""
+        display, fallback, _keep = tier_addr(site, kind, path, url)
+        if not display:
+            continue
+        # 本地档也要保留上游地址作备用：本地文件缺失时媒体路由可 302 回落
+        out[kind] = (display, fallback or url)
+    return out
+
 
 # 每个集合的字段映射。键是目标语义，值是 manifest 里的原始键。
 # facets 是 OrderedDict 的语义：ns（分面名）→ manifest 键。
@@ -105,7 +148,7 @@ SOURCES = {
         "title_alt": "prompt",
         # 官网 Explore 榜没有官方分类，唯一稳定可枚举的维度是画面宽高比
         # 「风格参考」是 p 值（原站点开图片显示 sref 2918660786），做成标签便于检索
-        "facets": {"宽高比": "aspect", "版本": "version", "风格参考": "sref"},
+        "facets": {"宽高比": "aspect", "版本": "version", "风格参考": "sref", "批次": "batch"},
         # 「视图」= 集合内的顶层分层，对齐原站 Explore 的 Styles / Images / Videos
         # 三个选项。facet 只给命名空间 = 存在性过滤（该命名空间下有任意标签即命中）：
         #   图像 → 不加过滤，本集合的全部条目
@@ -117,7 +160,9 @@ SOURCES = {
             {"k": "styles", "name": "风格", "facet": "风格参考"},
             {"k": "videos", "name": "视频", "facet": "类型"},
         ],
-        "files": [("thumb", "thumb_path"), ("mid", "mid_path"), ("full", "full_path")],
+        # full 档直连上游（imagePolicy.full=online）：原图 2.3 GB/天，
+        # 本地不留；thumb + mid 仍在本地。
+        "files": [("thumb", "thumb_path"), ("mid", "mid_path"), ("full", "full_path|full_url")],
         "size": ("width", "height"),
         "bytes": None,
         "keywords": "prompt",
@@ -287,7 +332,7 @@ def _row_for(sid, cfg, gid, grp):
         row["prompt"] = cut(head.get(cfg["prompt"]) or "")
 
     for kind, key in cfg["files"]:
-        row[kind] = head.get(key, "")
+        row[kind] = file_addr(sid, kind, head, key)
 
     if cfg.get("size"):
         w, h = cfg["size"]
@@ -392,7 +437,7 @@ def unmapped_report(sid, seen, cfg):
             consumed.add(cfg[k])
     if cfg.get("size"):
         consumed.update(cfg["size"])
-    consumed.update(key for _, key in cfg["files"])
+    consumed.update(k for _, key in cfg["files"] for k in key.split("|"))
     consumed.update((cfg.get("extra") or {}).values())
     consumed.update(cfg["facets"].values())
     consumed.update(cfg.get("facets", {}).keys())

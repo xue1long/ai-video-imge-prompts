@@ -78,3 +78,7 @@ _preview.html
 .scratch/
 # 抓取 / 构建 / 本地服务的运行日志
 *.log
+
+# ── 构建期本地状态 ────────────────────────────────────
+# 数据完整性基线（只记 manifest 行数，用来发现历史被覆盖）
+sites/midjourney-explore/data/.manifest_baseline

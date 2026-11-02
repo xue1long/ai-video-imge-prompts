@@ -121,18 +121,30 @@ def signature(root):
 # ── 写入 ────────────────────────────────────────────────────────
 
 
+def addr_path(prefix, addr):
+    """站内相对路径加前缀；已是 http(s) 的外链原样返回。
+
+    full=online 的档位地址是上游直链，拼上 sites/<集合>/ 会得到垃圾路径
+    （且被当成站内文件去重）。所以外链一律不加前缀。
+    """
+    if addr.startswith("http://") or addr.startswith("https://"):
+        return addr
+    return prefix + addr
+
+
 def write_files(conn, item_id, present, original_kind, original_path, size, w, h, prefix="", urls=None):
     """一个原始资产 + 它的派生图，再挂到作品上。
 
     manifest 里的路径是**站点相对**的（pose 与 pose-depth 的字段一字不差），
-    必须以 sites/<集合>/ 为前缀，否则两站会被当成同一批文件去重掉。
+    必须以 sites/<集合>/ 为前缀，否则两站会被当成同一批文件去重掉；
+    外链档位则原样入库（见 addr_path）。
 
     urls 是 {档位: 上游地址}：本地文件不在时，媒体路由据此重定向到上游。
     """
     urls = urls or {}
-    asset_id, _ = store.add_asset(conn, prefix + original_path, "sites", size, w, h)
+    asset_id, _ = store.add_asset(conn, addr_path(prefix, original_path), "sites", size, w, h)
     for kind, path in sorted(present.items()):
-        store.add_derivative(conn, asset_id, kind, prefix + path,
+        store.add_derivative(conn, asset_id, kind, addr_path(prefix, path),
                              size if kind == original_kind else 0,
                              url=urls.get(kind, ""))
     store.link_asset(conn, item_id, asset_id, role=original_kind, ordinal=0)
@@ -201,12 +213,12 @@ def sync_rows(conn, sid, cfg, recs):
         )
         write_tags(conn, item_id, facet_pairs(cfg["facets"], rec))
 
-        present = {kind: rec.get(key) for kind, key in cfg["files"] if rec.get(key)}
+        specs = catalog.file_specs(sid, cfg, rec)
+        present = {kind: v[0] for kind, v in specs.items()}
         if not present:
             continue
         # 档位 → 上游地址（manifest 里是 <档位>_url）；本地文件不在时媒体路由靠它重定向
-        urls = {kind: rec.get(key[:-len("_path")] + "_url") or ""
-                for kind, key in cfg["files"] if rec.get(key)}
+        urls = {kind: v[1] for kind, v in specs.items()}
         original_path = present.get(original_kind) or next(iter(present.values()))
         # 宽高：cfg["size"] 是 (宽键, 高键)；没配就退回旧的中文键
         if cfg.get("size"):
@@ -280,11 +292,11 @@ def sync_grouped(conn, sid, cfg, recs, group_key):
         write_tags(conn, item_id, facet_pairs(cfg["facets"], head))
 
         for ordinal, rec in enumerate(grp):
-            present = {kind: rec.get(key) for kind, key in cfg["files"] if rec.get(key)}
+            specs = catalog.file_specs(sid, cfg, rec)
+            present = {kind: v[0] for kind, v in specs.items()}
             if not present:
                 continue
-            urls = {kind: rec.get(key[:-len("_path")] + "_url") or ""
-                    for kind, key in cfg["files"] if rec.get(key)}
+            urls = {kind: v[1] for kind, v in specs.items()}
             original_path = present.get(original_kind) or next(iter(present.values()))
             if cfg.get("size"):
                 w_key, h_key = cfg["size"]
@@ -292,14 +304,14 @@ def sync_grouped(conn, sid, cfg, recs, group_key):
             else:
                 width, height = rec.get("宽") or None, rec.get("高") or None
             asset_id, _ = store.add_asset(
-                conn, prefix + original_path, "sites", rec.get("原图字节") or 0, width, height
+                conn, addr_path(prefix, original_path), "sites", rec.get("原图字节") or 0, width, height
             )
             for kind, path in sorted(present.items()):
                 if kind == original_kind:
                     continue
-                store.add_derivative(conn, asset_id, kind, prefix + path,
+                store.add_derivative(conn, asset_id, kind, addr_path(prefix, path),
                                      url=urls.get(kind, ""))
-            store.add_derivative(conn, asset_id, original_kind, prefix + original_path,
+            store.add_derivative(conn, asset_id, original_kind, addr_path(prefix, original_path),
                                  url=urls.get(original_kind, ""))
             store.link_asset(conn, item_id, asset_id, role=original_kind, ordinal=ordinal)
     return len(groups)

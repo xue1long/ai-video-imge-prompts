@@ -426,6 +426,13 @@ class Handler(BaseHTTPRequestHandler):
             conn.close()
 
     def serve_media(self, rel):
+        # 已经是外链（full=online 入库的就是 CDN 地址）：直接 302，不当本地路径处理
+        if rel.startswith("http://") or rel.startswith("https://"):
+            self.send_response(302)
+            self.send_header("Location", rel)
+            self.send_header("Cache-Control", "public, max-age=86400")
+            self.end_headers()
+            return
         base = os.path.realpath(self.root)
         full = os.path.realpath(os.path.join(base, rel))
         if not (full == base or full.startswith(base + os.sep)):

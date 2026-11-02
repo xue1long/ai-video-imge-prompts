@@ -393,8 +393,35 @@ def hub_seo(cfg, base):
     return {"intro": intro, "faq": faq, "llms": "\n".join(lines)}
 
 
+def apply_manifest_stats(cfg):
+    """站点有 manifest 时，把能由它推导的统计数字改成现算值。
+
+    sites.json 的 stats 是人工维护的，累积型站点（每天新增）必然过期。
+    只覆盖可由 manifest 直接推导的中文标签，其余标签原样保留。
+    """
+    rules = {
+        "成图": lambda rows: len(rows),
+        "作业": lambda rows: len({r.get("jobId") for r in rows if r.get("jobId")}),
+        "作者": lambda rows: len({r.get("username") for r in rows if r.get("username")}),
+        "宽高比": lambda rows: len({r.get("aspect") for r in rows if r.get("aspect")}),
+    }
+    for s in cfg["sites"]:
+        p = os.path.join(ROOT, "sites", s["id"], "manifest.json")
+        if not os.path.exists(p):
+            continue
+        with open(p, encoding="utf-8") as f:
+            rows = json.load(f)
+        for st in s.get("stats") or []:
+            label = (st.get("l") or {}).get("zh")
+            fn = rules.get(label)
+            if fn:
+                st["v"] = str(fn(rows))
+    return cfg
+
+
 def main():
     cfg = load()
+    apply_manifest_stats(cfg)
     only_check = "--check" in sys.argv
 
     base = "https://example.com"

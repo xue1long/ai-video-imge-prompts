@@ -710,6 +710,18 @@ class MidRule(unittest.TestCase):
                 continue
             h = read(f"sites/{s['id']}/index.html")
             m = re.search(r"const midOf = .*?;", h)
+            if not m:
+                # 数据里已直接给出 mid 档（m 字段）就不需要在 JS 复算路径规则，
+                # 没有第二份实现可比对。midjourney-explore 整改后即属此类。
+                data_rel = f"sites/{s['id']}/data/gallery.js"
+                self.assertTrue(os.path.exists(os.path.join(ROOT, data_rel)),
+                                f"{s['id']} 页面里没有 midOf，也没有 gallery.js")
+                raw = read(data_rel)
+                mm = re.search(r"JSON\.parse\((.*)\);\s*$", raw, re.S)
+                self.assertTrue(mm, f"{s['id']} gallery.js 不是预期的 JSON.parse 形式")
+                obj = json.loads(json.loads(mm.group(1)))
+                self.assertIn("m", obj["items"][0], f"{s['id']} 数据未提供 mid 档")
+                continue
             self.assertIsNotNone(m, f"{s['id']} 页面里没有 midOf")
             rows = json.loads(read(f"sites/{s['id']}/manifest.json"))[:50]
             src = [r["full_path"] for r in rows]
@@ -842,6 +854,291 @@ class UserAssets(unittest.TestCase):
             self.skipTest("当前目录不是 git 仓库，或没有 git")
         self.assertNotEqual(r.returncode, 0,
                             "userimg/ 必须入库：自己的图无法从上游重下")
+
+
+class MjStrategy(unittest.TestCase):
+    """Midjourney 探索榜数据策略整改的回归测试（见 sites/midjourney-explore/docs/TICKETS.md）"""
+
+    def _mod(self):
+        import importlib.util
+        path = os.path.join(ROOT, "sites", "midjourney-explore", "scripts", "build_gallery.py")
+        if not os.path.exists(path):
+            self.skipTest("站点脚本不存在")
+        spec = importlib.util.spec_from_file_location("mj_build_gallery", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_manifest_stats_counts(self):
+        """统计只从 manifest 现算，不依赖配置文件里的写死值。"""
+        mod = self._mod()
+        rows = [
+            {"jobId": "a", "username": "u1", "aspect": "1:1", "batch": "2026-11-01"},
+            {"jobId": "a", "username": "u1", "aspect": "1:1", "batch": "2026-11-01"},
+            {"jobId": "b", "username": "u2", "aspect": "2:3", "batch": "2026-11-02"},
+        ]
+        st = mod.manifest_stats(rows)
+        self.assertEqual(st["n_images"], 3)
+        self.assertEqual(st["n_jobs"], 2)
+        self.assertEqual(st["n_authors"], 2)
+        self.assertEqual(st["n_aspects"], 2)
+        self.assertEqual(st["n_batches"], 2)
+
+    def test_with_counts_is_pure(self):
+        """填文案数量不得就地改全局 CONFIG；且各语种占位符都要填掉。"""
+        mod = self._mod()
+        before_title = mod.CONFIG["title"]
+        before_sub = mod.CONFIG["ui"]["zh"]["sub1"]
+        out = mod.with_counts(mod.CONFIG, {"n_images": 1, "n_jobs": 2,
+                                           "n_authors": 3, "n_aspects": 4})
+        self.assertEqual(mod.CONFIG["title"], before_title, "with_counts 不得改动 CONFIG")
+        self.assertEqual(mod.CONFIG["ui"]["zh"]["sub1"], before_sub,
+                         "with_counts 不得改动 CONFIG['ui']")
+        self.assertIn("{n_", mod.CONFIG["title"], "原件应保持模板形态")
+        self.assertNotIn("{n_", out["title"], "SEO 文案占位符未填")
+        self.assertNotIn("{n_", out["ui"]["zh"]["sub1"], "UI 中文占位符未填")
+        self.assertNotIn("{n_", out["ui"]["ja"]["sub1"], "UI 日文占位符未填")
+
+    def test_no_config_rewrite(self):
+        """构建脚本不得回写 sites.json —— 配置是输入，不是产物。"""
+        mod = self._mod()
+        self.assertFalse(hasattr(mod, "update_sites_json"),
+                         "构建不得回写 sites.json")
+
+    def test_site_uses_single_shard(self):
+        """站点只应有单一 data/gallery.js，不再按采集日切分片。"""
+        data_dir = os.path.join(ROOT, "sites", "midjourney-explore", "data")
+        if not os.path.exists(os.path.join(data_dir, "gallery.js")):
+            self.skipTest("站点尚未构建")
+        extras = [f for f in os.listdir(data_dir)
+                  if f.startswith("gallery_") and f.endswith(".js")]
+        self.assertEqual(extras, [], "只应有单一 gallery.js，不应再有按批次分片")
+        payload = read("sites/midjourney-explore/data/gallery.js")
+        # 文件形如 window.__GALLERY__=JSON.parse("<json 字符串>"); —— 双层编码
+        m = re.search(r"JSON\.parse\((.*)\);\s*$", payload, re.S)
+        self.assertTrue(m, "gallery.js 不是预期的 JSON.parse 形式")
+        obj = json.loads(json.loads(m.group(1)))
+        self.assertIn("items", obj)
+        self.assertIn("jobs", obj)
+        # 整改后 mid 档由数据直接给出，灯箱不再从 full 路径推导
+        self.assertIn("m", obj["items"][0], "条目缺 mid 档地址 m")
+        self.assertIn("t", obj["items"][0], "条目缺缩略图地址 t")
+        html = read("sites/midjourney-explore/index.html")
+        self.assertNotIn("__SHARDS__", html, "页面仍在读多分片")
+        self.assertNotIn("gallery_", html, "页面仍在引用按批次分片文件")
+
+    def test_no_placeholder_leak_in_built_page(self):
+        """构建产物里不能残留 {n_images} 之类的未填占位符。"""
+        html = read("sites/midjourney-explore/index.html")
+        for token in ("{n_images}", "{n_jobs}", "{n_authors}", "{n_aspects}"):
+            self.assertNotIn(token, html, "页面残留未填占位符 %s" % token)
+
+    def test_lightbox_stage_fits_viewport(self):
+        """灯箱舞台不得横向溢出视口（图片会被推到视口外 → 打开一片空白）。
+
+        根因：.lb 是 grid 容器但没定义 grid-template-columns，默认列宽由内容撑开
+        （实测 stage 宽 2658px > 视口 900px）。修法是显式给出
+        grid-template-columns:minmax(0,1fr) 并给 .stage/.foot 加 min-width:0。
+        """
+        html = read("sites/midjourney-explore/index.html")
+        m = re.search(r"\.lb\{(.*?)\}", html, re.S)
+        self.assertTrue(m, "页面里找不到 .lb 样式")
+        self.assertIn("grid-template-columns:minmax(0,1fr)", m.group(1),
+                      ".lb 必须限定网格列宽，否则灯箱横向溢出视口")
+        stage = re.search(r"\.lb \.stage\{(.*?)\}", html, re.S)
+        self.assertTrue(stage, "页面里找不到 .lb .stage 样式")
+        self.assertIn("min-width:0", stage.group(1),
+                      ".lb .stage 需要 min-width:0，否则内容宽度会撑破网格")
+
+
+    def test_manifest_integrity_rejects_empty_batch(self):
+        """某批采集为空时必须硬失败，不能静默少数据。"""
+        mod = self._mod()
+        with tempfile.TemporaryDirectory() as d:
+            b = os.path.join(d, "b.txt")
+            os.makedirs(os.path.join(d, "data", "daily", "2026-01-01"))
+            with open(os.path.join(d, "data", "daily", "2026-01-01", "jobs.json"),
+                      "w", encoding="utf-8") as f:
+                f.write("[]")
+            with self.assertRaises(SystemExit):
+                mod.assert_manifest_integrity([{"id": "x"}], site=d, baseline=b)
+
+    def test_manifest_integrity_rejects_shrink(self):
+        """manifest 行数比上次少（历史被覆盖）时必须硬失败。"""
+        mod = self._mod()
+        with tempfile.TemporaryDirectory() as d:
+            b = os.path.join(d, "b.txt")
+            with open(b, "w", encoding="utf-8") as f:
+                f.write("5")
+            with self.assertRaises(SystemExit):
+                mod.assert_manifest_integrity([{"id": "x"}], site=d, baseline=b)
+
+    def test_manifest_integrity_accepts_healthy(self):
+        mod = self._mod()
+        with tempfile.TemporaryDirectory() as d:
+            rows = [{"id": "a", "jobId": "a"}, {"id": "b", "jobId": "b"}]
+            os.makedirs(os.path.join(d, "data", "daily", "2026-01-01"))
+            with open(os.path.join(d, "data", "daily", "2026-01-01", "jobs.json"),
+                      "w", encoding="utf-8") as f:
+                json.dump(rows, f)
+            b = os.path.join(d, "b.txt")
+            self.assertEqual(mod.assert_manifest_integrity(rows, site=d, baseline=b), 2)
+            self.assertTrue(os.path.exists(b), "成功时应写入基线")
+
+    def test_manifest_covers_all_daily(self):
+        """manifest 行数应等于各批次 jobs.json 行数之和（累积不漏批）。"""
+        mod = self._mod()
+        rows = mod.load_manifest()
+        ddir = os.path.join(mod.SITE, "data", "daily")
+        total = 0
+        if os.path.isdir(ddir):
+            for name in os.listdir(ddir):
+                p = os.path.join(ddir, name, "jobs.json")
+                if os.path.isfile(p):
+                    with open(p, encoding="utf-8") as f:
+                        total += len(json.load(f))
+        self.assertEqual(len({r["jobId"] for r in rows}), total,
+                         "manifest 的作业数应与各批次之和一致")
+
+
+    def test_extract_refuses_overwrite_without_force(self):
+        """同日重采不加 --force 必须拒绝（退出码 3），且不动已有文件。"""
+        daily = os.path.join(ROOT, "sites", "midjourney-explore", "data", "daily")
+        if not os.path.isdir(daily):
+            self.skipTest("没有 daily/ 批次")
+        names = sorted(n for n in os.listdir(daily)
+                       if os.path.isfile(os.path.join(daily, n, "jobs.json")))
+        if not names:
+            self.skipTest("没有已有批次")
+        batch = names[0]
+        p = os.path.join(daily, batch, "jobs.json")
+        with open(p, "rb") as f:
+            before = f.read()
+        r = subprocess.run(
+            [sys.executable,
+             os.path.join(ROOT, "sites", "midjourney-explore", "scripts", "extract.py"),
+             "--batch", batch],
+            capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(r.returncode, 3, "未加 --force 应拒绝覆盖：" + r.stdout[-400:] + r.stderr[-400:])
+        with open(p, "rb") as f:
+            self.assertEqual(f.read(), before, "已有批次被改动了")
+
+
+class MjFullOnline(unittest.TestCase):
+    """W2：full 档端到端 online —— 直链入库、外链不加站点前缀、前端直通。"""
+
+    def _load(self, rel, name):
+        import importlib.util
+        path = os.path.join(ROOT, rel)
+        if not os.path.exists(path):
+            self.skipTest(f"{rel} 不存在")
+        # index/ 模块之间互相 import（sync → catalog/store），需要它在搜索路径上
+        sys.path.insert(0, os.path.join(ROOT, "index"))
+        spec = importlib.util.spec_from_file_location(name, path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_file_specs_full_is_url(self):
+        """online 档的地址必须是上游直链，不再写本地路径。"""
+        cat = self._load("index/catalog.py", "idx_catalog")
+        cfg = cat.SOURCES["midjourney-explore"]
+        rec = {"thumb_path": "sites/x/thumbs/a.webp", "thumb_url": "https://c/a.webp",
+               "mid_path": "sites/x/mid/a.webp", "mid_url": "https://c/a-mid.webp",
+               "full_path": "sites/x/img/a.png", "full_url": "https://cdn/a.png"}
+        specs = cat.file_specs("midjourney-explore", cfg, rec)
+        self.assertTrue(specs["full"][0].startswith("https://"),
+                        "full 地址应为直链，实际 %r" % (specs["full"][0],))
+        self.assertTrue(specs["thumb"][0].startswith("sites/"),
+                        "thumb 仍应为本地相对路径")
+        self.assertEqual(specs["thumb"][1], "https://c/a.webp", "thumb 上游地址应作回落保留")
+
+    def test_manifest_has_no_full_path(self):
+        """full 档是 online：manifest 里不得再有本地路径字段。
+
+        留着一个指向已删除文件的 full_path，等于给下游埋必然 404 的死值。
+        """
+        rows = json.loads(read("sites/midjourney-explore/manifest.json"))
+        bad = [r["id"] for r in rows if r.get("full_path")]
+        self.assertEqual(bad, [], "manifest 里还有 full_path：%r" % (bad[:3],))
+        bad_url = [r["id"] for r in rows if not str(r.get("full_url") or "").startswith("https://")]
+        self.assertEqual(bad_url, [], "full_url 不是 https 直链：%r" % (bad_url[:3],))
+
+    def test_gallery_has_no_full_path_field(self):
+        """站点数据里不得出现指向本地原图的路径字段（gPath 之类）。
+
+        online 档只有展示地址；带一个本地路径字段，下游按它推导图片就会算出
+        必然 404 的地址。
+        """
+        raw = read("sites/midjourney-explore/data/gallery.js")
+        m = re.search(r"JSON\.parse\((.*)\);\s*$", raw, re.S)
+        self.assertTrue(m, "gallery.js 不是预期的 JSON.parse 形式")
+        obj = json.loads(json.loads(m.group(1)))
+        bad = [i["i"] for i in obj["items"] if i.get("gPath")]
+        self.assertEqual(bad, [], "条目里还有 gPath：%r" % (bad[:3],))
+        bad_g = [i["i"] for i in obj["items"]
+                 if not str(i.get("g") or "").startswith("https://")]
+        self.assertEqual(bad_g, [], "条目的 full 档不是 CDN 直链：%r" % (bad_g[:3],))
+
+    def test_prefix_not_added_for_url(self):
+        """外链入库时不得拼 sites/<集合>/ 前缀。"""
+        sync = self._load("index/sync.py", "idx_sync")
+        self.assertEqual(sync.addr_path("sites/x/", "https://cdn/a.png"),
+                         "https://cdn/a.png")
+        self.assertEqual(sync.addr_path("sites/x/", "thumbs/a.webp"),
+                         "sites/x/thumbs/a.webp")
+
+    def test_no_local_full_dir_declared(self):
+        """本站不再保留本地原图目录：img/ 不声明也不该存在。
+
+        imagePolicy.full = online 意味着本地不留 full 副本；
+        imageDirs 里还挂着 img/，release.py 就会去链接一个空目录，
+        而 manifest 里若有 img/ 路径就是悬空引用。
+        """
+        site = next(s for s in CFG["sites"] if s["id"] == "midjourney-explore")
+        self.assertNotIn("img", site["imageDirs"],
+                         "imageDirs 里不该再有 img（full 档走 online）")
+        self.assertNotIn("full", site["tiers"],
+                         "tiers 里不该再有 full（本地不下载原图）")
+        img_dir = os.path.join(ROOT, "sites", "midjourney-explore", "img")
+        self.assertFalse(os.path.exists(img_dir),
+                         "img/ 目录应已清理（online 档本地不留原图）")
+
+    def test_media_url_passthrough(self):
+        """前端拼地址：本地路径加 /media/，外链原样返回。"""
+        st = self._load("index/store.py", "idx_store")
+        self.assertEqual(st.media_url("https://cdn/a.png"), "https://cdn/a.png")
+        self.assertEqual(st.media_url("sites/x/thumbs/a.webp"),
+                         "/media/sites/x/thumbs/a.webp")
+
+    def test_db_full_is_pure_url(self):
+        """库里 midjourney 的 full 档必须是纯 CDN URL（不得带 /media/ 或 sites/ 前缀）。
+
+        这是端到端断言：sync 入库 → store 出库两段都要对。
+        曾经踩过的坑：serve 进程跑旧代码时，接口吐出 /media/https://cdn.… 这种
+        浏览器必然 404 的地址。
+        """
+        db_path = os.path.join(ROOT, "gallery.db")
+        if not os.path.exists(db_path):
+            self.skipTest("没有本地索引库")
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            rows = conn.execute(
+                "select d.path p from derivative d "
+                "join item_asset ia on ia.asset_id=d.asset_id "
+                "join item i on i.id=ia.item_id "
+                "where i.collection='midjourney-explore' and d.kind='full'"
+            ).fetchall()
+        finally:
+            conn.close()
+        if not rows:
+            self.skipTest("库里没有 midjourney 的 full 档")
+        bad = [r["p"] for r in rows
+               if not r["p"].startswith("https://") or "/media/" in r["p"]
+               or "/sites/" in r["p"]]
+        self.assertEqual(bad, [], "full 档地址被污染了：%r" % (bad[:3],))
 
 
 if __name__ == "__main__":

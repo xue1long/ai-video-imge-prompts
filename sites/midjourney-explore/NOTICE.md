@@ -5,9 +5,10 @@
 - 素材集：Midjourney 官网 Explore 榜（<https://www.midjourney.com/explore?tab=styles_top>）
 - 采集方式：通过站点前端的公开只读接口 `GET /api/explore?page=N&feed=top` 分页抓取，
   只取元数据与图片地址；提示词原文与成图均未做改动、未做翻译。
-- 收录范围：公开榜单全部 4 页，共 200 条社区作业、800 张成图（每条作业 4 格）。
-- 采集日期：2026-11-01
-- 模型版本：本次快照全部为 Midjourney v8.2。
+- 收录范围：公开榜单全部 4 页，**每批次** 200 条社区作业、800 张成图（每条作业 4 格）。
+  本站按天累积采集，当前共 2 个批次（2026-11-01、2026-11-02），计 **400 条作业 / 1600 张成图**。
+- 采集日期：2026-11-01、2026-11-02（批次目录 `data/daily/<YYYY-MM-DD>/`，历史批次不覆盖）
+- 模型版本：当前批次全部为 Midjourney v8.2。
 
 ## 关于 `tab=styles_top`
 
@@ -40,6 +41,13 @@ Explore 的热门作品流。本站据此只取 `feed=top` 这一份榜单，不
   （站点前端在用，匿名可调，必带 `X-CSRF-Protection: 1` 头）
 - 图片：`https://cdn.midjourney.com/<job_id>/<index>_{size}_N.webp` 与
   `https://cdn.midjourney.com/<job_id>/<index>.png`
+
+### 本地留存的档位
+
+本站只把**缩略图（640）与中图（1024）**下载到本地（`thumbs/`、`mid/`），
+**原图（`.png`）不落本地** —— 页面与素材管理器都直接引用 CDN 直链。
+原图每天约 2.3 GB，本地副本不产生展示价值；代价是**原图长期可达性取决于上游**
+（详见 `docs/DATA_STRATEGY_SPEC.md` §1.2）。
 
 ### Cloudflare 的两道坎（实测）
 

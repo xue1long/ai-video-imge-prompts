@@ -37,10 +37,19 @@ def check_site(s, only_tier=None, log=print):
         missing += len(t["missing"]); broken += len(t["broken"])
 
     # 中图：imageDirs 含 mid 的站点，每张原图都应有对应的 mid/*.webp
+    # 优先用 manifest 直接给的 mid_path；没有这一列的站（中图由上游提供、
+    # 或本地只有原图）才从 full_path 推导 —— full 档走 online 的站甚至
+    # 没有 full_path，那种站不参与本项检查。
     if "mid" in s.get("imageDirs", []) and only_tier in (None, "mid"):
         rows = assets.load_manifest(sd)
-        lost = [mid_rel(r["full_path"]) for r in rows
-                if not os.path.exists(os.path.join(sd, mid_rel(r["full_path"])))]
+        def mid_of(r):
+            if r.get("mid_path"):
+                return r["mid_path"]
+            if r.get("full_path"):
+                return mid_rel(r["full_path"])
+            return None
+        lost = [p for r in rows
+                for p in [mid_of(r)] if p and not os.path.exists(os.path.join(sd, p))]
         log("    [mid  ] 完好 %d / %d" % (len(rows) - len(lost), len(rows)))
         if lost:
             log("            缺失 %d，前 3：%s（运行 python tools/mid.py 补齐）" % (len(lost), lost[:3]))

@@ -57,17 +57,17 @@ ASPECT_ZH = {
 }
 
 # ── SEO ──────────────────────────────────────────────
-N_JOBS = 200
-N_IMAGES = 800
-
+# 数量不再写死：站点每天累积一批，成图数/作业数每天都在涨。
+# 下面的文案用 {n_images} / {n_jobs} 占位符，由 build_gallery.py 按实际数据填充
+# （见 build_gallery.py 的 with_counts）。
 SEO = {
-    "title": f"Midjourney 探索榜参考图集：{N_IMAGES} 张社区精选成图 · Midjourney Explore 镜像",
-    "desc": f"Midjourney 官网 Explore 榜的中文镜像：收录 {N_JOBS} 条社区作业、{N_IMAGES} 张成图，"
+    "title": "Midjourney 探索榜参考图集：{n_images} 张社区精选成图 · Midjourney Explore 镜像",
+    "desc": "Midjourney 官网 Explore 榜的中文镜像：收录 {n_jobs} 条社区作业、{n_images} 张成图，"
             f"每条附原始英文提示词，可按宽高比与作者筛选，灯箱内可复制提示词原文。",
     "ogSite": f"Midjourney Explore {CODE}",
-    "ogTitle": f"Midjourney 探索榜 · {N_IMAGES} 张社区精选成图",
+    "ogTitle": "Midjourney 探索榜 · {n_images} 张社区精选成图",
     "ogDesc": "Midjourney 官网 Explore 热门榜镜像，含英文提示词原文与宽高比分面。",
-    "twTitle": f"Midjourney 探索榜 · {N_IMAGES} 张",
+    "twTitle": "Midjourney 探索榜 · {n_images} 张",
     "twDesc": "Midjourney 官网 Explore 榜中文镜像，含提示词原文。",
     "schemaName": f"Midjourney Explore {CODE}",
     "schemaAlt": "Midjourney Explore community gallery",
@@ -82,7 +82,7 @@ UI = {
         "eyebrow": f"{CODE} · MIDJOURNEY 探索榜 · 本地镜像",
         "brand1": "Midjourney",
         "brand2": "探索榜",
-        "sub1": f"Midjourney 官网 Explore 热门榜的镜像：{N_JOBS} 条社区作业、{N_IMAGES} 张成图，"
+        "sub1": "Midjourney 官网 Explore 热门榜的镜像：{n_jobs} 条社区作业、{n_images} 张成图，"
                 "每条都附原始英文提示词，可按宽高比筛选。",
         "sub2": "榜单由官网按热度生成，与 PromptHero 提示词集不是同一批数据。",
         "statPrompt": "提示词", "statImg": "成图", "statAspect": "宽高比", "statJob": "作业",
@@ -90,6 +90,7 @@ UI = {
         "search": "搜索提示词或作者",
         "filter": "筛选",
         "aspAll": "全部宽高比",
+        "batchAll": "全部日期",
         "sortHot": "按热度", "sortNew": "按最新", "sortAspect": "按宽高比",
         "countImg": "{n} 张图",
         "emptyTitle": "没有匹配的成图",
@@ -107,12 +108,12 @@ UI = {
         "themeAria": "主题", "langAria": "语言",
     },
     "ja": {
-        "title": f"Midjourney 探索榜：{N_IMAGES} 枚のコミュニティ精选画像 · ミラー",
+        "title": "Midjourney 探索榜：{n_images} 枚のコミュニティ精选画像 · ミラー",
         "home": "参照素材集", "homeAria": "参照素材集のトップへ",
         "eyebrow": f"{CODE} · MIDJOURNEY 探索榜 · ミラー",
         "brand1": "Midjourney",
         "brand2": "探索榜",
-        "sub1": f"Midjourney 公式 Explore 人気ランキングのミラー：{N_JOBS} 件のコミュニティ作品、{N_IMAGES} 枚の生成画像。"
+        "sub1": "Midjourney 公式 Explore 人気ランキングのミラー：{n_jobs} 件のコミュニティ作品、{n_images} 枚の生成画像。"
                 "元 english プロンプト付き、アスペクト比で絞り込めます。",
         "sub2": "ランキングは公式が人気度から生成したもので、PromptHero のプロンプト集とは別のデータです。",
         "statPrompt": "プロンプト", "statImg": "画像", "statAspect": "アスペクト比", "statJob": "作品",
@@ -120,6 +121,7 @@ UI = {
         "search": "プロンプト・作者を検索",
         "filter": "絞り込み",
         "aspAll": "すべてのアスペクト比",
+        "batchAll": "すべての日付",
         "sortHot": "人気順", "sortNew": "新着順", "sortAspect": "アスペクト比順",
         "countImg": "{n} 枚",
         "emptyTitle": "条件に合う画像がありません",
@@ -152,7 +154,7 @@ FAQ = [
      "Explore 榜由官网按实时热度排序，内容会随社区活动变化。本站的数据是采集当天的快照，"
      "重新运行 scripts/extract.py 即可拿到最新榜单。"),
     ("每条作业有几张图？",
-     "每条作业 4 格，共 800 张。其中一部分格子被上游标记为不适合展示，"
+     "每条作业 4 格，共 {n_images} 张。其中一部分格子被上游标记为不适合展示，"
      "这类格子不下载、不显示，页面上只会看到实际可用的格子。"),
 ]
 
