@@ -58,6 +58,8 @@ def main():
     ap.add_argument("--login", action="store_true", help="未登录时等待人工登录")
     ap.add_argument("--feed", default="styles_top")
     ap.add_argument("--max-pages", type=int, default=200)
+    ap.add_argument("--no-merge", action="store_true",
+                    help="覆盖输出文件，不合并历史码（默认合并累积）")
     ap.add_argument("--out", default=OUT)
     args = ap.parse_args()
 
@@ -144,26 +146,49 @@ def main():
                 break
             page.wait_for_timeout(450)
 
+        now = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+        fresh = [
+            {
+                "code": it.get("formatted_sref") or it["id"].split("_", 1)[1],
+                "id": it["id"],
+                "width": it.get("width"),
+                "height": it.get("height"),
+                "type": it.get("type"),
+            }
+            for it in items
+        ]
+
+        # 榜单是**滚动**的：实测相隔约 45 分钟的两次抓取重合 139/200（约 30% 换血），
+        # 重合项位置平均偏移 22 位。所以默认合并累积，不覆盖已有码。
+        merged, snapshots = {}, []
+        if not args.no_merge and os.path.exists(args.out):
+            try:
+                old = json.load(open(args.out, encoding="utf-8"))
+                merged = {i["code"]: i for i in old.get("items", [])}
+                snapshots = old.get("snapshots", [])
+            except Exception:
+                merged, snapshots = {}, []
+        added = [it["code"] for it in fresh if it["code"] not in merged]
+        for it in fresh:
+            merged[it["code"]] = it
+        snapshots.append({"at": now, "feed": args.feed, "count": len(fresh), "new": len(added)})
+
         out = {
             "feed": args.feed,
             "source": PAGE_URL,
-            "captured_at": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
-            "count": len(items),
-            "items": [
-                {
-                    "code": it.get("formatted_sref") or it["id"].split("_", 1)[1],
-                    "id": it["id"],
-                    "width": it.get("width"),
-                    "height": it.get("height"),
-                    "type": it.get("type"),
-                }
-                for it in items
-            ],
+            "captured_at": now,
+            "count": len(merged),
+            "last_run_count": len(fresh),
+            "snapshots": snapshots[-30:],
+            "items": list(merged.values()),
         }
         os.makedirs(os.path.dirname(args.out), exist_ok=True)
         with open(args.out, "w", encoding="utf-8") as f:
             json.dump(out, f, ensure_ascii=False, indent=1)
-        print("写入 %s：%d 条" % (args.out, len(items)))
+        print("写入 %s：本次 %d 条，新增 %d，累计 %d"
+              % (args.out, len(fresh), len(added), len(merged)))
+        if added:
+            print("新增码：%s" % ", ".join(added[:12]) + (" …" if len(added) > 12 else ""))
         if closer is not None:
             closer.close()
     return 0

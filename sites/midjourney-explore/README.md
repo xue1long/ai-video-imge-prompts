@@ -122,12 +122,15 @@ python scripts/fetch_styles.py --size 1024
 
 | 路径 | 内容 | 是否入库 |
 |---|---|---|
-| `data/styles.json` | 清单：feed / captured_at / 200 个码 | 是 |
+| `data/styles.json` | 清单：feed / captured_at / 累计码表 / 每次抓取快照 | 是 |
 | `data/styles_images.json` | 每码每类图的命中状态 | 是 |
-| `styles/<码>/portrait.webp` 等 | 三类示例图，各 200 张，共 600 张约 152 MB | 否（`.gitignore`） |
+| `styles/<码>/portrait.webp` 等 | 三类示例图，每码三张（261 码共 783 张，191 MB） | 否（`.gitignore`） |
 
 **每个码有三张语义化单图**：`portrait` / `landscape` / `still_life`，
 同一风格的三个不同题材。CDN 上只有 128 / 384 / 640 / 1024 四档。
+
+**榜单是滚动的**：单次抓取只有 200 条，相隔 45 分钟的两次抓取重合 139 条（约 30% 换血）。
+所以 `dump_styles.py` 默认**合并累积**，重复跑就是在攒库 —— 不需要一次抓全。
 
 **登录门槛**：清单接口 `/api/explore-srefs` 必须登录态，且**只能在浏览器页面
 上下文里调用** —— 把 cookie 拿出来用 Python 直连会稳定 `500`（`cf_clearance` 与
