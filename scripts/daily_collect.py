@@ -171,9 +171,44 @@ def git_commit_and_push(batch, n_images, n_jobs):
     #   `git commit --only -- <paths>` 只提交指定路径的工作区内容，
     #   **完全不碰暂存区**（实测 dry-run 后暂存区保持原样）—— 正是这里要的。
     #
+    # ── 登记新增文件（必须在变更检测之前）──────────────────────────
+    # `git commit --only` 只提交**已被 git 跟踪**的路径；未跟踪的新文件会被
+    # **静默跳过**，而且退出码仍是 0 —— 不报错、不提示，像是提交成功了。
+    #
+    # 这个坑在「每日采集」里必然踩到：新批次目录 data/daily/<日期>/ 是
+    # 每次新建的，新出现的宽高比落地页 aspect/<比>/ 也是新建的。
+    # 2026-11-03 实测：manifest.json 里已经有 2026-11-03 的 200 条作业，
+    # 但 data/daily/2026-11-03/ 与两个新 aspect 页都没进仓库 ——
+    # 干净检出上 CI 直接断言失败（manifest 作业数 600 != 各批次之和 400）。
+    #
+    # 解法：`git add --intent-to-add`（-N）把新文件登记进索引，
+    # 但**不写入内容**（内容仍留在工作区），于是：
+    #   - `git commit --only -- <paths>` 之后能把新文件一起提交；
+    #   - 暂存区里别人的改动完全不受影响（--only 只取指定路径的内容）。
+    # 实测（gt5）：别人的 other.txt 提交后仍留在暂存区，我们的 3 个文件正常入库。
+    #
+    # 为什么不是 `git add`：那会把新文件的内容真正写进暂存区，
+    # 破坏「不碰暂存区」的承诺（虽然 --only 最终仍只提交指定路径，
+    # 但暂存区内容会被我们改动，别人后续提交会带上我们的文件）。
+    #
+    # 为什么必须放在变更检测**之前**：登记之后 `git diff` 才看得见新文件，
+    # 否则「本次只有新增文件、已跟踪文件都没变」的情况会被误判成
+    # 「无变更，无需提交」而整批漏掉 —— 那正是新批次首日的典型形态。
+    new_files = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard", "--"] + paths,
+        cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+    ).stdout.decode("utf-8", errors="replace").split("\n")
+    new_files = [f for f in new_files if f.strip()]
+    if new_files:
+        log("登记 %d 个新增文件（intent-to-add）" % len(new_files))
+        subprocess.run(["git", "add", "--intent-to-add", "--"] + new_files,
+                       cwd=ROOT, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL)
+
     # 「有没有变更」用 `git diff --quiet -- <paths>`（工作区 vs HEAD）：
     #   .gitattributes 统一 eol=lf，工作区是 CRLF、仓库是 LF 时，
     #   git 归一化后内容其实一致 —— 用 diff 判断才不会为纯换行差异提交一次。
+    #   新文件已在上面登记为 intent-to-add，diff 也能看见它们。
     st = subprocess.run(["git", "diff", "--quiet", "--"] + paths,
                         cwd=ROOT, stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL)
