@@ -118,7 +118,8 @@ def fetch_page(opener, page, log):
                 % (page, attempt + 1, type(e).__name__, wait))
             time.sleep(wait)
     log("    page %d 最终失败：%s" % (page, last))
-    return []
+    # None = 这一页抓取失败（区别于 [] = 榜单到此为止，是正常结束）
+    return None
 
 
 def prompt_text(prompt):
@@ -158,23 +159,33 @@ def aspect_of(job):
 
 
 def style_refs(prompt):
-    """风格参考（sref）码列表。
+    """风格参考（sref）码列表 —— 就是原站点显示的 p 值（如 sref 2918660786）。
 
-    上游 prompt.styleRef 是数组，每项带 `t` 字段：
-      · t == "url"  → 图片 URL 型的参考（不是码，不收）
-      · t 是数字串  → 就是页面上显示的 p 值（如 sref 2918660786）
-    之前只存了 hasStyleRef 这个布尔标记，把码本身丢掉了——
-    原站点开图片会在图上方显示「sref <码>」，本站也要显示。
+    上游 prompt.styleRef 是数组，每项形如 {"t": ..., "content": ..., "weight": 1}：
+      · t == "seed" → content 是数字码，就是原站的 sref 码
+      · t == "url"  → content 是图片短链（https://s.mj.run/...），图片型参考，不是码
+
+    实测（2026-11-02，4 页 200 条）：t 只有 seed / url 两种，
+    17 个 seed 码分布在 13 条作业上；带码作业在原站 /styles/0_<码> 页面
+    确实渲染成「sref <码>」（已实地核对，非推断）。
+
+    旧实现把 t 当成码本身 —— t == "seed" 时会存下字面量 "seed"，真码全丢。
     """
     out = []
     for item in (prompt.get("styleRef") or []):
         if not isinstance(item, dict):
             continue
         t = item.get("t")
-        if t is None or t == "url":
+        content = str(item.get("content") or "").strip()
+        if t == "url":
+            continue                       # 图片型参考，不是码
+        if t in ("seed", "sref", "style"):
+            code = content                 # 数值码在 content 里
+        else:
+            code = str(t).strip()          # 兜底：t 本身就是码的老形状
+        if not code or code == "url" or code.startswith("http"):
             continue
-        code = str(t).strip()
-        if code and code not in out:
+        if code not in out:
             out.append(code)
     return out
 
@@ -218,42 +229,72 @@ def slim(job):
 def main():
     args = sys.argv[1:]
     pages = PAGE_COUNT
+    raw_path = ""
     i = 0
     while i < len(args):
         if args[i] == "--pages" and i + 1 < len(args):
             pages = int(args[i + 1]); i += 2
+        elif args[i] == "--from-raw" and i + 1 < len(args):
+            raw_path = args[i + 1]; i += 2
         else:
             i += 1
 
     def log(m):
         print(m, flush=True)
 
-    log("采集 Midjourney Explore 榜（feed=%s）" % FEED)
-    if PROXY:
-        log("  代理 %s" % PROXY)
+    data_dir = os.path.join(SITE, "data")
+    os.makedirs(data_dir, exist_ok=True)
+    main_path = os.path.join(data_dir, "jobs.json")
+    draft_path = os.path.join(data_dir, "jobs.new.json")
 
-    opener, jar = build_opener()
-    clear_cloudflare(opener, jar, log)
+    def existing_count():
+        """磁盘上已有的作业条数（覆盖守卫用）。"""
+        if not os.path.exists(main_path):
+            return 0
+        try:
+            with open(main_path, encoding="utf-8") as f:
+                return len(json.load(f))
+        except Exception:
+            return 0
+
+    old_count = existing_count()
+
+    def write_draft(jobs):
+        """草稿落盘：限流窗口可能很长，中途失败也要保住已抓到的页。
+
+        草稿写 jobs.new.json，不碰正式文件 —— 正式文件只在本轮结果完整时替换。
+        否则一次「所有页面 429」的失败就会把已有数据清空：旧实现末尾无条件
+        save(jobs)，而全页失败时 jobs 是空数组，200 条作业当场蒸发，退出码还是 0。
+        """
+        tmp = draft_path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(jobs, f, ensure_ascii=False)
+        os.replace(tmp, draft_path)
+
+    opener = jar = None
+    raw_pages = None
+    if raw_path:
+        log("复放本地缓存的原始响应：%s（不请求上游）" % raw_path)
+        with open(raw_path, encoding="utf-8") as f:
+            raw_pages = json.load(f)
+    else:
+        log("采集 Midjourney Explore 榜（feed=%s）" % FEED)
+        if PROXY:
+            log("  代理 %s" % PROXY)
+        opener, jar = build_opener()
+        clear_cloudflare(opener, jar, log)
 
     jobs = []
     seen = set()
     dup = 0
     skipped = 0
+    failed = False
     t0 = time.time()
     page = PAGE_START
-    data_dir = os.path.join(SITE, "data")
-    os.makedirs(data_dir, exist_ok=True)
 
-    def save(jobs):
-        """增量落盘：限流窗口可能很长，中途失败也要保住已抓到的页。"""
-        with open(os.path.join(data_dir, "jobs.json"), "w", encoding="utf-8") as f:
-            json.dump(jobs, f, ensure_ascii=False)
-
-    while page < PAGE_START + pages:
-        items = fetch_page(opener, page, log)
-        if not items:
-            log("  page %d 为空，榜单到此结束" % page)
-            break
+    def absorb(items):
+        """把一页原始作业并进结果（去重 + 丢弃没有提示词的条目）。"""
+        nonlocal dup, skipped
         for it in items:
             s = slim(it)
             if s is None:
@@ -264,14 +305,48 @@ def main():
                 continue
             seen.add(s["id"])
             jobs.append(s)
-        log("  page %d 累计 %d 条作业  %.0fs" % (page, len(jobs), time.time() - t0))
-        save(jobs)          # 每页存一次
-        page += 1
+
+    if raw_pages is not None:
+        for idx, items in enumerate(raw_pages):
+            if not items:
+                continue
+            absorb(items)
+            log("  缓存 page %d 累计 %d 条作业" % (idx, len(jobs)))
+    else:
+        while page < PAGE_START + pages:
+            items = fetch_page(opener, page, log)
+            if items is None:
+                failed = True
+                log("  page %d 抓取失败，本次结果不完整" % page)
+                break
+            if not items:
+                log("  page %d 为空，榜单到此结束" % page)
+                break
+            absorb(items)
+            log("  page %d 累计 %d 条作业  %.0fs" % (page, len(jobs), time.time() - t0))
+            write_draft(jobs)          # 每页存一次（草稿）
+            page += 1
 
     # 榜单按热度排序，抓取顺序即热度序；同热度按 id 保证构建可复现
     jobs.sort(key=lambda j: j["id"])
+    write_draft(jobs)
 
-    save(jobs)
+    # 守卫：结果不完整就不替换正式数据。
+    # 典型触发场景：上游所有页面 429（IP 级限流），旧实现末尾无条件 save(jobs)，
+    # 而全页失败时 jobs 是空数组 —— 200 条作业当场蒸发，退出码还是 0。
+    if failed:
+        log("  拒绝覆盖 data/jobs.json：有页面抓取失败，本次结果不完整")
+        log("  原文件保持不变，新数据留在 data/jobs.new.json")
+        sys.exit(2)
+    if not jobs and old_count:
+        log("  拒绝覆盖 data/jobs.json：本轮一条作业都没解析出来")
+        log("  原文件保持不变，新数据留在 data/jobs.new.json")
+        sys.exit(2)
+    if len(jobs) < old_count:
+        log("  注意：本次 %d 条少于磁盘上的 %d 条（上游榜单变了，或有作业字段缺失）"
+            % (len(jobs), old_count))
+    os.replace(draft_path, main_path)
+    log("  已更新 data/jobs.json：%d 条（原 %d 条）" % (len(jobs), old_count))
 
     import collections
     n_images = sum(len(j["indices"]) for j in jobs)
@@ -286,6 +361,10 @@ def main():
         "aspects": collections.Counter(j["ar"] or "-" for j in jobs).most_common(),
         "authors": len({j["username"] for j in jobs}),
         "withStyleRef": sum(j["hasStyleRef"] for j in jobs),
+        # 带 sref 数字码的作业数 / 码总数（与 withStyleRef 不同：
+        # 后者只说明这条作业挂了风格参考，可能是图片型（url），没有码）
+        "withStyleCode": sum(1 for j in jobs if j.get("sref")),
+        "styleRefCodes": sum(len(j.get("sref") or []) for j in jobs),
         "collectedAt": int(time.time()),
     }
     with open(os.path.join(data_dir, "meta.json"), "w", encoding="utf-8") as f:
@@ -295,7 +374,9 @@ def main():
         % (meta["jobs"], meta["images"]))
     log("版本：%s" % meta["versions"])
     log("宽高比：%s" % meta["aspects"])
-    log("作者 %d 位 · 带风格参考 %d 条" % (meta["authors"], meta["withStyleRef"]))
+    log("作者 %d 位 · 带风格参考 %d 条，其中带 sref 码 %d 条 / 共 %d 个码"
+        % (meta["authors"], meta["withStyleRef"],
+           meta["withStyleCode"], meta["styleRefCodes"]))
 
 
 if __name__ == "__main__":

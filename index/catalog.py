@@ -122,7 +122,7 @@ SOURCES = {
             "model": "version",
             "author": "username",
             "author_display": "displayName",
-            "style_ref": "hasStyleRef",
+            "style_ref": "sref",
             "grid_index": "index",
             "job_id": "jobId",
         },
@@ -185,7 +185,10 @@ IGNORABLE = {"thumb_url", "full_url", "mid_url", "img_url", "png_url", "id", "�
              # 派生档位的回落标记：只用于下载时选档，不是素材属性
              "thumbFallback", "midFallback",
              # 与 id 重复的完整 slug（id 已是它）
-             "slug"}
+             "slug",
+             # 0/1 标记：这条作业挂了风格参考（可能是图片型，没有码）。
+             # 真实信息在 sref 列里，标记位本身不入库
+             "hasStyleRef"}
 
 # CSV 里 prompt 的截断长度。完整内容走 SQLite（Step 1），不进 CSV。
 # 22k 条 prompt 平均上千字符，不截断会让 CSV 涨到 57 MB，Excel 打不开。

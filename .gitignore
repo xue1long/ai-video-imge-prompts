@@ -38,6 +38,10 @@ sites/midjourney-explore/data/gallery_*.js
 # manifest.csv 是 manifest.py 的派生可读导出（无脚本消费），
 # 需要时可随时由 python scripts/manifest.py 重新生成。
 sites/midjourney-explore/manifest.csv
+# 采集器的草稿文件：抓取中途失败时留在这里，不入库
+# （正式数据是 data/jobs.json，只有结果完整时才会被替换）
+sites/midjourney-explore/data/jobs.new.json
+sites/midjourney-explore/data/jobs.new.json.tmp
 
 # ── 构建与发布产物 ────────────────────────────────────
 dist/
