@@ -104,6 +104,39 @@ FETCH_PROXY=http://127.0.0.1:7897 python tools/fetch.py --site midjourney-explor
 `scripts/fetch_hook.py` 并调用它——钩子负责带上浏览器化请求头与通行证 cookie。
 没有这个钩子，CDN 会对所有请求返回 403。
 
+## 风格数据线（Styles）
+
+原站右上角的 Styles 是**独立内容类型**，不在 `feed=top` 的返回里。它有两个脚本：
+
+```bash
+cd sites/midjourney-explore
+
+# 1) 取码（需要登录态，见下）
+python scripts/dump_styles.py --state ../../.scratch/mj_session.json
+
+# 2) 下图（不需要登录，CDN 直连）
+python scripts/fetch_styles.py --size 1024
+```
+
+产物：
+
+| 路径 | 内容 | 是否入库 |
+|---|---|---|
+| `data/styles.json` | 清单：feed / captured_at / 200 个码 | 是 |
+| `data/styles_images.json` | 每码每类图的命中状态 | 是 |
+| `styles/<码>/portrait.webp` 等 | 三类示例图，各 200 张，共 600 张约 152 MB | 否（`.gitignore`） |
+
+**每个码有三张语义化单图**：`portrait` / `landscape` / `still_life`，
+同一风格的三个不同题材。CDN 上只有 128 / 384 / 640 / 1024 四档。
+
+**登录门槛**：清单接口 `/api/explore-srefs` 必须登录态，且**只能在浏览器页面
+上下文里调用** —— 把 cookie 拿出来用 Python 直连会稳定 `500`（`cf_clearance` 与
+Chrome 的 TLS 指纹绑定）。所以脚本用 Playwright 在页面里 `fetch`。
+
+登录态用 Playwright 的 `storage_state` 文件传递，含时效，过期后需要人工重登一次
+再导出。**因此这条线不能挂进每日定时任务**，只能按周/月手动刷新。
+完整证据与边界见 `docs/STYLES_FEASIBILITY.md` §11。
+
 ## 构建
 
 ```bash

@@ -1,10 +1,12 @@
 # Styles 数据线可行性结论
 
-> 状态：**已定案 —— 不可自动化，建议不做**
-> 日期：2026-11-02（首版 22:30，定案 23:40）
-> 方法：前端 bundle 反查 + 生产采集链路实测（登录态 Chrome 对照）
-> 结论前置：**Styles 只在登录态下存在。匿名无论 tab 传什么，前端与后端都会回退成图片流。
-> 因此每日定时采集（匿名 + CF 通行证）拿不到 Styles 数据。除非接受 cookie 方案，否则不做。**
+> 状态：**可行并已落地 —— 登录态下单次取到 Top day 全量 200 个风格码；每码三张示例图匿名可下（§11，2026-11-03 定案）**
+> 日期：2026-11-02（首版 22:30，定案 23:40）；2026-11-03 追加 §10、§11 两次修正
+> 方法：前端 bundle 反查 + 生产采集链路实测 + 登录态 Chrome（Playwright/CDP）实测
+> 结论前置：**Styles 的「列表 / 排行」只在登录态下存在，匿名无旁路（§4）。
+> 登录态下 `/api/explore-srefs` 一次可取 Top day 全量 200 个码（§11.1）；
+> 每码有三张语义化示例图 `portrait / landscape / still_life`，CDN 直连匿名可下（§11.3）。
+> 接口本身只能在浏览器页面上下文里调用 —— 用 cookie 走 Python 直连会稳定 500（§11.2）。**
 
 ---
 
@@ -19,8 +21,10 @@
 | **是否需要登录态** | **需要。匿名无旁路。** | ✅ **已实测**（三重证据，见 §4） |
 | 匿名调该接口的结果 | `500 {"error":"Internal server error"}` | ✅ 实测 |
 | 与现有采集的关系 | 完全不同的数据集，不能塞进 jobs 流程 | 实测（DOM 结构） |
-| 示例图能否本地化 | **不能**（CDN 403，与现有 thumb/mid 同一困境） | 前轮实测 |
-| 现在能否动手 | **不建议** | 硬门槛已验证为「不可过」 |
+| 示例图能否本地化 | **能，且是单张高清图**：每码三张 `portrait/landscape/still_life`，128/384/640/1024 四档（§11.3 推翻了 §10 的「只有拼图」结论） | ✅ 实测 §11 |
+| 榜单 / 列表能否匿名取 | ❌ 不能（需登录，§4）；登录态下 Top day 一次取全 **200** 条（§11.1） | ✅ 实测 |
+| 码从哪来（不登录） | 图片流每条作业的 `prompt.styleRef`（`t=="seed"`），已有 | ✅ 实测 §7 |
+| 现在能否动手 | ✅ **已落地**：`scripts/dump_styles.py`（取码）+ `scripts/fetch_styles.py`（下图） | §11.4 |
 
 ---
 
@@ -172,10 +176,10 @@ else
 | 维度 | 现有 Images 线（jobs） | Styles 线 |
 |---|---|---|
 | 主键 | job UUID | style code（`0_<数字>`） |
-| 每项图片数 | 4 格（`_0` ~ `_3`） | 3 张示例图 |
+| 每项图片数 | 4 格（`_0` ~ `_3`） | **8 格拼图（4 列 × 2 行），无单张**（§10.1） |
 | 有提示词 | 有（`decodedPrompt`） | **无** |
 | 有作者 | 有 | **无**（DOM 层不可见） |
-| 有宽高比 | 有（`prompt.ar`） | **无**（3 图横向排列，非网格） |
+| 有宽高比 | 有（`prompt.ar`） | **无**（拼图整体 853×640） |
 | 有 jobType | 有（grid/upscale） | 无 |
 | 详情页 | `/jobs/<uuid>` | `/styles/0_<code>` |
 
@@ -191,21 +195,31 @@ else
 | 数据存在且独立 | ✅ 确定 |
 | 端点已定位 | ✅ `/api/explore-srefs`，feed 取值已确认 |
 | 数据结构可解析 | 🟡 部分（只知道 `id` + `formatted_sref`，示例图字段未知） |
-| **可自动采集（匿名）** | ❌ **不可 —— 需登录态，已验证无旁路** |
-| 图片可本地化 | ❌ 不可（CDN 403，与现有困境相同） |
-| 站点可展示 | ✅ 可（若数据到手，走 CDN 直链，与 full 档同策略） |
-| 信息量 | 🟡 低（只有码 + 图，无提示词/无作者/无标签） |
+| **可自动采集（匿名）** | **部分可 —— 单条封面图可以，榜单列表不行**（§10 推翻了本行原结论） |
+| 图片可本地化 | ⚠️ 纠正：可（走 `fetch_hook` 通行证，非裸请求）。原判「CDN 403」是**缺 `__cf_bm` 通行证**所致，不是图片本身受限 |
+| 站点可展示 | ✅ 可（本地 WebP，或 CDN 直链，与 full 档同策略） |
+| 信息量 | 🟡 低（只有码 + 8 格拼图，无提示词/无作者/无标签） |
 
-### 建议：不做
+### 建议（2026-11-03 修正）
 
-理由按权重排序：
+原结论「不做」只在**榜单/列表**这个口径上成立。**单条风格封面图可以采**，且不需要登录（§10）。
+
+要不要做，取决于口径：
+
+| 口径 | 可行性 | 规模上限 |
+|---|---|---|
+| 「原站 Styles 全集」 | ❌ 需要登录才能拿到码清单，不做 | — |
+| 「图片流里出现过的码 + 其示例图」 | ✅ 匿名可做，已验证 | 每天约 17 个码 → 14 张图，需按天累积 |
+| 「补全某个已知码的示例图」 | ✅ 匿名可做，只需一次请求 | 任意已知码 |
+
+**若仍要「原站 Styles 全集」，理由按权重排序（这四条只针对榜单口径）：**
 
 1. **过不了自动化门槛**。唯一的自动化路径是维护登录 cookie，而它必然过期
    （Firebase ID token 小时级、refresh token 也有限期），意味着定时任务会周期性地
    静默失效 —— 比不做更糟，因为失败是无声的。
 2. **信息量低**。一个 style 的可采信息只有码和示例图，没有提示词、没有作者、
    没有标签，站内可做的筛选维度几乎为零。
-3. **示例图拿不到**。CDN 403 是既有困境，Styles 只是同一个坑。
+3. ~~示例图拿不到~~ —— **这条已作废**，§10 实测可下载。
 4. **条款风险**。现有站点的 `NOTICE.md` 明确定位是「公开榜单」，加一条要求登录的
    私有视图，性质变了。
 
@@ -243,7 +257,14 @@ else
 
 ---
 
-## 九、如果将来仍要做：前置条件
+## 九、如果要做：两条路线，别混在一起
+
+| 路线 | 需要什么 | 能否自动化 | 见 |
+|---|---|---|---|
+| **A 榜单 / 列表**（有哪些风格、排行、点赞、作者） | 登录态 | ❌ 不能（cookie 必然过期） | 本节 |
+| **B 码 → 封面图**（这个码长什么样） | 只需要码 | ✅ 能，匿名 | §10 |
+
+### 路线 A 的前置条件
 
 必须先拿到一个**能自动续期的登录态**，否则免谈。可能的路线（按可行性排序）：
 
@@ -254,7 +275,7 @@ else
    需配套告警，复杂度高于收益。
 3. **不做**（当前建议）。
 
-真要实施时，最小方案轮廓（**暂不执行**）：
+### 路线 A 真要实施时的最小轮廓（**暂不执行**）
 
 | 层 | 新增内容 |
 |---|---|
@@ -266,9 +287,213 @@ else
 
 **明确不做的**：不动 jobs 的 manifest / gallery / 分面模型；不复用 `MidRule` / 宽高比逻辑。
 
+路线 B 复用现有取图链路，不新增数据管线 —— 轮廓见 §10.5。
+
 ---
 
-## 十、附：探测脚本与命令
+## 十、2026-11-03 修正：封面图匿名可采
+
+> 本节推翻 §1 / §6 里的两条判断：「示例图不能本地化」「必须登录才能拿到任何 style 数据」。
+> 原因是当时的探测只看了 SPA 的可见 DOM 和 API，**没查 `<head>` 里的 OpenGraph 元数据**。
+
+### 10.1 通路
+
+`/styles/0_<码>` 是纯 shell（5887 字节），但 `<head>` 里有 `og:image`，指向 CDN 上的封面拼图，
+且 URL **完全按码模板化**：
+
+```text
+https://cdn.midjourney.com/styles/0_<码>/grid_4x2_<宽度>_N.webp
+```
+
+尺寸变体实测（Cookie 用 `fetch_hook` 的 `__cf_bm` 通行证，裸请求一律 CF challenge 403）：
+
+| 宽度 | HTTP | 字节 | 结论 |
+|---|---|---|---|
+| 128 | 200 | 8,454 | 可用 |
+| 256 | 404 | — | 不存在 |
+| 384 | 200 | 64,838 | 可用 |
+| 640 | 200 | 186,108 | 可用（`og:image` 给的就是这一档） |
+| 1024 | 200 | 512,084 | 可用，**最大档** |
+| 2048 | 404 | — | 不存在 |
+
+单张图路径（`0.webp` / `0_0.webp` / `item_0.webp` / `thumb.webp` / `grid_2x2_*` / `grid_1x1_*`）
+**全部 404** —— 只有整张拼图，**拆不出单张**。
+
+### 10.2 图片内容
+
+640 档实测 853×640，4 列 × 2 行 = 8 张同风格示例图。不同码画风截然不同：
+
+| 码 | 画面 |
+|---|---|
+| `2245733539` | 洋红丝网印刷线稿（人像 / 山景 / 咖啡杯 / 植物） |
+| `1441671616` | 冷调动态模糊、电影感（人像 / 风树 / 屋内花束） |
+
+⇒ 确实是「按码定制的风格展示图」，不是随机图。
+
+### 10.3 404 是免费的有效性校验
+
+`/styles/0_<任意数字>` 页面**永远返回 200**：实测 `0_0`、`0_1111111`、`0_999999999999`
+都照样返回同样的 `og:image` 模板。**所以页面不能用来判断码是否真实存在。**
+
+能判断的是 CDN 封面图 —— 存在返回 200，不存在返回 404。17 个码实测（取自 11-02 批次图片流）：
+
+| 结果 | 数量 | 占比 |
+|---|---|---|
+| 200，下载成功 | 14 | 82% |
+| 404，未公开为风格 | 3 | 18% |
+
+404 的三个：`2318651792`、`350785888`、`345549`。
+⇒ **图片流里的码不一定都在公开风格库里**，命中率约八成。
+
+### 10.4 合规口径（顺带解决一个隐患）
+
+原站 `robots.txt`（2026-05-14 版，带通行证后可读）：
+
+- `User-agent: *` → `Allow: /`
+- `Disallow: /api/`、`Disallow: /auth/`、`Disallow: /jobs/`
+- **`/styles/` 既没被 Allow 也没有被 Disallow** → 落在默认 `Allow: /` 内
+
+也就是说：「抓 `/styles/` 页面 + CDN 封面图」在 robots 口径上比「抓 `/api/`」更干净。
+`sitemap.xml` 里明确写了不枚举 per-style 详情页，所以**没有码清单可白拿**。
+
+### 10.5 若要做：最小轮廓
+
+| 层 | 改动 |
+|---|---|
+| 采集 | **无新增**。码已经在 `jobs.json` 的 `sref` 字段里 |
+| 新增 | `scripts/fetch_styles.py`：读批次 sref → 去重 → CDN 取 640 档 → 404 记 miss |
+| 落盘 | `data/styles/<码>.webp` + `data/styles.json`（码 → 宽度 / 字节 / 来源作业） |
+| 站点 | 可选：灯箱里点 sref 标签 → 展开该码的封面图 |
+| 定时 | 挂在 `scripts/daily_collect.py` 采集之后，**失败不阻断主流程** |
+
+**规模上限（硬约束，先说清）**：匿名图片流固定 4 页 × 50 = 200 条/天，带码约 6.5%
+→ **每天约 17 个码，其中约 14 个能出图**。攒到 500 个风格需 ~36 天连续积累，
+且上游没有历史回溯接口，断采就永久缺口。
+
+### 10.6 附带结论：WebUI「风格」视图与原站 Styles 的混淆点
+
+| | WebUI「风格」视图 | 原站 Styles |
+|---|---|---|
+| 定义 | `facet: 风格参考`，筛出**带 sref 码的作业** | **风格本身**作为一个条目 |
+| 一条是什么 | 一张成图 + 提示词 + 作者 + 宽高比 | 一个码 + 8 格示例拼图 |
+| 有没有提示词 | 有 | **无** |
+| 主键 | job UUID | `0_<码>` |
+| 数据来源 | `/api/explore`（已有） | `/styles/0_<码>` 的 og:image（§10.1） |
+
+两者同名不同义。若将来真做 styles 集合，`index/catalog.py` 里那个视图名必须先改。
+
+---
+
+## 十一、2026-11-03 定案：登录态取码 + 三张语义图（推翻 §10 的两条判断）
+
+§10 的结论建立在「匿名」这个前提上，因此只能拿到 og:image 的 8 格拼图、且码只能从
+图片流旁路攒。**补上登录态之后，这两个限制都消失了。**
+
+### 11.1 Top day 的全量就是 200 条
+
+登录后 `GET /api/explore-srefs?page=N&feed=styles_top&_ql=explore` 分页实测：
+
+| page | 返回条数 | 累计 |
+|---|---|---|
+| 0 | 50 | 50 |
+| 1 | 50 | 100 |
+| 2 | 50 | 150 |
+| 3 | 50 | 200 |
+| 4 | **空数组** | 200（到底） |
+
+- **200 条，码去重后仍是 200**（无重复）；
+- 全部 `width=896, height=1344`（2:3 竖图）、`type="style"`；
+- 条目字段共 18 个，但**信息极薄**：`{"id":"0_3441803824","formatted_sref":"3441803824",
+  "width":896,"height":1344,"display_name":"Midjourney","prompt":"","type":"style",...}`
+  —— `prompt` 是空串，**没有作者、没有提示词、没有标签、也没有图片地址**。
+
+结论：**「原站 Styles 全集」在 Top day 这个口径上就是 200 条，一次请求 4 页拿完。**
+§6「拿不到全量清单」的判定，只在匿名前提下成立。
+
+### 11.2 接口只能在浏览器页面上下文里调用（四组对照实测）
+
+把登录后的 cookie 导出，用 Python 直连同一接口，四种变体**全部 500**：
+
+| 变体 | 请求头 | 结果 |
+|---|---|---|
+| A | 全量 midjourney cookie + Origin / Sec-Fetch-* / Referer | `500 {"error":"Internal server error"}` |
+| B | 只带 `AuthUserTokenV3_i/_r` | 同上 500 |
+| C | 去掉 `cf_clearance` / `__cf_bm` / `_cfuvid` | 同上 500（**且没被 CF 拦**，说明是应用层拒绝） |
+| D | 去掉 `_ql=explore` | 同上 500 |
+| — | **浏览器内 `page.evaluate(fetch)`** | **200，19931 字节** |
+
+原因：`cf_clearance` 与 Chrome 的 TLS/HTTP2 指纹绑定，Python 的 TLS 栈指纹不同，
+应用层拿不到可信上下文。**所以 cookie 有价值，但不能脱离真实浏览器使用。**
+
+已验证可行的用法（`scripts/dump_styles.py --state`）：把登录态导出为
+Playwright `storage_state`，在**全新启动的真实 Chrome** 里加载该状态，
+再在页面上下文执行 `fetch` —— 实测第 0 页正常返回 50 条。
+即：**不需要长期占用某个 profile，也不需要接管你正在用的 Chrome。**
+
+### 11.3 每个码是三张语义化单图，不是拼图（推翻 §10.2）
+
+从已登录页面的卡片 DOM 里直接读 `<img>`，真实路径是**按题材命名**的：
+
+```
+cdn.midjourney.com/styles/0_<码>/portrait_<尺寸>_N.webp
+cdn.midjourney.com/styles/0_<码>/landscape_<尺寸>_N.webp
+cdn.midjourney.com/styles/0_<码>/still_life_<尺寸>_N.webp
+```
+
+| 项 | 实测结果 |
+|---|---|
+| 可用尺寸 | **128 / 384 / 640 / 1024**（256、512、2048 全部 404） |
+| 单张体积（1024 档） | portrait ≈ 193 KB / landscape ≈ 167 KB / still_life ≈ 119 KB |
+| 是否需要登录 | **不需要**，CDN 直连 + `fetch_hook` 通行证即可（与 §10 一致） |
+| 内容 | 三张是**同一风格的三个不同题材**：人像 / 风景 / 静物，色调与笔法一致 |
+| 另有 `grid_4x2_*` | 存在（1024 档 ≈ 297 KB），是四宫格拼图；**卡片实际用的是上面三张独立图** |
+
+**§10.2「只有整张拼图、拆不出单张」是错的**，错因很具体：当时是我按
+`0.webp` / `0_0.webp` / `item_0.webp` / `thumb.webp` **猜路径**，全部 404 就下了结论，
+没有去读 DOM 里的 `<img src>`。真实文件名是语义化的，猜不出来。
+
+### 11.4 已落地的东西
+
+| 文件 | 作用 |
+|---|---|
+| `scripts/dump_styles.py` | 取码。`--cdp` 接管已开 Chrome / `--state` 用会话文件起全新 Chrome / `--profile --login` 等人工登录 |
+| `scripts/fetch_styles.py` | 下图。`--size` / `--codes` / `--limit` / `--force`，幂等跳过已存在文件 |
+| `data/styles.json` | 清单（feed / captured_at / 200 条 code）—— **入库** |
+| `data/styles_images.json` | 每个码每类图的命中状态 —— **入库** |
+| `styles/<码>/{portrait,landscape,still_life}.webp` | 图片本体，`.gitignore` 已加 `sites/*/styles/`，**不入库** |
+
+用法：
+
+```bash
+cd sites/midjourney-explore
+python scripts/dump_styles.py --state ../../.scratch/mj_session.json   # 取码
+python scripts/fetch_styles.py --size 1024                            # 下图
+```
+
+**实跑结果（2026-11-03，`styles_top`，1024 档）**：
+
+| 项 | 数值 |
+|---|---|
+| 码 | **200**（`data/styles.json` 与磁盘目录完全一致，无差集） |
+| 图片 | **600 张**（portrait / landscape / still_life 各 200） |
+| 失败 | **0 个 404、0 个错误** |
+| 体积 | 152 MB（单张 14–690 KB；三类平均 251 / 276 / 240 KB） |
+| 耗时 | 10 分 45 秒（`--sleep 0.25`，600 次请求） |
+
+### 11.5 仍未解决的边界
+
+1. **登录态会过期**。没有自动续期机制，过期后需要人工重登一次再导出
+   `storage_state`。因此**不能挂进每日定时任务**，只能按周/月手动刷新。
+2. **只测了 `styles_top`**。`styles_random / styles_hot / styles_top_week /
+   styles_top_month` 三个 feed 未实测数据量与重叠度。
+3. **数据本身很薄**。一个风格只有「码 + 三张图」，没有提示词、没有作者。
+   做「风格速查」够用，做「风格详情页」撑不起来。
+4. **WebUI 的「风格」视图仍与本文的 Styles 同名不同义**（§10.6），
+   若要在 WebUI 加集合，必须先给 `index/catalog.py` 里那个 facet 改名。
+
+---
+
+## 附录：探测脚本与命令
 
 | 文件 | 作用 |
 |---|---|
@@ -277,6 +502,19 @@ else
 | `.scratch/probe_js.py` | 递归抓 `/public/out/` 模块 → 汇总全部 `/api/` 路径 |
 | `.scratch/probe_srefs.py` ~ `probe_srefs4.py` | `/api/explore-srefs` 四轮递进验证（含匿名旁路排查） |
 | `.scratch/netcheck.py` | 三个出口到 midjourney 的连通性对照 |
+| `.scratch/probe_style_head.py` | 抓 `/styles/0_<码>` 的 `<head>` → 发现 `og:image`（§10 的起点） |
+| `.scratch/probe_ogimg.py` / `probe_ogimg2.py` | 验证 og:image 按码模板化 + 不存在的码也返回 200 |
+| `.scratch/probe_style_img.py` | 用 `fetch_hook` 通行证下载封面图（首次打通） |
+| `.scratch/probe_style_batch.py` | 17 个码批量测命中率 → 14 命中 / 3 个 404 |
+| `.scratch/probe_style_variants.py` | 尺寸变体（128/384/640/1024）+ 单张路径（全 404） |
+| `.scratch/pw_open.py` / `pw_loginbox.py` | Playwright 接管登录态 Chrome，读页面状态与登录入口 |
+| `.scratch/pw_watch.py` | 等人工登录 → 导出 `storage_state` → 探接口结构（§11 起点） |
+| `.scratch/pw_dump.py` | 翻页抓完 `feed=styles_top` → 200 条（§11.1） |
+| `.scratch/pw_img.py` | 从卡片 DOM 读 `<img src>` → 发现三张语义图（§11.3） |
+| `.scratch/pw_res.py` | 页面内 fetch 探尺寸（跨域失败，转服务端） |
+| `.scratch/probe_style_kinds.py` | 服务端探 portrait/landscape/still_life 的可用尺寸档 |
+| `.scratch/test_session2.py` | cookie 直连的四组变体对照（全 500，§11.2） |
+| `.scratch/probe_sitemap.py` / `probe_sitemap2.py` / `probe_robots.py` | sitemap 是否枚举 styles、robots.txt 全文 |
 
 全部在 `.scratch/`（已被 gitignore），**未进仓库**。
 
@@ -286,7 +524,16 @@ else
 cd E:/002-Pr/ai-video-imge-prompts
 powershell -c "(Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings').ProxyServer"
 FETCH_PROXY=http://127.0.0.1:<上面的端口> python -u .scratch/probe_srefs4.py
+
+# §10 的两步复现：先探通路，再批量测命中率
+FETCH_PROXY=http://127.0.0.1:<端口> python -u .scratch/probe_style_variants.py
+FETCH_PROXY=http://127.0.0.1:<端口> python -u .scratch/probe_style_batch.py
 ```
+
+> **一个通用坑**：`cdn.midjourney.com` 与 `www.midjourney.com` 都挂 Cloudflare，
+> 裸 `urllib` 请求一律 403 challenge。必须复用 `scripts/fetch_hook.py` 的
+> `prepare()` 预热拿 `__cf_bm`，否则会把「缺通行证」误判成「资源不存在」——
+> 这也是 §10 之前把「示例图拿不到」写错的原因。
 
 > 首版 `probe_styles.py` 自己拼 header，四个 feed 全 SSL EOF；改用 `extract.py` 的
 > `API_HEADERS`（含 `Sec-Fetch-*` / `Upgrade-Insecure-Requests`）后错误类型不变 ——

@@ -2,7 +2,7 @@
 
 ## 来源
 
-- 素材集：Midjourney 官网 Explore 榜（<https://www.midjourney.com/explore?tab=styles_top>）
+- 素材集：Midjourney 官网 Explore 榜（<https://www.midjourney.com/explore?tab=top>）
 - 采集方式：通过站点前端的公开只读接口 `GET /api/explore?page=N&feed=top` 分页抓取，
   只取元数据与图片地址；提示词原文与成图均未做改动、未做翻译。
 - 收录范围：公开榜单全部 4 页，**每批次** 200 条社区作业、800 张成图（每条作业 4 格）。
@@ -42,6 +42,23 @@ top-right corner」。它的数据结构是「风格码 + 示例图组」，与�
 > 正常。用无登录态的工具（如 WebFetch）抓这个 URL，看到的永远是降级结果。
 >
 > **定案（2026-11-02 23:40）：不做这条数据线。**
+>
+> ⚠️ **2026-11-03 修正（最终）**：上面的「不做」在两轮实测后已被推翻，**现已实施**。
+>
+> - **榜单/列表**：需登录态，但登录后 `/api/explore-srefs?feed=styles_top` 分 4 页
+>   一次取完 —— **Top day 全量 200 个风格码**，无重复。匿名仍无旁路。
+> - **示例图**：每个码对应**三张语义化单图**（`portrait` / `landscape` / `still_life`），
+>   分辨率 128 / 384 / 640 / 1024 四档，**CDN 直连匿名可下**，不需要登录。
+>   §10 说的「只有 8 格拼图」是错的 —— 那是我猜路径（`0.webp` / `item_0.webp`）全 404
+>   得出的错误结论，没去读页面里的 `<img src>`。
+> - **接口只能在浏览器页面上下文里调用**：把 cookie 导出后用 Python 直连，
+>   四组请求变体全部 `500`（含去掉 `cf_clearance` 的对照，证明是应用层拒绝，
+>   不是 CF 拦截）。因此取码脚本用 Playwright 在页面内 `fetch`。
+> - **收录范围的变化**：本站主榜单仍只收录 Images 内容类型；Styles 作为**独立的
+>   附属数据集**（200 个码 + 600 张示例图）单独存放，不并入作业流、不参与分面。
+> - 实施脚本：`scripts/dump_styles.py`（取码）、`scripts/fetch_styles.py`（下图）；
+>   清单 `data/styles.json` 入库，图片在 `styles/` 且不入库。
+>   完整证据链见 `docs/STYLES_FEASIBILITY.md` §10、§11。
 >
 > - 端点不是 `/api/explore` 换 `feed` —— 实测 5 个 feed 取值返回**逐字节相同**
 >   （77943 字节、同一 id MD5），`/api/explore` 根本不认 feed。真实端点是
@@ -106,6 +123,6 @@ top-right corner」。它的数据结构是「风格码 + 示例图组」，与�
 | 公开榜单在 `page=4` 起返回空数组 | 采集 4 页，共 200 条作业 |
 | 每条作业固定 4 格，但其中 3 格被上游标记 `server_filtered` | 官网首页只展示 1 格；实测被标记的格子在 CDN 上同样能取到完整图片，故全部收录 |
 | 上游 `prompt.ar` 是 `{"w":9,"h":16}` 这样的字典，部分条目为 `null` | 统一归一到最简比例（如 `9:16`）；`ar` 缺失时由 `width/height` 推算 |
-| Styles（风格码）是独立内容类型，不在 `feed=top` 的返回里 | **未采集，且已定案不做**：独立端点 `/api/explore-srefs` 需登录态，匿名无旁路（见上文「收录范围」与 `docs/STYLES_FEASIBILITY.md`） |
+| Styles（风格码）是独立内容类型，不在 `feed=top` 的返回里 | **未采集**：榜单/列表端点 `/api/explore-srefs` 需登录态，匿名无旁路；单条封面图虽可匿名取（`/styles/0_<码>` 的 `og:image`），但码清单拿不到全量，故不采（见 `docs/STYLES_FEASIBILITY.md` §10） |
 | 匿名访问 `?tab=styles_top` 被降级成图片流 | 按登录态分支处理：未登录看到 `/jobs/<uuid>`（前端匿名分支直接 `type:"explore"`，不看 tab），登录后看到风格卡片。**不要用无登录态的工具判断该 URL 是否有效** |
 | 每条作业的 `prompt.styleRef` 可能带风格码（`t=="seed"` 的 `content` 即 `0_<码>` 的数字部分） | `style_refs()` 只收 `seed`，跳过 `url`（图片型参考）；一页 50 条实测 7 条带码、去重 13 个 |

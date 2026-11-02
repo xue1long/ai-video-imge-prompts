@@ -7,6 +7,10 @@ sites/*/img/
 sites/*/png/
 sites/*/raw/
 sites/*/failed_*.json
+# 风格示例图（Styles 数据线）：一个码三张（portrait/landscape/still_life），
+# 由 scripts/fetch_styles.py 幂等下载；入库的只有 data/styles.json（清单）与
+# data/styles_images.json（每码每类的命中状态）。
+sites/*/styles/
 
 # ── prompts 站的抓取与构建中间数据 ──────────────────────────
 # 这些都能由 sites/prompts/import_youmind.py + build_gallery.py 重新生成，
