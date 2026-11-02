@@ -131,28 +131,57 @@ def git_commit_and_push(batch, n_images, n_jobs):
     with open(msg_path, "w", encoding="utf-8") as f:
         f.write(msg)
 
-    # 提交前跑一遍 CI 同款闸门：把产物重新构建一次，比对是否与工作区一致。
-    # CI 的判定是 `git diff --exit-code -- hub sites`（干净检出上构建后产物
-    # 必须与仓库一致），这里提前跑是为了不把「构建产物与仓库不一致」推到
-    # 远端 —— 那会让 CI 变红。
-    # 必须在 git add 之前跑：重建若产生新差异，add 之后会污染暂存区。
-    log("提交前校验：重建并比对产物")
+    # 提交前跑一遍「重建是幂等的」校验：再构建一次，看产物是否还会变。
+    # 变了说明构建不是确定性的（或者构建脚本与产物脱节）—— 这时推上去的
+    # 产物过不了 CI 的「构建产物与仓库一致」闸门。
+    #
+    # 为什么不用 CI 原样的 `git diff --exit-code -- hub sites`：
+    #   那是「与 HEAD 比对」，会把工作区里**别人**正在改的文件也算进来
+    #   （实测：另一个会话改了 index/catalog.py、shared/*.py，闸门会误红）。
+    #   这里改成「重建前后是否有新变化」—— 只关心构建产物自身的确定性。
+    log("提交前校验：重建并检查产物是否稳定")
+    def snapshot(paths):
+        out = {}
+        for p in paths:
+            full = os.path.join(ROOT, p)
+            if os.path.isfile(full):
+                with open(full, "rb") as f:
+                    out[p] = f.read()
+        return out
+
+    watch = []
+    for p in ["sites/%s/index.html" % SITE, "sites/%s/sitemap.xml" % SITE,
+              "sites/%s/manifest.json" % SITE, "hub/index.html",
+              "hub/sitemap.xml", "hub/llms.txt"]:
+        if os.path.exists(os.path.join(ROOT, p)):
+            watch.append(p)
+    before = snapshot(watch)
     run([PY, os.path.join("tools", "build.py"), "--skip", "prompts"])
-    chk = subprocess.run(["git", "diff", "--exit-code", "--", "hub", "sites"],
-                         cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    if chk.returncode != 0:
-        log("!! 构建产物与仓库不一致 —— 放弃提交，请人工检查：")
-        print(chk.stdout.decode("utf-8", errors="replace")[:1500], flush=True)
+    after = snapshot(watch)
+    changed = [p for p in watch if before.get(p) != after.get(p)]
+    if changed:
+        log("!! 重建后产物发生变化，构建不是确定性的 —— 放弃提交：%s" % changed)
         return 4
 
-    run(["git", "add", "--"] + paths)
-    st = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=ROOT,
-                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # ── 隔离提交：只用 git commit --only -- <paths> ────────────────────
+    # 为什么不用 `git add` + `git commit`：
+    #   `git commit` 提交的是**整个暂存区**。若此时有人（另一个会话）
+    #   暂存了别的改动，会被连带提交进这次「每日采集」提交里 —— 那是别人
+    #   的工作，不该由定时任务替他发布。
+    #   `git commit --only -- <paths>` 只提交指定路径的工作区内容，
+    #   **完全不碰暂存区**（实测 dry-run 后暂存区保持原样）—— 正是这里要的。
+    #
+    # 「有没有变更」用 `git diff --quiet -- <paths>`（工作区 vs HEAD）：
+    #   .gitattributes 统一 eol=lf，工作区是 CRLF、仓库是 LF 时，
+    #   git 归一化后内容其实一致 —— 用 diff 判断才不会为纯换行差异提交一次。
+    st = subprocess.run(["git", "diff", "--quiet", "--"] + paths,
+                        cwd=ROOT, stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL)
     if st.returncode == 0:
         log("无变更，无需提交")
         return 0
 
-    run(["git", "commit", "-F", msg_path], allow_rc=(0,))
+    run(["git", "commit", "--only", "-F", msg_path, "--"] + paths, allow_rc=(0,))
 
     proxy = current_proxy()
     if not proxy:
