@@ -377,6 +377,11 @@ __LANDING_CSS__
 /* 作业表：每条作业一段提示词，4 格共用。提示词原文不改写。 */
 const JOBS = __JOBS__;
 const IDX = window.__GALLERY__;
+/* 分面键是 slug（文件名安全，如 2-3），分片条目里存的是原始宽高比（如 2:3）。
+   两者不在一个空间，直接比较永远不相等 —— 点任意分面都会得到空网格。
+   索引里 aspects[].r 就是原始值，这里建 slug → 原始值 的映射供过滤时还原。 */
+const ASP_RAW = {};
+IDX.aspects.forEach(a => { ASP_RAW[a.k] = a.r; });
 const T = IDX.ui.zh, J = IDX.ui.ja;
 const PAGE_SIZE = __PAGE_SIZE__;
 const midOf = p => p.replace(/^img\//, "mid/").replace(/\.png$/, ".webp");
@@ -424,7 +429,7 @@ function filtered(){
   var q = state.q.trim().toLowerCase();
   var out = state.items.filter(function(it){
     var job = JOBS[it.j] || {};
-    if (state.asp && it.a !== state.asp) return false;
+    if (state.asp && it.a !== ASP_RAW[state.asp]) return false;
     if (!q) return true;
     return (job.p || "").toLowerCase().indexOf(q) >= 0
         || (job.u || "").toLowerCase().indexOf(q) >= 0;
