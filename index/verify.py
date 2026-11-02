@@ -35,10 +35,24 @@ def verify(root, db_path):
             continue
         missing.append(path)
         store.set_asset_status(conn, asset_id, "missing")
+
+    # 派生图（缩略图 / 中图 / 原图档）也要查：原图档被整档删掉是这次改造的
+    # 预期结果，只查 asset 表的话，派生图全没了也报「一切正常」。
+    deriv_missing = []
+    for path, kind in store.derivative_paths(conn):
+        if os.path.isfile(os.path.join(root, path)):
+            continue
+        if store.derivative_url(conn, path):
+            remote += 1
+            continue
+        deriv_missing.append((kind, path))
+
     conn.commit()
     conn.close()
-    return {"checked": ok + remote + len(missing), "ok": ok, "remote": remote,
-            "missing": len(missing), "missing_paths": missing[:20]}
+    return {"checked": ok + remote + len(missing) + len(deriv_missing), "ok": ok,
+            "remote": remote, "missing": len(missing) + len(deriv_missing),
+            "missing_paths": missing[:20],
+            "missing_derivatives": [f"{k} {p}" for k, p in deriv_missing[:20]]}
 
 
 def main():
@@ -50,9 +64,12 @@ def main():
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     db = args.db or os.path.join(args.root, "gallery.db")
     result = verify(args.root, db)
-    print(f"检查 {result['checked']} 个资产：{result['ok']} 个在盘，{result['missing']} 个缺失")
+    print(f"检查 {result['checked']} 个资产：{result['ok']} 个在盘，"
+          f"{result['remote']} 个只在上游，{result['missing']} 个缺失")
     for path in result["missing_paths"]:
         print(f"  缺失 {path}")
+    for path in result.get("missing_derivatives", []):
+        print(f"  缺失派生图 {path}")
 
 
 if __name__ == "__main__":

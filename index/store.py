@@ -118,15 +118,28 @@ def connect(db_path):
 def init(conn):
     conn.executescript(SCHEMA)
     _migrate(conn)
-    conn.execute("INSERT OR REPLACE INTO kv(key, value) VALUES('schema_version', ?)", (str(SCHEMA_VERSION),))
+    # schema_version 记的是**这份数据是哪个版本建的**，不是代码的版本：
+    # 老库升级后这里要保持旧值，sync 才知道该重建（否则数据里的新列是空的，
+    # 功能静默失效）。重建完成后由 sync 把它更新成当前版本。
+    if not kv_get(conn, "schema_version"):
+        conn.execute("INSERT OR REPLACE INTO kv(key, value) VALUES('schema_version', ?)", (str(SCHEMA_VERSION),))
     conn.commit()
 
 
 def _migrate(conn):
-    """老库补列：新增列用 ALTER TABLE 补，不重建表（重建会丢用户标注）。"""
+    """老库补列：新增列用 ALTER TABLE 补，不重建表（重建会丢用户标注）。
+
+    补列是幂等的：并发首访时两个连接可能都看到「列不存在」，
+    后到的那个会撞上 duplicate column name——那说明列已经加好了，忽略即可。
+    """
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(derivative)")}
-    if "url" not in cols:
+    if "url" in cols:
+        return
+    try:
         conn.execute("ALTER TABLE derivative ADD COLUMN url TEXT")
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" not in str(e):
+            raise
 
 
 def kv_get(conn, key, default=None):
@@ -144,6 +157,12 @@ def set_asset_status(conn, asset_id, status):
 
 def asset_paths(conn):
     return [(r["id"], r["path"], r["status"]) for r in conn.execute("SELECT id, path, status FROM asset")]
+
+
+def derivative_paths(conn):
+    """全部派生图的 (路径, 档位)。用户自己的素材在 library/ 下，不查。"""
+    return [(r["path"], r["kind"]) for r in conn.execute(
+        "SELECT DISTINCT path, kind FROM derivative WHERE path NOT LIKE 'library/%'")]
 
 
 def find_own_duplicate(conn, title, bytes_, width, height):
@@ -233,11 +252,27 @@ def add_asset(conn, path, volume, bytes_=0, width=None, height=None):
     return row["id"], row["status"] == "missing"
 
 
+def safe_url(url):
+    """上游地址的写入前过滤：只留 http(s)，并剥掉控制字符。
+
+    地址最终会出现在 Location 响应头里，带换行的地址会变成响应头注入。
+    收在写入这一处，比在每个读取方各查一遍可靠。
+    """
+    if not url:
+        return None
+    u = str(url)
+    if any(ch < " " or ch == "\x7f" for ch in u):
+        return None
+    if not u.lower().startswith(("http://", "https://")):
+        return None
+    return u
+
+
 def add_derivative(conn, asset_id, kind, path, bytes_=0, width=None, height=None, url=""):
     conn.execute(
         "INSERT OR REPLACE INTO derivative(asset_id, kind, path, bytes, width, height, url) "
         "VALUES(?,?,?,?,?,?,?)",
-        (asset_id, kind, path, bytes_ or 0, width, height, url or None),
+        (asset_id, kind, path, bytes_ or 0, width, height, safe_url(url)),
     )
 
 

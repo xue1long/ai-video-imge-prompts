@@ -351,8 +351,10 @@ def sync_prompts(conn, cfg, root):
             wh = dims.get(original) or [None, None]
             asset_id, _ = store.add_asset(conn, "sites/prompts/" + original, "sites", 0, wh[0], wh[1])
             if rec.get("thumb_path"):
-                store.add_derivative(conn, asset_id, "thumb", "sites/prompts/" + rec["thumb_path"])
-            store.add_derivative(conn, asset_id, "full", "sites/prompts/" + original)
+                store.add_derivative(conn, asset_id, "thumb", "sites/prompts/" + rec["thumb_path"],
+                                     url=rec.get("thumb_url") or "")
+            store.add_derivative(conn, asset_id, "full", "sites/prompts/" + original,
+                                 url=rec.get("full_url") or "")
             store.link_asset(conn, item_id, asset_id, role="full", ordinal=ordinal)
     return len(groups)
 
@@ -365,7 +367,12 @@ def sync(root, db_path, force=False, verbose=True):
     root = os.path.abspath(root)
     conn = store.connect(db_path)
     signature_now = signature(root)
-    if not force and store.kv_get(conn, "manifest_signature") == signature_now:
+    # 结构版本变了也要重建：否则升级后索引里的上游地址是空的，
+    # 功能静默失效（页面能开、图片能显示，只是本地删图后取不到）。
+    schema_now = str(store.SCHEMA_VERSION)
+    if (not force
+            and store.kv_get(conn, "manifest_signature") == signature_now
+            and store.kv_get(conn, "schema_version") == schema_now):
         stats = _stats(conn)
         stats["skipped"] = True
         stats["unmapped"] = {}
@@ -401,6 +408,7 @@ def sync(root, db_path, force=False, verbose=True):
     store.refresh_blob(conn)
 
     store.kv_set(conn, "manifest_signature", signature_now)
+    store.kv_set(conn, "schema_version", schema_now)
     conn.commit()
     stats = _stats(conn)
     stats.update({"skipped": False, "collections": report, "unmapped": unmapped})

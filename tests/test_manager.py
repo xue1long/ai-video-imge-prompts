@@ -252,6 +252,10 @@ def all_root(tmp):
             {
                 "id": stem, "分类": cat, "关键词": f"costume {i}", "标签": tag_list,
                 "thumb_path": thumb, "img_path": img, "png_path": png,
+                # 真实 manifest 按档位约定都带上游地址
+                "thumb_url": "https://example.invalid/c%s-t.png" % stem,
+                "img_url": "https://example.invalid/c%s-i.png" % stem,
+                "png_url": "https://example.invalid/c%s-p.png" % stem,
             }
         )
     r.manifest("costume", costume)
@@ -267,6 +271,8 @@ def all_root(tmp):
                 {
                     "id": stem, "姿势名": name, "系列": "上半身1人", "分類": cat,
                     "视角": view, "编号": f"P0{i}", "thumb_path": thumb, "full_path": full,
+                    "thumb_url": "https://example.invalid/%s-t.png" % stem,
+                    "full_url": "https://example.invalid/%s-f.png" % stem,
                 }
             )
         r.manifest(sid, rows)
@@ -283,6 +289,9 @@ def all_root(tmp):
                 "thumb_path": r.site_image("shisei", "thumbs/s0.png"),
                 "mid_path": r.site_image("shisei", "mid/s0.png"),
                 "full_path": r.site_image("shisei", "img/s0.png"),
+                "thumb_url": "https://example.invalid/s0-t.png",
+                "mid_url": "https://example.invalid/s0-m.png",
+                "full_url": "https://example.invalid/s0-f.png",
             }
         ],
     )
@@ -293,8 +302,10 @@ def all_root(tmp):
     r.manifest(
         "prompts",
         [
-            {"id": "g1a", "title": "海报 A", "thumb_path": r.site_image("prompts", "thumbs/g1a.png"), "full_path": p1},
-            {"id": "g1b", "title": "海报 B", "thumb_path": r.site_image("prompts", "thumbs/g1b.png"), "full_path": p2},
+            {"id": "g1a", "title": "海报 A", "thumb_path": r.site_image("prompts", "thumbs/g1a.png"), "full_path": p1,
+             "thumb_url": "https://example.invalid/g1a-t.png", "full_url": "https://example.invalid/g1a-f.png"},
+            {"id": "g1b", "title": "海报 B", "thumb_path": r.site_image("prompts", "thumbs/g1b.png"), "full_path": p2,
+             "thumb_url": "https://example.invalid/g1b-t.png", "full_url": "https://example.invalid/g1b-f.png"},
         ],
     )
     write(
@@ -770,6 +781,83 @@ class RemoteAssets(Base):
         os.remove(os.path.join(self.tmp, "sites/portrait/thumbs/p1.png"))
         result = verify_mod.verify(self.root.path, self.srv.db)
         self.assertEqual(result["missing"], 0)  # 缩略图缺失不影响原图资产
+
+
+class UpstreamWiring(Base):
+    """上游地址的接线完整性：声明了、库里就得有。"""
+
+    make_root = staticmethod(all_root)
+
+    def test_every_derivative_has_its_upstream_address(self):
+        """每个站每个档位的派生图都要带上上游地址。
+
+        漏一条路径（如 prompts 站的专用写入分支），该站的取图策略就整体失效：
+        本地原图删掉后，媒体路由 404、缺图判定误报——而且没有任何症状。
+        """
+        import sqlite3
+        conn = sqlite3.connect(self.srv.db)
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT i.collection AS c, d.kind AS k, COUNT(*) AS n, "
+            "SUM(CASE WHEN d.url IS NOT NULL AND d.url <> '' THEN 1 ELSE 0 END) AS u "
+            "FROM derivative d JOIN asset a ON a.id = d.asset_id "
+            "JOIN item_asset ia ON ia.asset_id = a.id JOIN item i ON i.id = ia.item_id "
+            "GROUP BY i.collection, d.kind"
+        ).fetchall()
+        conn.close()
+        gaps = [(r["c"], r["k"], r["u"], r["n"]) for r in rows if r["u"] != r["n"]]
+        self.assertEqual(gaps, [], "这些档位的派生图没有上游地址：%s" % gaps)
+
+    def test_resync_after_schema_upgrade_is_not_skipped(self):
+        """库的结构版本变了，sync 不能因为 manifest 没变就跳过。
+
+        否则升级后索引里的上游地址是空的，功能静默失效——没有任何报错。
+        """
+        import sqlite3
+        conn = sqlite3.connect(self.srv.db)
+        conn.execute("UPDATE kv SET value='1' WHERE key='schema_version'")
+        conn.commit()
+        conn.close()
+        stats = sync_mod.sync(self.root.path, self.srv.db, verbose=False)
+        self.assertFalse(stats.get("skipped"), "结构版本变了却跳过了重建")
+        import sqlite3
+        conn = sqlite3.connect(self.srv.db)
+        n = conn.execute("SELECT COUNT(*) FROM derivative WHERE url IS NOT NULL AND url <> ''").fetchone()[0]
+        conn.close()
+        self.assertGreater(n, 0, "重建后仍没有上游地址")
+
+    def test_migration_is_idempotent_under_concurrent_connects(self):
+        """老库补列是幂等的：并发的首次连接不能因为重复加列而报错。"""
+        import sqlite3
+        import store as store_mod
+        db = os.path.join(self.tmp, "legacy.db")
+        conn = sqlite3.connect(db)
+        conn.executescript(store_mod.SCHEMA.replace(
+            "  url TEXT,                           -- 上游地址；本地文件不在时媒体路由重定向到它\n", ""))
+        conn.execute("INSERT OR REPLACE INTO kv(key, value) VALUES('schema_version', '1')")
+        conn.commit()
+        conn.close()
+        # 连续两次连接：第二次若不做幂等处理就会因重复列报错
+        c1 = store_mod.connect(db)
+        c2 = store_mod.connect(db)
+        c1.close()
+        c2.close()
+
+    def test_hostile_upstream_address_is_not_stored(self):
+        """带换行或非 http(s) 的上游地址不能进库（否则会变成响应头注入）。"""
+        import sqlite3
+        rows = json.loads(open(os.path.join(self.tmp, "sites/portrait/manifest.json"),
+                               encoding="utf-8").read())
+        rows[0]["full_url"] = "https://e.com/a\r\nX-Injected: 1"
+        rows[0]["thumb_url"] = "javascript:alert(1)"
+        write(os.path.join(self.tmp, "sites/portrait/manifest.json"),
+              json.dumps(rows, ensure_ascii=False))
+        sync_mod.sync(self.root.path, self.srv.db, force=True, verbose=False)
+        conn = sqlite3.connect(self.srv.db)
+        bad = conn.execute("SELECT COUNT(*) FROM derivative WHERE url LIKE '%X-Injected%' "
+                           "OR url NOT LIKE 'http%'").fetchone()[0]
+        conn.close()
+        self.assertEqual(bad, 0, "危险的上游地址被写进了库")
 
 
 class Maintenance(Base):
