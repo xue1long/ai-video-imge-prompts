@@ -24,12 +24,37 @@
     ⚠️ 旧结论已作废：本文件此前记载「tab 全部走同一个接口，官网没有独立于热门榜的
     风格榜数据源」。该结论**不成立** —— 当初的实测是把 URL 里的 `?tab=` 换成
     styles_* 看 HTML 字节是否一致，但 `?tab=` 是前端路由参数，SPA 返回同一份 shell
-    是正常行为，推不出「没有独立数据源」；而 Styles 根本不是 URL tab，是页面右上角的
-    内容类型开关。2026-11-02 复测：`?tab=styles_top` 已返回普通图片网格（顶部只有
-    Top day / Images / Videos），说明这个 tab 值已被上游当默认图片流处理。
+    是正常行为，推不出「没有独立数据源」。
 
-    **待办**：Styles 的接口端点与参数尚未实测（需要可用的出口 IP + CF 通行证）。
-    确认后按独立数据线采集，不要塞进现成的 jobs 流程。
+    ✅ 2026-11-02 22:50 登录态实测（WorkBuddy 浏览器扩展，账号 u9468435175）：
+    `https://www.midjourney.com/explore?tab=styles_top` 确实是一个可用的数据页 ——
+    右上角 Styles 开关高亮，顶部排序只有 Top day / Likes，内容区是风格卡片：
+    每卡 = `/styles/0_<code>` 链接 + 文案 `sref <code>` + 3 张示例图。
+    点开浮层只有 `sref <code>` 与 Try style / Copy / Search / Style Creator / Like
+    五个操作，**没有作者、没有提示词、没有标签**。
+
+    ⚠️ 第二个作废结论：此前本文件记载「`?tab=styles_top` 已返回普通图片网格，该 tab
+    值已被上游当默认图片流处理」。错因是**未登录**——上游对匿名请求把 styles 流降级
+    成图片流（返回 /jobs/<uuid> 列表，顶部只有 Top day / Images / Videos），登录后
+    即正常。所以用 WebFetch（无登录态）抓这个 URL，看到的永远是降级结果。
+
+    ✅ 2026-11-02 23:40 端点与可行性已定案（结论：**不做**）：
+      · 端点不是 `/api/explore` 换 `feed` —— 实测 5 个 feed 取值返回**逐字节相同**
+        （77943 字节、同一 id MD5），证明 `/api/explore` 根本不认 feed。
+      · 真实端点是 **`/api/explore-srefs`**（bundle 里两个独立取数函数：
+        `explore-srefs` 给 Styles、`explore` 给 Images）。
+        feed 合法取值：`styles_random` / `styles_hot` / `styles_top` /
+        `styles_top_week` / `styles_top_month`。
+      · **硬门槛：必须登录态**。前端代码里 `if (auth.status === "authenticated")`
+        才把 styles tab 映射到 `type:"styles"`，匿名分支直接是 `type:"explore"`
+        （图片流），不看 tab。匿名调 `explore-srefs` 一律 500，
+        `explore-styles-likes` / `styles-vector-search` 一律 401；
+        `/styles/<code>` 详情页是纯 shell，无 SSR 数据 —— 三条旁路全封。
+      · ⇒ 匿名定时任务拿不到 Styles。做它就得维护会过期的登录 cookie，
+        失败是无声的，比不做更糟；且该数据只有码 + 示例图，无提示词/作者/标签。
+      · 风格码不需要这条线也有：图片流每条作业的 `prompt.styleRef` 自带
+        （`t=="seed"` 的 content 即码），`style_refs()` 已正确提取。
+      详见 docs/STYLES_FEASIBILITY.md（含三重证据与两轮误判复盘）。
 """
 import os
 
