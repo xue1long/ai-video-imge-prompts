@@ -10,7 +10,7 @@ import json
 import os
 import sqlite3
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 MIME = {
     ".png": "image/png",
@@ -40,7 +40,10 @@ CREATE TABLE IF NOT EXISTS derivative(
   path TEXT NOT NULL,
   bytes INTEGER NOT NULL DEFAULT 0,
   width INTEGER, height INTEGER,
+  url TEXT,                           -- 上游地址；本地文件不在时媒体路由重定向到它
   PRIMARY KEY(asset_id, kind));
+
+CREATE INDEX IF NOT EXISTS idx_derivative_path ON derivative(path);
 
 CREATE TABLE IF NOT EXISTS item(
   id TEXT PRIMARY KEY,                -- 集合:外部ID
@@ -114,8 +117,16 @@ def connect(db_path):
 
 def init(conn):
     conn.executescript(SCHEMA)
+    _migrate(conn)
     conn.execute("INSERT OR REPLACE INTO kv(key, value) VALUES('schema_version', ?)", (str(SCHEMA_VERSION),))
     conn.commit()
+
+
+def _migrate(conn):
+    """老库补列：新增列用 ALTER TABLE 补，不重建表（重建会丢用户标注）。"""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(derivative)")}
+    if "url" not in cols:
+        conn.execute("ALTER TABLE derivative ADD COLUMN url TEXT")
 
 
 def kv_get(conn, key, default=None):
@@ -222,11 +233,19 @@ def add_asset(conn, path, volume, bytes_=0, width=None, height=None):
     return row["id"], row["status"] == "missing"
 
 
-def add_derivative(conn, asset_id, kind, path, bytes_=0, width=None, height=None):
+def add_derivative(conn, asset_id, kind, path, bytes_=0, width=None, height=None, url=""):
     conn.execute(
-        "INSERT OR REPLACE INTO derivative(asset_id, kind, path, bytes, width, height) VALUES(?,?,?,?,?,?)",
-        (asset_id, kind, path, bytes_ or 0, width, height),
+        "INSERT OR REPLACE INTO derivative(asset_id, kind, path, bytes, width, height, url) "
+        "VALUES(?,?,?,?,?,?,?)",
+        (asset_id, kind, path, bytes_ or 0, width, height, url or None),
     )
+
+
+def derivative_url(conn, path):
+    """某个本地路径对应的上游地址；没有则空串。"""
+    row = conn.execute("SELECT url FROM derivative WHERE path=? AND url IS NOT NULL LIMIT 1",
+                       (path,)).fetchone()
+    return (row["url"] if row else "") or ""
 
 
 def add_item(conn, **f):

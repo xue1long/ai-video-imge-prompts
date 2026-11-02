@@ -19,18 +19,26 @@ import store
 def verify(root, db_path):
     root = os.path.abspath(root)
     conn = store.connect(db_path)
-    missing, ok = [], 0
+    missing, ok, remote = [], 0, 0
     for asset_id, path, status in store.asset_paths(conn):
         if os.path.isfile(os.path.join(root, path)):
             ok += 1
             if status != "ok":
                 store.set_asset_status(conn, asset_id, "ok")
-        else:
-            missing.append(path)
-            store.set_asset_status(conn, asset_id, "missing")
+            continue
+        # 本地没有这个文件：站图可能只留在上游（本地省掉了原图档）。
+        # 有登记的上游地址就还能取到，不算缺图；没有才算真的丢了。
+        if store.derivative_url(conn, path):
+            remote += 1
+            if status != "ok":
+                store.set_asset_status(conn, asset_id, "ok")
+            continue
+        missing.append(path)
+        store.set_asset_status(conn, asset_id, "missing")
     conn.commit()
     conn.close()
-    return {"checked": ok + len(missing), "ok": ok, "missing": len(missing), "missing_paths": missing[:20]}
+    return {"checked": ok + remote + len(missing), "ok": ok, "remote": remote,
+            "missing": len(missing), "missing_paths": missing[:20]}
 
 
 def main():

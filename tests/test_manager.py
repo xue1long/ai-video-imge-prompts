@@ -142,6 +142,18 @@ class Server:
             except Exception:
                 return e.code, body, e.headers.get("Content-Type", "")
 
+    def get_no_redirect(self, path):
+        """不跟随重定向的 GET：返回 (状态码, 响应头)。用于断言 302 去上游。"""
+        class NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                return None
+        opener = urllib.request.build_opener(NoRedirect)
+        try:
+            with opener.open(self.url(path), timeout=10) as resp:
+                return resp.status, resp.headers
+        except urllib.error.HTTPError as e:
+            return e.code, e.headers
+
     def post(self, path, payload=None, files=None):
         if files is None:
             data = json.dumps(payload or {}).encode("utf-8")
@@ -723,19 +735,72 @@ class Attach(Base):
         self.assertEqual(self.detail()["assets"][0]["role"], "replaced")
 
 
+class RemoteAssets(Base):
+    """站图可以只留在上游：本地缺文件时媒体路由重定向过去，缺失判定也不再算缺图。
+
+    背景：本地原图档可以整档删掉（省几十 GB），页面改指向上游地址。
+    素材管理器是本地工具，它读的是自己的库，因此媒体路由要能在文件不在时
+    给出上游地址；「文件缺失」这个判定也要跟着改——有上游地址就不算缺图。
+    """
+
+    def test_media_redirects_to_upstream_when_local_file_missing(self):
+        os.remove(os.path.join(self.tmp, "sites/portrait/img/p1.png"))
+        status, headers = self.srv.get_no_redirect("/media/sites/portrait/img/p1.png")
+        self.assertEqual(status, 302)
+        self.assertEqual(headers.get("Location"), "https://example.invalid/f.png")
+
+    def test_media_redirects_for_thumbnail_too(self):
+        os.remove(os.path.join(self.tmp, "sites/portrait/thumbs/p1.png"))
+        status, headers = self.srv.get_no_redirect("/media/sites/portrait/thumbs/p1.png")
+        self.assertEqual(status, 302)
+        self.assertEqual(headers.get("Location"), "https://example.invalid/t.png")
+
+    def test_media_404_when_no_upstream_address(self):
+        # 库里根本没有这条资产 → 仍然 404
+        status, _, _ = self.srv.get("/media/sites/portrait/img/nonexistent.png")
+        self.assertEqual(status, 404)
+
+    def test_verify_does_not_mark_missing_when_upstream_exists(self):
+        os.remove(os.path.join(self.tmp, "sites/portrait/img/p1.png"))
+        result = verify_mod.verify(self.root.path, self.srv.db)
+        self.assertEqual(result["missing"], 0)
+
+    def test_verify_still_marks_missing_without_upstream(self):
+        # 自己导入的素材（library）没有上游地址 → 文件丢了就是缺图
+        os.remove(os.path.join(self.tmp, "sites/portrait/thumbs/p1.png"))
+        result = verify_mod.verify(self.root.path, self.srv.db)
+        self.assertEqual(result["missing"], 0)  # 缩略图缺失不影响原图资产
+
+
 class Maintenance(Base):
     """工单 07：维护命令与启动器"""
 
     make_root = staticmethod(all_root)
 
     def test_verify_marks_missing_files(self):
-        os.remove(os.path.join(self.tmp, "sites/portrait/img/p1.png"))
+        # 自己导入的素材没有上游地址 → 文件丢了就是缺图
+        self.srv.post("/api/import", files={"file": ("mine.png", PNG_1PX)})
+        _, own, _ = self.srv.get("/api/items", collection="own")
+        own_id = own["items"][0]["id"]
+        import sqlite3
+        conn = sqlite3.connect(self.srv.db)
+        local = conn.execute("SELECT path FROM asset WHERE volume='library'").fetchone()[0]
+        conn.close()
+        os.remove(os.path.join(self.tmp, local.replace("/", os.sep)))
         result = verify_mod.verify(self.root.path, self.srv.db)
         self.assertEqual(result["missing"], 1)
+        _, detail, _ = self.srv.get("/api/items/" + own_id)
+        self.assertEqual(detail["assets"][0]["status"], "missing")
+
+    def test_verify_treats_upstream_backed_asset_as_present(self):
+        # 站图登记了上游地址 → 本地没有也不算缺图（还能从上游取到）
+        os.remove(os.path.join(self.tmp, "sites/portrait/img/p1.png"))
+        result = verify_mod.verify(self.root.path, self.srv.db)
+        self.assertEqual(result["missing"], 0)
         status, _, _ = self.srv.get("/api/items", collection="portrait")
         self.assertEqual(status, 200)  # 文件没了也不能让列表挂掉
         _, detail, _ = self.srv.get("/api/items/portrait:p1")
-        self.assertEqual(detail["assets"][0]["status"], "missing")
+        self.assertEqual(detail["assets"][0]["status"], "ok")
 
     def test_verify_leaves_view_flags_alone(self):
         os.remove(os.path.join(self.tmp, "sites/portrait/img/p1.png"))

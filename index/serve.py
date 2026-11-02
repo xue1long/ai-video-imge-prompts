@@ -416,12 +416,29 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(blob)
 
+    def upstream_url(self, rel):
+        """某个站内路径登记的上游地址；没有则空串。"""
+        conn = self.db()
+        try:
+            return store.derivative_url(conn, rel)
+        finally:
+            conn.close()
+
     def serve_media(self, rel):
         base = os.path.realpath(self.root)
         full = os.path.realpath(os.path.join(base, rel))
         if not (full == base or full.startswith(base + os.sep)):
             raise ApiError(404, "not_found", rel)
         if not os.path.isfile(full):
+            # 本地没有这个文件：站图可能只留在上游（本地省掉了原图档），
+            # 有登记的上游地址就重定向过去，没有才是真的 404。
+            url = self.upstream_url(rel)
+            if url:
+                self.send_response(302)
+                self.send_header("Location", url)
+                self.send_header("Cache-Control", "public, max-age=86400")
+                self.end_headers()
+                return
             raise ApiError(404, "not_found", rel)
         stat = os.stat(full)
         etag = f'"{stat.st_mtime_ns}-{stat.st_size}"'
