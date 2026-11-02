@@ -71,6 +71,7 @@ python tests/run.py        # 不依赖图片的检查
 7. **部署**：站点根 = `release.py` 产出的扁平 `dist/`（`index.html` + `portrait/` + `pose/` + …），nginx 不需要 `alias`；**git commit 即版本**；更新先发 `--out dist-stage` 再逐站原子换入。
 8. `release.py` 发布前校验图片，缺图中止；会先删后建目标站点目录。`--no-images` 不保留线上旧图。
 9. **prompts 站的自制图走覆盖层**：素材管理器 attach → `sites/prompts/sync_user_assets.py` 导出 `userimg/` + `data/user_assets.json`（按 originId 归属，**两者都入库**）→ `build_gallery.py` 追加到分片 `files[]` 末尾并标「自制」。**不写进 `data/prompts_<key>.json`**（导入器会整份重写），**不放 `img/<key>/`**（目录名即分片键）。授权上 `img/` 全 CC BY 4.0、`userimg/` 归本站，NOTICE 已分开写明。
+10. **隔离提交必须用 `git add --intent-to-add` 登记新文件**（2026-11-03 定）：`git commit --only -- <paths>` 只提交**已被 git 跟踪**的路径，未跟踪的新文件被**静默跳过且退出码仍是 0** —— 看着像成功，实际漏文件。新批次目录 `data/daily/<日期>/` 每天新建，必然踩到。`-N` 只登记路径不写内容，保住「不碰暂存区」的隔离承诺；**必须前移到变更检测之前**，否则 `git diff --quiet` 看不见新文件，「本次只有新增文件」会被误判成「无变更」整批漏掉。
 
 ## CI 闸门（`ci.yml`）
 
@@ -80,6 +81,11 @@ python tests/run.py        # 不依赖图片的检查
 4. `python3.13 tools/update.py --check --no-fetch --ref HEAD`
 
 **推论：改 `sites/` 或 `hub/` 的生成物必须同提交重新构建的结果。**
+
+**已知 pre-existing 失败（2026-11-02 起，非新引入）**：`tests/run.py` 的
+`test_declared_tiers_emit_their_upstream_address` 与 `test_online_tier_keeps_the_local_path`
+在干净检出上失败，根因是 `prompthero-midjourney` 的 `data/gallery_*.js` 分片被 `.gitignore`
+排除（干净检出只剩索引 `gallery.js`，地址只在分片里）。归属该站改动，不擅自修改。
 
 ## prompts 站的数据边界（2026-10-31 定）
 
