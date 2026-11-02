@@ -140,6 +140,14 @@ footer a{color:var(--tx2)}
   }catch(e){}
 })();
 </script>
+<script>(function(){
+document.addEventListener('error',function(e){
+  var el=e.target;
+  if(!el||el.tagName!=='IMG'||!el.dataset||!el.dataset.fb||el.dataset.fbUsed)return;
+  el.dataset.fbUsed='1';
+  el.src=el.dataset.fb;
+},true);
+})();</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"这些提示词是真人写的吗？","acceptedAnswer":{"@type":"Answer","text":"不是。提示词由 PromptHero 社区用户上传，多为 Midjourney 生成时使用的英文提示词，本站未做改写，只做索引与中文化界面。"}},{"@type":"Question","name":"可以商用吗？","acceptedAnswer":{"@type":"Answer","text":"本站素材版权归各上传者所有。上游服务条款只把分发权授予 PromptHero 平台，未授予第三方再分发权，因此本站仅供个人学习与参考；公开引用请回链原站。"}},{"@type":"Question","name":"怎么用这些提示词？","acceptedAnswer":{"@type":"Answer","text":"灯箱里可以直接复制提示词原文（含 --ar、--stylize 等参数），粘贴进 Midjourney 的提示词框即可。成图只是效果参考，不是唯一答案。"}},{"@type":"Question","name":"成人内容为什么是模糊的？","acceptedAnswer":{"@type":"Answer","text":"带「成人内容」标记的条目默认模糊，点开单张或用页头开关可以查看清晰图。这些条目不生成静态落地页，也不出现在 sitemap 里。"}},{"@type":"Question","name":"和原站是什么关系？","acceptedAnswer":{"@type":"Answer","text":"原站是英文站，条目按模型与热度分页。本站把它整理成可按分类、版本筛选的画廊，并补齐中文界面与主题切换；提示词原文保持不变。"}}]}</script>
 </head>
 <body>
@@ -408,7 +416,7 @@ function cardHTML(r, i){
   var un = unblurred[r.i] ? " unblur" : "";
   var badge = r.n ? '<span class="badge">'+esc(tx("nsfwBadge","成人内容","成人向け"))+'</span>' : "";
   return '<article class="card'+un+'" tabindex="0" data-i="'+i+'"'+adult+'>'
-    + '<div class="ph"'+blurTxt+'><img src="'+esc(r.s)+'" alt="'+esc(r.t||r.p||"Midjourney 提示词成图")+'" loading="lazy" decoding="async"></div>'
+    + '<div class="ph"'+blurTxt+'><img src="'+esc(r.s)+'"'+(r.sUrl?' data-fb="'+esc(r.sUrl)+'"':'')+' alt="'+esc(r.t||r.p||"Midjourney 提示词成图")+'" loading="lazy" decoding="async"></div>'
     + '<div class="cap">'+esc(r.t||r.p||"")+'</div>'
     + '<div class="meta">'+badge+'<span>'+esc(r.v||"-")+'</span><span>♥ '+(r.f||0)+'</span></div>'
     + '</article>';
@@ -449,6 +457,10 @@ function open(i){
   $("#pmeta").textContent = [catLabel(r.c), r.v, "♥ " + (r.f||0), (r.w||0) + " views"].filter(Boolean).join(" · ");
   $("#originBtn").href = r.u;
   $("#dlBtn").href = r.g;
+  // 直连上游时 download 属性跨源无效，改为新标签打开
+  $("#dlBtn").target = /^https?:/.test(r.g) ? '_blank' : '';
+  // 直连上游时 download 属性跨源无效，改为新标签打开
+  $("#dlBtn").target = /^https?:/.test(r.g) ? '_blank' : '';
   var big = $("#big");
   big.classList.remove("on");
   $("#spin").style.display = "block";

@@ -130,7 +130,7 @@
       "imagePolicy": {
         "thumb": "local-only",
         "img": "local-only",
-        "png": "local-only"
+        "png": "online"
       }
     },
     {
@@ -364,7 +364,7 @@
       "imageBase": "https://cms-assets.youmind.com/media/",
       "imagePolicy": {
         "thumb": "local-only",
-        "full": "local-only"
+        "full": "online"
       }
     },
     {
@@ -499,7 +499,7 @@
       "imagePolicy": {
         "thumb": "local-only",
         "mid": "local-only",
-        "full": "local-only"
+        "full": "online"
       }
     }
   ]

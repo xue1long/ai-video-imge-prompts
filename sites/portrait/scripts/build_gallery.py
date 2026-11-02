@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
 from translations import (HAIR_ZH, HAIR_ORDER, SECTION_ZH, SECTION_NOTE_ZH, SECTION_NOTE_JA,
                           STYLE_ZH, UI, TIPS, RULES, RULES_NOTE, hair_zh, style_zh)
 import landing  # noqa: E402
+from image_policy import FB_JS, site_entry, tier_addr  # noqa: E402
 
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 rows = json.load(open(os.path.join(root, "manifest.json"), encoding="utf-8"))
@@ -25,22 +26,37 @@ ranking = json.load(open(os.path.join(root, "data", "ranking.json"), encoding="u
 
 SITE_URL = os.environ.get("SITE_URL", "https://example.com").rstrip("/")
 
+# 取图策略：按档位声明在站点清单里，决定展示地址与回落地址
+SITE_CFG = site_entry("portrait")
+
 # ── 组装内嵌数据 ──────────────────────────────────────
 items = []
 for r in rows:
-    items.append({
+    item = {
         "i": r["id"],
         "s": r["分区"],
         "hj": r["发型"],
         "hz": hair_zh(r["发型"]),
         "sj": r["风格"],
         "sz": style_zh(r["风格"]),
-        "t": r["thumb_path"],
-        "f": r["full_path"],
         "w": r["宽"],
         "h": r["高"],
         "b": r["原图字节"],
-    })
+    }
+    # 取图策略要求的编码（见 shared/image_policy.py）：
+    #   <字段>     展示地址（直连上游时是上游 URL，否则是站内相对路径）
+    #   <字段>Url  上游地址，仅本地优先时写出，作为加载失败的回落目标
+    #   <字段>Path 站内相对路径，仅直连上游时写出，供中图等按路径推导的规则使用
+    for tier, fkey in (("thumb", "t"), ("full", "f")):
+        path = r[tier + "_path"]
+        url = r.get(tier + "_url") or ""
+        display, fallback, keep_path = tier_addr(SITE_CFG, tier, path, url)
+        item[fkey] = display
+        if fallback:
+            item[fkey + "Url"] = fallback
+        if keep_path:
+            item[fkey + "Path"] = path
+    items.append(item)
 
 payload = json.dumps({
     "items": items,
@@ -296,6 +312,7 @@ img{max-width:100%}
 </style>
 <style>__SEO_CSS__.seo-intro{--si-max:1280px}</style>
 __FAQ_LD__
+__FB_JS__
 </head>
 <body>
 
@@ -488,7 +505,7 @@ function card(it, i){
   const hair = LANG === 'ja' ? it.hj : it.hz;
   return '<li class="card" data-i="' + i + '">' +
     '<button class="thumb-btn" type="button" aria-label="' + esc(labelOf(it)) + '">' +
-      '<img loading="lazy" decoding="async" src="' + esc(it.t) + '" alt="' + esc(labelOf(it)) + '">' +
+      '<img loading="lazy" decoding="async" src="' + esc(it.t) + '"' + (it.tUrl ? ' data-fb="' + esc(it.tUrl) + '"' : '') + ' alt="' + esc(labelOf(it)) + '">' +
     '</button>' +
     '<div class="meta"><span class="label">' + esc(hair) + '</span>' +
       '<a class="dl" href="' + esc(it.f) + '" download="' + esc(dlName(it)) + '"' +
@@ -530,7 +547,7 @@ function syncMore(){
 let LB = { list: [], idx: 0, last: null };
 let loT = 0;   // 底层模糊图隐藏定时器，连翻时需可取消
 // img/x.png → mid/x.webp，规则与 tools/mid.py 的 mid_rel() 一致
-const midOf = f => f.replace(/^img\//, 'mid/').replace(/\.[^./]+$/, '.webp');
+const midOf = f => (f||'').replace(/^img\//, 'mid/').replace(/\.[^./]+$/, '.webp');
 // 预取中图：悬停/按下卡片时先下载，打开灯箱后预取前后各一张。
 // 只留最近几个 Image 引用，下载完的字节留在 HTTP 缓存里，不长期占解码内存。
 const warmed = new Set(), warmRefs = [];
@@ -578,6 +595,10 @@ function showLb(){
   $('#lb-label').textContent = labelOf(it) + '　' + it.w + '×' + it.h;
   const dl = $('#lb-dl');
   dl.href = it.f;
+  // 直连上游时 download 属性跨源无效，改为新标签打开
+  dl.target = /^https?:/.test(it.f) ? '_blank' : '';
+  // 直连上游时 download 属性跨源无效，改为新标签打开
+  dl.target = /^https?:/.test(it.f) ? '_blank' : '';
   dl.setAttribute('download', it.i + '.png');
   $('#lb-full').href = it.f;
   $('#lb-note').textContent = '';
@@ -594,9 +615,9 @@ function showLb(){
     img.onerror = () => { $('#lb-note').textContent = LANG === 'ja' ? '（原寸未取得）' : '（原图未下载）'; };
     img.src = it.f;
   };
-  img.src = midOf(it.f);
+  img.src = midOf(it.fPath || it.f);
   if (img.complete && img.naturalWidth) settle();
-  [LB.list[LB.idx + 1], LB.list[LB.idx - 1]].forEach(n => n && warm(midOf(n.f)));
+  [LB.list[LB.idx + 1], LB.list[LB.idx - 1]].forEach(n => n && warm(midOf(n.fPath || n.f)));
   $('#lb-prev').style.visibility = LB.idx > 0 ? 'visible' : 'hidden';
   $('#lb-next').style.visibility = LB.idx < LB.list.length - 1 ? 'visible' : 'hidden';
 }
@@ -630,11 +651,11 @@ let hoverT = 0;
 const cardItem = e => { const li = e.target.closest('.card'); return li && VIEW[+li.dataset.i]; };
 grid.addEventListener('pointerover', e => {
   const it = cardItem(e); clearTimeout(hoverT);
-  if (it) hoverT = setTimeout(() => warm(midOf(it.f)), 120);
+  if (it) hoverT = setTimeout(() => warm(midOf(it.fPath || it.f)), 120);
 });
 grid.addEventListener('pointerout', () => clearTimeout(hoverT));
-grid.addEventListener('pointerdown', e => { const it = cardItem(e); if (it) warm(midOf(it.f)); });
-grid.addEventListener('focusin', e => { const it = cardItem(e); if (it) warm(midOf(it.f)); });
+grid.addEventListener('pointerdown', e => { const it = cardItem(e); if (it) warm(midOf(it.fPath || it.f)); });
+grid.addEventListener('focusin', e => { const it = cardItem(e); if (it) warm(midOf(it.fPath || it.f)); });
 $('#more').addEventListener('click', addMore);
 if ('IntersectionObserver' in window){
   new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) addMore(); },
@@ -723,7 +744,7 @@ function drawHero(){
     pick = pick.concat([at(0.3), at(0.6), at(0.8)]).filter(Boolean).slice(0, 3);
   }
   $('#hero-faces').innerHTML = pick.slice(0, 3).map(it =>
-    '<img loading="eager" decoding="async" src="' + esc(it.t) + '" alt="">').join('');
+    '<img loading="eager" decoding="async" src="' + esc(it.t) + '"' + (it.tUrl ? ' data-fb="' + esc(it.tUrl) + '"' : '') + ' alt="">').join('');
   const face = ITEMS.filter(i => i.s === 'face');
   const sty  = ITEMS.filter(i => i.s === 'styling');
   $('#stat-face').textContent = fmt(face.length);
@@ -746,7 +767,7 @@ landing_urls, seo_intro, FAQ = seo.build(root, SITE_URL, items)
 html = (html.replace("__SEO_INTRO__", seo_intro).replace("__SEO_CSS__", landing.SEO_INTRO_CSS)
             .replace("__FAQ_LD__", landing.faq_ld_script(FAQ)))
 
-html = html.replace("__PAYLOAD__", payload).replace("__SITE__", SITE_URL)
+html = html.replace("__FB_JS__", FB_JS).replace("__PAYLOAD__", payload).replace("__SITE__", SITE_URL)
 out = os.path.join(root, "index.html")
 open(out, "w", encoding="utf-8").write(html)
 print("wrote index.html %.1f KB" % (os.path.getsize(out) / 1024))

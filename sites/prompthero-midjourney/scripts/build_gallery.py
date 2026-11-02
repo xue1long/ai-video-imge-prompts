@@ -24,8 +24,12 @@ sys.path.insert(0, SITE)
 sys.path.insert(0, os.path.join(ROOT, "shared"))
 
 import landing as landing_mod                                   # noqa: E402
+from image_policy import FB_JS, site_entry, tier_addr  # noqa: E402
 from config import (ADULT_CATEGORIES, CATEGORY_ZH, CONFIG, ORIGIN,  # noqa: E402
                     SOURCE, UI, VERSION_ZH)
+
+# 取图策略：按档位声明在站点清单里，决定展示地址与回落地址
+SITE_CFG = site_entry("prompthero-midjourney")
 
 SITE_URL = os.environ.get("SITE_URL",
                           "https://example.com/prompthero-midjourney").rstrip("/")
@@ -67,9 +71,13 @@ def build_shards(rows):
                 "f": r["favCount"],
                 "w": r["viewCount"],
                 "d": r["createdAt"],
-                "s": r["thumb_path"],
-                "m": r["mid_path"],
-                "g": r["full_path"],
+                # 取图策略要求的编码（见 shared/image_policy.py）：
+                #   <字段>     展示地址（直连上游时是上游 URL，否则是站内相对路径）
+                #   <字段>Url  上游地址，仅本地优先时写出，作为加载失败的回落目标
+                #   <字段>Path 站内相对路径，仅直连上游时写出，供按路径推导的规则使用
+                **_addr(SITE_CFG, "thumb", r, "s"),
+                **_addr(SITE_CFG, "mid", r, "m"),
+                **_addr(SITE_CFG, "full", r, "g"),
                 "u": r["sourceUrl"],
                 "W": r["width"],
                 "H": r["height"],
@@ -77,6 +85,18 @@ def build_shards(rows):
         out[key] = data
     return out
 
+
+def _addr(site, tier, rec, fkey):
+    """该档位的展示地址与伴随字段（见 shared/image_policy.py 的编码约定）。"""
+    path = rec[tier + "_path"]
+    url = rec.get(tier + "_url") or ""
+    display, fallback, keep_path = tier_addr(site, tier, path, url)
+    out = {fkey: display}
+    if fallback:
+        out[fkey + "Url"] = fallback
+    if keep_path:
+        out[fkey + "Path"] = path
+    return out
 
 def write_shards(shards):
     """写出 data/gallery_<cat>.js。每个分片一个 JSON.parse 赋值。"""
@@ -155,6 +175,7 @@ PAGE = r"""<!doctype html>
   }catch(e){}
 })();
 </script>
+__FB_JS__
 </head>
 <body>
 <header class="top">
@@ -445,6 +466,7 @@ def main():
             .replace("__TWTITLE__", CONFIG["twTitle"])
             .replace("__TWDESC__", CONFIG["twDesc"])
             .replace("__SITE__", SITE_URL)
+            .replace("__FB_JS__", FB_JS)
             .replace("__BRAND1__", ui["brand1"])
             .replace("__BRAND2__", ui["brand2"])
             .replace("__EYEBROW__", ui["eyebrow"])
@@ -691,7 +713,7 @@ function cardHTML(r, i){
   var un = unblurred[r.i] ? " unblur" : "";
   var badge = r.n ? '<span class="badge">'+esc(tx("nsfwBadge","成人内容","成人向け"))+'</span>' : "";
   return '<article class="card'+un+'" tabindex="0" data-i="'+i+'"'+adult+'>'
-    + '<div class="ph"'+blurTxt+'><img src="'+esc(r.s)+'" alt="'+esc(r.t||r.p||"Midjourney 提示词成图")+'" loading="lazy" decoding="async"></div>'
+    + '<div class="ph"'+blurTxt+'><img src="'+esc(r.s)+'"'+(r.sUrl?' data-fb="'+esc(r.sUrl)+'"':'')+' alt="'+esc(r.t||r.p||"Midjourney 提示词成图")+'" loading="lazy" decoding="async"></div>'
     + '<div class="cap">'+esc(r.t||r.p||"")+'</div>'
     + '<div class="meta">'+badge+'<span>'+esc(r.v||"-")+'</span><span>♥ '+(r.f||0)+'</span></div>'
     + '</article>';
@@ -732,6 +754,10 @@ function open(i){
   $("#pmeta").textContent = [catLabel(r.c), r.v, "♥ " + (r.f||0), (r.w||0) + " views"].filter(Boolean).join(" · ");
   $("#originBtn").href = r.u;
   $("#dlBtn").href = r.g;
+  // 直连上游时 download 属性跨源无效，改为新标签打开
+  $("#dlBtn").target = /^https?:/.test(r.g) ? '_blank' : '';
+  // 直连上游时 download 属性跨源无效，改为新标签打开
+  $("#dlBtn").target = /^https?:/.test(r.g) ? '_blank' : '';
   var big = $("#big");
   big.classList.remove("on");
   $("#spin").style.display = "block";

@@ -753,6 +753,10 @@ function showM(){
   $('#mid').textContent = p.p + ' · ' + nA(v.a);
   $('#mfull').href = v.f;
   $('#mdl').href = v.f;
+  // 直连上游时 download 属性跨源无效，改为新标签打开，别把当前页导航走
+  $('#mdl').target = /^https?:/.test(v.f) ? '_blank' : '';
+  // 直连上游时 download 属性跨源无效，改为新标签打开，别把当前页导航走
+  $('#mdl').target = /^https?:/.test(v.f) ? '_blank' : '';
   $('#mdl').setAttribute('download', p.p + '-' + v.a + '.png');
 
   $('#mkv').innerHTML = [

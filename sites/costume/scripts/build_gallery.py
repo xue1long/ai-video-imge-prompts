@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), "shared"))
 from translations import CAT_ZH, TAG_ZH, TAG_JA, TAG_GROUPS, UI
 import landing  # noqa: E402
+from image_policy import site_entry, tier_addr  # noqa: E402
 
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 rows = json.load(open(os.path.join(root, "manifest.json"), encoding="utf-8"))
@@ -26,16 +27,30 @@ SITE_URL = os.environ.get("SITE_URL", "https://example.com").rstrip("/")
 
 CAT_ORDER = ["春", "夏", "秋", "冬", "ランジェリー", "セクシー", "水着", "パーティ"]
 
+# 取图策略：按档位声明在站点清单里，决定展示地址与回落地址
+SITE_CFG = site_entry("costume")
+
 items = []
 for r in rows:
-    items.append({
+    item = {
         "i": r["id"],
         "c": r["分类"],
         "t": r["标签"],
-        "th": r["thumb_path"],
-        "im": r["img_path"],
-        "pg": r["png_path"],
-    })
+    }
+    # 取图策略要求的编码（见 shared/image_policy.py）：
+    #   <字段>     展示地址（直连上游时是上游 URL，否则是站内相对路径）
+    #   <字段>Url  上游地址，仅本地优先时写出，作为加载失败的回落目标
+    #   <字段>Path 站内相对路径，仅直连上游时写出，供按路径推导的规则使用
+    for tier, fkey in (("thumb", "th"), ("img", "im"), ("png", "pg")):
+        path = r[tier + "_path"]
+        url = r.get(tier + "_url") or ""
+        display, fallback, keep_path = tier_addr(SITE_CFG, tier, path, url)
+        item[fkey] = display
+        if fallback:
+            item[fkey + "Url"] = fallback
+        if keep_path:
+            item[fkey + "Path"] = path
+    items.append(item)
 
 cats = [c for c in CAT_ORDER if any(x["c"] == c for x in items)]
 groups = [{"k": k, "ja": ja, "zh": zh, "tags": ts} for k, ja, zh, ts in TAG_GROUPS]
@@ -713,6 +728,10 @@ function showM(){
   $('#mid').textContent = x.i + ' · ' + nC(x.c);
   $('#mfull').href = x.pg;
   $('#mdl').href = x.pg;
+  // 直连上游时 download 属性跨源无效，改为新标签打开，别把当前页导航走
+  $('#mdl').target = /^https?:/.test(x.pg) ? '_blank' : '';
+  // 直连上游时 download 属性跨源无效，改为新标签打开，别把当前页导航走
+  $('#mdl').target = /^https?:/.test(x.pg) ? '_blank' : '';
   $('#mdl').setAttribute('download', x.i + '.png');
 
   $('#mkv').innerHTML = [

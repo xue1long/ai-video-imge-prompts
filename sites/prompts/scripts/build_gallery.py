@@ -22,6 +22,7 @@ from config import (META, META_JA, UI, UI_JA, ACCENT, MODELS, DEFAULT_MODEL,  # 
                     DATA_GLOB, DIMS, GALLERY_JS, GALLERY_SHARD, OUTPUT,
                     USER_ASSETS, SITE, SEO_CATEGORIES)
 import landing as landing_mod                                   # noqa: E402
+from image_policy import site_entry, tier_addr  # noqa: E402
 
 SITE_URL = os.environ.get("SITE_URL", "https://example.com").rstrip("/")
 
@@ -34,6 +35,10 @@ def _ratio(w, h):
     g = gcd(w, h) or 1
     a, b = w // g, h // g
     return f"{a}:{b}" if a <= 21 and b <= 21 else None
+
+
+# 取图策略：按档位声明在站点清单里，决定展示地址与回落地址
+SITE_CFG = site_entry("prompts")
 
 
 def load_manifest():
@@ -80,6 +85,18 @@ def load_manifest():
                 r["params"] = {"ar": ar}
             # 缩略图档：与原图同名，只是把 img/ 换为 thumbs/
             r["thumb"] = "thumbs/" + r["file"][4:]
+            # 取图策略要求的编码（见 shared/image_policy.py）：
+            #   <字段>     展示地址（直连上游时是上游 URL，否则是站内相对路径）
+            #   <字段>Url  上游地址，仅本地优先时写出，作为加载失败的回落目标
+            for tier, fkey, ukey in (("thumb", "thumb", "thumbUrl"), ("full", "file", "url")):
+                path = r[fkey]
+                url = r.get(ukey) or ""
+                display, fallback, keep_path = tier_addr(SITE_CFG, tier, path, url)
+                r[fkey] = display
+                if fallback:
+                    r[fkey + "Fb"] = fallback
+                if keep_path:
+                    r[fkey + "Path"] = path
             r.pop("url", None)          # 页面数据不需要 CDN 原链（manifest.json 负责）
             r.pop("thumbUrl", None)
             out.append(r)
@@ -1073,7 +1090,10 @@ def shard_payload(rows, extra=None):
         g = groups.setdefault(gid, {"row": r, "files": []})
         name = r["file"].rsplit("/", 1)[-1]
         ar = (r.get("params") or {}).get("ar") or ""
-        g["files"].append([name, r.get("w") or 0, r.get("h") or 0, ar])
+        # f[4] 是原图档的展示地址：直连上游时是上游 URL，否则留空由页面按
+        # img/<key>/<名> 拼出。页面已有「缩略图失败 → 退回原图」的 onerror，
+        # 因此这里不需要页面侧改动。
+        g["files"].append([name, r.get("w") or 0, r.get("h") or 0, ar, r.get("file") or ""])
 
     extra = extra or {}
     for gid, g in groups.items():
