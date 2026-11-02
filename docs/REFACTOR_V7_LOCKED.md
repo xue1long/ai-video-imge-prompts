@@ -94,7 +94,7 @@
 | D10 | 切 3 批（A1 零风险清理 / A2 真 bug 修复 / A3 结构收敛），每批一个提交、可独立回滚、自带验收命令 | 推断 |
 | D11 | `index/serve.py` 的 `Handler.db()` 改 `@contextlib.contextmanager`（11 处 4 行→1 行）；**`store.connect()` 返回形态不动**（`tests/test_manager.py:903-904` 直接用裸 Connection 并自行 close） | 实测 |
 | D12 | 新建 `index/cli.py`（`ROOT` / `utf8_stdout` / `base_parser` / `db_path`）。**禁止命名 `_common.py`**——与 `tools/_common.py` 同名，而 `tests/run.py:13-14,521` 把 `tools/`、`shared/`、`index/` 同时放进 `sys.path`，会命中错的那个。**`catalog.py` 的 `--out`（CSV 文件）与 `snapshot.py` 的 `--out`（目录）同名异义，不进统一模板** | 实测 |
-| D13 | `tools/update.py` 的 `BUILD_OUTPUT` **目录白名单已过期**：`(browse\|tag\|category\|series\|section\|style)`，实际 `landing.json` 用 `browse/cat/ver/aspect`。**实跑复现**：`update.py --check --no-fetch --ref HEAD` 报「其他改动 25 个」，其中 **12 个是纯构建产物**（11 个 `aspect/*/index.html` + `data/gallery.js`）被当手改文件 → **服务器更新被中止**。改为**从各站 `landing.json` 的 `dirs` 推导 + 显式补 `data/gallery.js`**，并与 D33 的产物清单合为一份。**提为批次 0 热修，不等 W6** | 实测 |
+| D13 | `tools/update.py` 的 `BUILD_OUTPUT` **目录白名单已过期**：`(browse\|tag\|category\|series\|section\|style)`，实际 `landing.json` 用 `browse/cat/ver/aspect`。**实跑复现**：脏工作区下 `update.py --check` 报「其他改动 25 个」，其中 **12 个是纯构建产物**（11 个 `aspect/*/index.html` + `data/gallery.js`）被当手改文件 → `sys.exit(1)`（check 模式）或「已中止，什么都没改」（正式模式）→ **服务器更新被中止**。改为**从各站 `landing.json` 的 `dirs` 推导 + 显式补 `data/gallery.js`**，并与 D33 的产物清单合为一份。**提为批次 0 热修，不等 W6**。⚠️ **`changed_files()` 看的是工作区脏不脏（`git status --porcelain`），不是提交区间 diff** —— 所以这个 bug 只在**服务器端**（工作区有本地重建产物）显现；**CI 永远抓不到它**（CI 的脏工作区只可能来自 build，且已被第 3 步的 `hub sites` 覆盖）。修复时**必须补一条单测**：造一个脏工作区，断言产物被归类为「可丢弃」而非「其他改动」 | 实测 |
 | D14 | `index/sync.py:34-42` 的 `COLLECTION_NAMES` 兜底清单只有 7 项，**漏 `prompthero-midjourney`、`midjourney-explore`**——与「sites.json 是唯一配置源」抵触。兜底清单必须与 `sites.json` 一致（生成或加断言） | 实测 |
 | D15 | `index/serve.py` 的 `--no-reload`：全仓仅 1 处命中（定义处自身），但属**公开 CLI 契约** → 保留参数名 + help 标「已废弃」+ 传了给提示，**下个版本再删** | 实测 |
 | D16 | `index/serve.py` 的 `load_config()` **禁删**（承重，见 §零之二.5）；只删 `config.json` 里无人读的 `"port"` 死键 + 修 docstring（docstring 与实现不符） | 实测 |
@@ -130,7 +130,7 @@
 
 | # | 决策 | 证据 |
 | --- | --- | --- |
-| **D35** | **提交与推送规约**：<br>(1) **一批 = 一提交**，提交信息用仓内既有风格 `type(scope): 描述`（`docs`/`fix`/`feat`/`chore`/`data`/`refactor`），**并带方案编号**——如 `refactor(shared): 抽出 tier_addr_fields（D19）`，使 commit 与本文可双向追溯；<br>(2) **push 前必须本地跑完 CI 的 5 步等价物**（§三.Push 前检查），全绿才 push；<br>(3) ⚠️ **闸门那步 CI 用 Python 3.8**（最低版本），而本地只有 3.14 / 3.11 / 3.12 —— **本地 build 绿 ≠ CI 绿**。改了构建脚本的批次，要么本地补一个 3.8 复跑闸门，要么接受首轮 CI 可能红并预备补提交；<br>(4) **走 PR 而不是直推 main**：CI 对 `push: main` 与 `pull_request` **都跑**，PR 红了不污染 main；<br>(5) **回滚粒度 = 批次粒度**：revert 也必须带上重建后的产物（否则 revert 后闸门红）；<br>(6) **文档类改动不受「必须带产物」约束**——README / NOTICE 不是 build 的产物，闸门也不比对它们 | 实测 |
+| **D35** | **提交与推送规约**：<br>(1) **一批 = 一提交**，提交信息用仓内既有风格 `type(scope): 描述`（`docs`/`fix`/`feat`/`chore`/`data`/`refactor`），**并带方案编号**——如 `refactor(shared): 抽出 tier_addr_fields（D19）`，使 commit 与本文可双向追溯；<br>(2) **push 前必须本地跑完 CI 的 5 步等价物**（§三.Push 前检查），全绿才 push；<br>(3) ⚠️ **闸门那步 CI 用 Python 3.8**（最低版本），而本地只有 3.14 / 3.11 / 3.12 —— **本地 build 绿 ≠ CI 绿**。改了构建脚本的批次，要么本地补一个 3.8 复跑闸门，要么接受首轮 CI 可能红并预备补提交；<br>(4) **默认直推 main**（与仓内既有实践一致：无 merge 提交，采集脚本自动提交推送）；**唯独改了 `shared/` / `sites/` 构建脚本的批次建议走 PR** —— 因为闸门那步 CI 用 Python 3.8，本地复现不了，PR 能让 CI 在合并前拦一次；<br>(5) **回滚粒度 = 批次粒度**：revert 也必须带上重建后的产物（否则 revert 后闸门红）；<br>(6) **文档类改动不受「必须带产物」约束**——README / NOTICE 不是 build 的产物，闸门也不比对它们 | 实测 |
 
 **关于 CI 闸门的真实语义**（本轮实测更正，供实施时参考）：
 
