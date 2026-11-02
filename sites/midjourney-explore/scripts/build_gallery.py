@@ -545,11 +545,11 @@ function openLightbox(key){
   };
   var pre = new Image();
   pre.onload = function(){
-    mid.src = midOf(it.f);
+    mid.src = midOf(it.fPath || it.f);
     requestAnimationFrame(function(){ mid.style.opacity = "1"; });
   };
   pre.onerror = function(){ mid.style.opacity = "0"; };
-  pre.src = midOf(it.f);
+  pre.src = midOf(it.fPath || it.f);
   $("#lbCopy").onclick = function(){
     var btn = this;
     navigator.clipboard.writeText(job.p || "").then(function(){
