@@ -97,6 +97,8 @@ button,select,input,textarea{font:inherit;color:inherit}
 .tab[aria-selected="true"]{background:var(--ac);border-color:var(--ac);color:var(--on-ac);font-weight:700}
 .tab .n{font-size:11px;opacity:.62;font-variant-numeric:tabular-nums;flex:none}
 .tab[aria-selected="true"] .n{opacity:.8}
+/* 暂无数据的视图（如视频：上游尚未采集）：置灰但仍可点，看得到它的存在 */
+.tab.muted{opacity:.45}
 
 /* ── 侧栏 ─────────────────────────────────────── */
 aside{border-right:1px solid var(--line);background:var(--panel);overflow:auto;padding:16px 13px 48px}
@@ -268,6 +270,7 @@ main{overflow:auto;padding:18px clamp(14px,2.4vw,30px) 90px}
 </aside>
 
 <main>
+  <div class="tabs" id="views" role="tablist" hidden></div>
   <div class="bar">
     <span class="count" id="count"></span>
     <button id="hideAll" hidden>隐藏已加载的这批</button>
@@ -283,7 +286,7 @@ main{overflow:auto;padding:18px clamp(14px,2.4vw,30px) 90px}
 <div class="toast" id="toast"></div>
 
 <script>
-const state = {collection:null, q:"", facets:[], page:1, size:120, total:0, items:[], includeHidden:false, current:null, names:{}};
+const state = {collection:null, q:"", facets:[], view:null, viewFacet:"", views:[], page:1, size:120, total:0, items:[], includeHidden:false, current:null, names:{}};
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, props={}) => Object.assign(document.createElement(tag), props);
@@ -454,6 +457,38 @@ async function loadCollections(){
     if(!c.items) continue;
     tabs.append(mk(c.slug, c.name, c.items));
   }
+  /* 当前集合的「视图」（集合内顶层分层，如 图像 / 风格 / 视频） */
+  const cur = collections.find(c=>c.slug===state.collection);
+  state.views = (cur && cur.views) || [];
+  renderViews();
+}
+
+/* ── 视图切换（集合内分层）─────────────────────── */
+function renderViews(){
+  const box = $("views");
+  if(!state.views.length){ box.hidden = true; box.innerHTML = ""; return; }
+  box.hidden = false;
+  box.innerHTML = "";
+  for(const v of state.views){
+    const b = el("button", {className:"tab"});
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", state.view===v.k ? "true" : "false");
+    b.innerHTML = `${esc(v.name)}<span class="n">${v.count}</span>`;
+    if(v.facet && !v.count){
+      b.title = "暂无数据（上游尚未采集）";
+      b.classList.add("muted");
+    }
+    b.onclick = ()=>selectView(v);
+    box.append(b);
+  }
+}
+
+function selectView(v){
+  state.view = v.k;
+  state.viewFacet = v.facet || "";
+  state.page = 1; state.items = []; $("grid").innerHTML = "";
+  renderViews();
+  loadItems(true);
 }
 
 /* ── 左栏：分面 ─────────────────────────────── */
@@ -512,12 +547,15 @@ function toggleFacet(key){
 function selectCollection(slug){
   state.collection = slug;
   state.facets = [];
+  state.view = null; state.viewFacet = "";
   // 右栏跟着换集合清空，免得对着旧集合的条目点「复制 prompt」
   state.current = null;
   $("detail").innerHTML = '<p class="hint">点一张图看详情。<br>拖图片或文件夹进来、或直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 贴图，都能导入。</p>';
-  loadCollections();
-  loadFacets();
-  loadItems(true);
+  loadCollections().then(()=>{
+    /* 有视图的集合默认落在第一个视图（如 midjourney-explore → 图像） */
+    if(state.views.length){ selectView(state.views[0]); }
+    else { loadFacets(); loadItems(true); }
+  });
   document.querySelector("main").scrollTop = 0;
 }
 
@@ -531,6 +569,8 @@ async function loadItems(reset){
   if(state.collection) params.set("collection", state.collection);
   if(state.q) params.set("q", state.q);
   for(const f of state.facets) params.append("facet", f);
+  /* 视图过滤：存在性（命名空间:空值），与用户手选的分面是「且」关系 */
+  if(state.viewFacet) params.append("facet", state.viewFacet + ":");
   if(state.includeHidden) params.set("include_hidden","1");
   params.set("page", state.page);
   params.set("size", state.size);
@@ -538,7 +578,11 @@ async function loadItems(reset){
   state.total = data.total;
   state.items = state.items.concat(data.items);
   renderCards(data.items);
-  $("count").innerHTML = `<b>${data.total}</b> 条` + (state.q ? ` · 关键词「${esc(state.q)}」` : "");
+  const v = state.views.find(x=>x.k===state.view);
+  const vname = v ? v.name : "";
+  const vEmpty = (v && v.count===0 && !state.q) ? " · 暂无数据（上游尚未采集）" : "";
+  $("count").innerHTML = `<b>${data.total}</b> 条` + (vname ? ` · ${esc(vname)}` : "") + vEmpty
+    + (state.q ? ` · 关键词「${esc(state.q)}」` : "");
   const more = $("more");
   more.hidden = state.items.length >= data.total;
   more.textContent = `加载更多（已显示 ${state.items.length} / ${data.total}）`;

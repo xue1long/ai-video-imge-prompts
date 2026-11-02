@@ -24,6 +24,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import actions
+import catalog
 import store
 
 DEFAULT_PORT = 8787
@@ -111,7 +112,7 @@ class Handler(BaseHTTPRequestHandler):
         if rest == ["collections"] and not post:
             conn = self.db()
             try:
-                return self.send_json({"collections": store.collections(conn)})
+                return self.send_json({"collections": _with_views(conn, store.collections(conn))})
             finally:
                 conn.close()
 
@@ -466,15 +467,42 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
+def _with_views(conn, cols):
+    """给集合挂上「视图」定义与各视图的条目数。
+
+    视图的配置源是 catalog.SOURCES（唯一一处）；这里是把它翻译成前端要的形状。
+    facet 为空的视图 = 整个集合；facet 非空 = 该命名空间下的去重条目数
+    （与前端实际请求的存在性过滤同口径）。
+    """
+    for c in cols:
+        cfg = catalog.SOURCES.get(c["slug"])
+        views = (cfg or {}).get("views")
+        if not views:
+            continue
+        c["views"] = [
+            {**v, "count": c["items"] if not v.get("facet")
+             else store.count_ns(conn, c["slug"], v["facet"])}
+            for v in views
+        ]
+    return cols
+
+
 def parse_facets(raw):
-    """`facet=视角:正面` → [("视角", "正面")]。格式不对就 400，不静默忽略。"""
+    """`facet=视角:正面` → [("视角", "正面")]。格式不对就 400，不静默忽略。
+
+    值为空（`facet=风格参考:`）是**存在性过滤**：该命名空间下有任意标签即命中。
+    集合内的「视图」用它（如「风格」= 带 sref 码的条目 = 有「风格参考」标签）。
+    """
     out = []
     for one in raw:
         if ":" not in one:
             raise ApiError(400, "bad_facet", f"期望 命名空间:值，收到 {one!r}")
         ns, name = one.split(":", 1)
-        if not ns or not name:
+        if not ns:
             raise ApiError(400, "bad_facet", f"期望 命名空间:值，收到 {one!r}")
+        if not name:
+            out.append((ns, ""))
+            continue
         out.append((ns, name))
     return out
 

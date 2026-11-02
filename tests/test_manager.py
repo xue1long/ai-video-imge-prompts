@@ -238,6 +238,68 @@ class Collections(Base):
         self.assertEqual(status, 404)
 
 
+class Views(Base):
+    """集合内的顶层分层（视图）：三个选项 = 图像 / 风格 / 视频。
+
+    视图的配置源是 catalog.SOURCES；这里临时给 portrait 挂一组视图，
+    验证「视图计数」与「按同一条件过滤出来的条数」永远是同一个口径。
+    """
+
+    def setUp(self):
+        super().setUp()
+        import catalog
+        self.catalog = catalog
+        self._saved = catalog.SOURCES["portrait"].get("views")
+        catalog.SOURCES["portrait"]["views"] = [
+            {"k": "all", "name": "全部", "facet": None},
+            {"k": "hair", "name": "发型", "facet": "发型"},
+            {"k": "videos", "name": "视频", "facet": "类型"},
+        ]
+
+    def tearDown(self):
+        if self._saved is None:
+            self.catalog.SOURCES["portrait"].pop("views", None)
+        else:
+            self.catalog.SOURCES["portrait"]["views"] = self._saved
+        super().tearDown()
+
+    def test_views_are_exposed_with_counts(self):
+        status, body, _ = self.srv.get("/api/collections")
+        self.assertEqual(status, 200)
+        one = body["collections"][0]
+        self.assertEqual(one["slug"], "portrait")
+        self.assertEqual([v["k"] for v in one["views"]], ["all", "hair", "videos"])
+        self.assertEqual(one["views"][0]["count"], 3)   # 无 facet = 整个集合
+        self.assertEqual(one["views"][1]["count"], 3)   # 有 facet = 该命名空间的条目数
+        self.assertEqual(one["views"][2]["count"], 0)   # 预留视图（上游没数据）
+
+    def test_view_count_matches_actual_filter(self):
+        """视图上写的条数必须等于按同一条件过滤出来的条数。"""
+        status, body, _ = self.srv.get("/api/collections")
+        self.assertEqual(status, 200)
+        for v in body["collections"][0]["views"]:
+            params = {"collection": "portrait"}
+            if v.get("facet"):
+                params["facet"] = v["facet"] + ":"
+            st, data, _ = self.srv.get("/api/items", **params)
+            self.assertEqual(st, 200)
+            self.assertEqual(v["count"], data["total"],
+                             f"视图 {v['k']} 的计数与实际过滤条数不一致")
+
+    def test_existence_facet_filters_items(self):
+        """`facet=命名空间:`（值为空）= 存在性过滤：该命名空间下有任意标签即命中。"""
+        st, body, _ = self.srv.get("/api/items", collection="portrait", facet="发型:")
+        self.assertEqual(st, 200)
+        self.assertEqual(body["total"], 3)
+        st, body, _ = self.srv.get("/api/items", collection="portrait", facet="类型:")
+        self.assertEqual(st, 200)
+        self.assertEqual(body["total"], 0)
+
+    def test_facet_without_namespace_is_rejected(self):
+        st, body, _ = self.srv.get("/api/items", collection="portrait", facet="no-colon")
+        self.assertEqual(st, 400)
+
+
 def all_root(tmp):
     """六个集合各来几条，足够覆盖映射、分面、聚合三种情况"""
     r = portrait_root(tmp)

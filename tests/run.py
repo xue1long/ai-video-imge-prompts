@@ -554,6 +554,45 @@ class IndexMapping(unittest.TestCase):
         extra = [s for s in src if s not in SITES]
         self.assertEqual(extra, [], "catalog.SOURCES 里有 sites.json 没有的站")
 
+    def test_views_declare_top_level_options(self):
+        """集合内视图（分层）的配置约定。
+
+        视图是「集合内的顶层分层」——如 midjourney-explore 的 图像/风格/视频。
+        约定：
+          · 至少两个（一个视图等于没分层）
+          · 键 k 不重复、都要有展示名 name
+          · facet 是命名空间（存在性过滤），要么是该站 facets 里声明过的，
+            要么是 catalog.RESERVED_NS 里的预留命名空间（如尚未采集的视频）
+        """
+        src = self.sources()
+        for sid, cfg in src.items():
+            views = cfg.get("views")
+            if not views:
+                continue
+            self.assertGreaterEqual(len(views), 2, f"{sid} 声明了视图但少于 2 个")
+            keys = [v["k"] for v in views]
+            self.assertEqual(len(keys), len(set(keys)), f"{sid} 的视图键重复：{keys}")
+            declared = set(cfg.get("facets", {}).keys())
+            for v in views:
+                self.assertTrue(v.get("name"), f"{sid} 的视图 {v.get('k')} 缺展示名")
+                ns = v.get("facet")
+                if not ns:
+                    continue
+                import catalog
+                ok = ns in declared or ns in catalog.RESERVED_NS
+                self.assertTrue(ok, f"{sid} 的视图 {v['k']} 用了既没声明也没预留的命名空间 {ns!r}")
+
+    def test_midjourney_explore_has_three_views(self):
+        """Midjourney 探索榜要对齐原站的三个选项：图像 / 风格 / 视频。"""
+        cfg = self.sources().get("midjourney-explore")
+        self.assertIsNotNone(cfg, "catalog.SOURCES 里没有 midjourney-explore")
+        views = {v["k"]: v for v in cfg.get("views") or []}
+        for k in ("images", "styles", "videos"):
+            self.assertIn(k, views, f"midjourney-explore 缺少视图 {k}")
+        self.assertEqual(views["styles"]["facet"], "风格参考",
+                         "风格视图应按 sref 码（风格参考标签）过滤")
+        self.assertIsNone(views["images"]["facet"], "图像视图应覆盖整个集合")
+
     def test_grouped_sites_declare_group_by(self):
         """多图站必须声明聚合键（或显式声明刻意不聚合），否则同一提示词的多张图会散成多条素材。
 

@@ -450,11 +450,20 @@ def list_items(conn, collection=None, page=1, size=120, facets=None, q=None, inc
         where.append("collection=?")
         args.append(collection)
     for ns, name in facets or []:
-        where.append(
-            "EXISTS (SELECT 1 FROM item_tag it JOIN tag t ON t.id=it.tag_id "
-            "WHERE it.item_id=item.id AND t.ns=? AND t.name=?)"
-        )
-        args.extend([ns, name])
+        if name:
+            where.append(
+                "EXISTS (SELECT 1 FROM item_tag it JOIN tag t ON t.id=it.tag_id "
+                "WHERE it.item_id=item.id AND t.ns=? AND t.name=?)"
+            )
+            args.extend([ns, name])
+        else:
+            # 只要命名空间、不要值：存在性过滤（该命名空间下有任意标签即命中）。
+            # 用途是集合内的「视图」——如「风格」= 带 sref 码的条目 = 有「风格参考」标签。
+            where.append(
+                "EXISTS (SELECT 1 FROM item_tag it JOIN tag t ON t.id=it.tag_id "
+                "WHERE it.item_id=item.id AND t.ns=?)"
+            )
+            args.append(ns)
     if q:
         where.append("search_blob LIKE ?")
         args.append(f"%{q}%")
@@ -466,6 +475,27 @@ def list_items(conn, collection=None, page=1, size=120, facets=None, q=None, inc
         args + [size, (page - 1) * size],
     ).fetchall()
     return total, [_item_row(conn, r) for r in rows]
+
+
+def count_ns(conn, collection=None, ns=None):
+    """某命名空间下的**去重条目数**（与 list_items 的存在性过滤同口径）。
+
+    不能用「该命名空间的标签数之和」：一个条目在同一命名空间下可能有多个
+    标签（如一条作业带多个 sref 码），相加会把条目数算多。
+    """
+    where, args = ["i.deleted_at IS NULL"], []
+    if collection:
+        where.append("i.collection=?")
+        args.append(collection)
+    if ns:
+        where.append(
+            "EXISTS (SELECT 1 FROM item_tag it JOIN tag t ON t.id=it.tag_id "
+            "WHERE it.item_id=i.id AND t.ns=?)"
+        )
+        args.append(ns)
+    clause = " AND ".join(where)
+    row = conn.execute(f"SELECT COUNT(*) AS n FROM item i WHERE {clause}", args).fetchone()
+    return row["n"]
 
 
 def list_facets(conn, collection=None, include_hidden=False):
