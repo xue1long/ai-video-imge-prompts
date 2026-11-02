@@ -36,6 +36,32 @@ sites/midjourney-explore/
 
 ## 重新采集
 
+### 一条命令跑完（推荐）
+
+```bash
+cd <仓库根>
+python scripts/daily_collect.py            # 采集 → 索引 → 建站 → WebUI 索引 → 提交推送
+python scripts/daily_collect.py --dry-run  # 只跑，不提交不推送
+```
+
+这是给每日定时任务用的入口（已配置为每天 07:00 自动跑）。
+它把整条链路串起来，并处理掉手工跑最容易踩的几个坑：
+
+- **代理端口动态探测** —— git 全局 config 里的 `http.proxy` 指向的 7890 已失效，
+  而环境里的代理端口每次会话都在变，脚本按「环境变量 → 全局 config → 7897」
+  逐个试连通性，取第一个能用的。
+- **提交隔离** —— 用 `git commit --only -- <paths>`，只提交本站产物，
+  不碰暂存区里别人的改动，也不把工作区里别人的修改带进去。
+- **提交前校验** —— 重建一次并比对产物是否稳定，不一致就放弃提交
+  （避免把过不了 CI 闸门的产物推上去）。
+- **完整性基线自动重置** —— `data/.manifest_baseline` 记着上次的 manifest 行数，
+  删过批次后它会挡住后续所有构建，脚本会按实际行数对齐。
+
+退出码：`0` 成功 / `2` 采集失败（数据未动，明日重试）/ `3` 当天批次已存在（正常跳过）/
+`4` 构建或校验失败 / `5` 推送失败（提交已在本地，需人工 push）。
+
+### 分步手动跑
+
 ```bash
 cd sites/midjourney-explore
 python scripts/extract.py        # 采集 4 页（约 5 秒）→ data/daily/<今天>/
