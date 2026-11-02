@@ -123,6 +123,8 @@ python tests/test_manager.py  # 素材管理器测试（需 Pillow），只走 H
 17. **有成人内容的站默认模糊，且不进落地页与 sitemap**：`prompthero-midjourney` 的 NSFW 条目在网格里默认 `blur(16px)`，点开单张或用页头开关才清晰；成人分类不生成静态落地页，也不出现在 `sitemap.xml` 与根 sitemap。实现参考 `shared/pose_gallery.py` 的 `blurRatings` 机制（`data-r="1"` + `html.blur-on` + `localStorage` 偏好）。
 18. **图源需要浏览器化请求头或 cookie 时，走站点级取图钩子**：在 `sites/<id>/scripts/fetch_hook.py` 里提供 `headers(url, referer)` 与 `prepare(opener, log)` 两个可选函数，`shared/assets.py` 会自动发现并调用（没有这个文件的站点行为不变）。`midjourney-explore` 用它带 Cloudflare 的 `__cf_bm` 通行证 —— `cdn.midjourney.com` 没有该 cookie 一律 403。**不要为此在 `tools/` 里加单站分支。**
 
+19. **取图策略按档位声明在 `sites.json` 里**（`imagePolicy`），三种取值：`local-first`（站内优先、加载失败回落到上游地址）、`online`（直连上游，站内不再保留该档图片）、`local-only`（仅本地，无回落）。共享层 `shared/image_policy.py` 是唯一读取入口，构建脚本与索引同步共用。两条硬约束：**构建过程不探测本地文件是否存在**（策略是提交进仓库的静态配置，产物只取决于配置，因此在有图与无图的环境里逐字节一致）；**通用代码里不出现站点分支**，站点差异只通过声明表达。编码约定：原字段保持「站内相对路径」语义不变，另加平行的上游地址字段——中图等按路径推导的规则只吃相对路径。`tests/run.py` 的 `ImagePolicy` 与 `ImageArtifacts` 守这条声明到产物的传导。
+
 ## 性能约定（三档图）
 
 | 档位 | 人像 | 姿势 | 深度姿势 | 服装 |
@@ -139,3 +141,4 @@ python tests/test_manager.py  # 素材管理器测试（需 Pillow），只走 H
 - 仓库**不含素材图片**（thumbs / mid / img / png 全部不入库），克隆后必须先 `fetch.py` 才能看到内容；但仓库**含 25 个 UI 与文档图片**：`hub/` 的 og-cover / favicon / apple-touch-icon / icon-512、各站 `og-cover.jpg`、`docs/screenshots/` 11 张界面截图。
 - `sites/portrait/NOTICE.md` 中，原作者对「再分发图片数据本身」另有**请求**（CC0 许可与该请求需并读）；`pose` / `pose-depth` / `costume` / `prompthero-midjourney` / `midjourney-explore` 明确禁止再分发；`prompts` 为 CC BY 4.0，署名要求见 `sites/prompts/NOTICE.md`。
 - `hub/` 与 `sites/*/index.html` 都是生成产物。
+- **仓库不含素材**与**本地留哪些素材**是两件事：前者管版本库（图片永远不入库），后者管本机磁盘（按 `imagePolicy` 声明，原图档可整档删掉改走上游地址）。当前各站的本地占用：原图档合计约 45 GB / 5.9 万个文件已切直连上游（可删），缩略图与中图约 3.8 GB 留在本地。

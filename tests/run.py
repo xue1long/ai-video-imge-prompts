@@ -462,6 +462,30 @@ class ImageArtifacts(unittest.TestCase):
                                     f"{s['id']} 的 {tier} 档声明了 "
                                     f"{tier_mode(s, tier)}，但产物里没有它的上游地址")
 
+    def test_local_only_tier_has_no_upstream_address(self):
+        """声明仅本地的档位，产物里不该带它的上游地址。
+
+        仅本地 = 没有回落目标（上游不可直连，或这一档本来就不从上游取）。
+        产物里若还带着上游地址，说明声明与实现不一致：页面要么会误回落，
+        要么是白占体积。
+        """
+        from image_policy import LOCAL_ONLY, tier_mode
+        for s in CFG["sites"]:
+            if s["id"] in SKIP_BUILD:
+                continue
+            art = self.artifacts(s["id"])
+            rows = json.loads(read(f"sites/{s['id']}/manifest.json"))
+            for tier in s["tiers"]:
+                if tier_mode(s, tier) != LOCAL_ONLY:
+                    continue
+                for r in rows[:self.SAMPLE]:
+                    url = r.get(tier + "_url")
+                    if not url:
+                        continue
+                    self.assertNotIn(url, art,
+                                     f"{s['id']} 的 {tier} 档声明仅本地，"
+                                     f"但产物里带着它的上游地址")
+
     def test_online_tier_keeps_the_local_path(self):
         """直连上游的档位，站内相对路径仍要留在产物里。
 
