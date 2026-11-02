@@ -15,4 +15,5 @@
   <url><loc>https://example.com/midjourney-explore/aspect/5-7/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://example.com/midjourney-explore/aspect/3-2/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://example.com/midjourney-explore/aspect/7-10/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midjourney-explore/aspect/70-99/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 </urlset>
