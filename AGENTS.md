@@ -18,7 +18,7 @@
 - 静态站无 Node、无前端构建。**`index/`（本地素材管理器）是唯一的数据库应用**：SQLite 单文件 `gallery.db`（标准库 `sqlite3`），HTTP 用标准库 `http.server`，前端仍是单文件原生 JS。
 - **CI**：GitHub Actions（`.github/workflows/ci.yml`），ubuntu-24.04 + Python 3.8/3.13 + Node 22。
 
-## 八个站点（`sites.json` 是唯一清单）
+## 八个站点（`sites.json` 是唯一配置源）
 
 | id | 名称 | 规模 | 素材授权 | imageDirs / tiers |
 | --- | --- | --- | :---: | --- |
@@ -37,9 +37,9 @@
 
 ```
 ai-video-imge-prompts/
-├── sites.json          # ★ 唯一清单：站点、顺序、授权、档位、封面
+├── sites.json          # ★ 唯一配置源：站点、顺序、授权、档位、封面、取图策略
 ├── sites/<id>/         # 各站：scripts/ + data/ + 构建产物 + NOTICE.md + README
-├── shared/             # 各站共用逻辑
+├── shared/             # 各站共用逻辑（模块须被 ≥2 个站引用，见关键规则 20）
 │   ├── assets.py       #   共用下载与校验（档位→manifest 字段只有一条规则：<tier>_url / <tier>_path）
 │   ├── landing.py      #   共用静态落地页生成（不依赖 JS 的分面页）
 │   ├── pose_gallery.py #   姿势 / 深度姿势共用页面生成器
@@ -57,7 +57,7 @@ ai-video-imge-prompts/
 │   └── serve.py        #   以 dist/ 为站点根起本地 HTTP 服务
 ├── deploy/             # DEPLOY.md 部署手册 + nginx.conf
 ├── index/              # 本地素材管理器（唯一用数据库的部分）
-│   ├── catalog.py      #   ★ 字段映射表唯一来源：8 份 manifest → 统一 CSV
+│   ├── catalog.py      #   ★ 唯一字段映射：8 份 manifest → 统一 CSV
 │   ├── sync.py         #   manifest → gallery.db（复用上表的映射，不重写）
 │   ├── store.py        #   唯一碰 SQL 的模块：建表、写入、查询
 │   ├── serve.py        #   11 个端点 + 静态页面（单进程同源，端口 8787）
@@ -104,9 +104,9 @@ python tests/test_manager.py  # 素材管理器测试（需 Pillow），只走 H
 
 ## 关键规则
 
-1. **`sites.json` 是唯一清单。** 站点增删、顺序、授权、档位、图片目录全部在这里声明；`tools/` 不为单个站点定制逻辑。
+1. **`sites.json` 是唯一配置源。** 站点增删、顺序、授权、档位、图片目录、取图策略（`imagePolicy`）、图片源前缀（`imageBases`）全部在这里声明；`tools/` 不为单个站点定制逻辑。（「唯一来源」共四个，各管一件事：**唯一配置源**（本条）、**唯一字段映射**（第 11 条）、**唯一读取入口**（第 19 条）、**唯一编码约定**（第 19 条）；术语见 `CONTEXT.md`。）
 2. **图片不进仓库。** `.gitignore` 排除 `sites/*/{thumbs,mid,img,png,raw}/`；首次部署用 `tools/fetch.py` 拉取，之后幂等跳过。图源被 DNS 污染时设环境变量 `FETCH_PROXY`（如 `http://127.0.0.1:7897`）统一走代理。
-3. **档位与 manifest 的约定只有一条**：每条记录对 `sites.json` 里每个 `<tier>` 都要有 `<tier>_url` 与 `<tier>_path`。`fetch.py` / `verify.py` 只靠这条规则工作。
+3. **档位与 manifest 的约定**：每条记录对 `sites.json` 里每个 `<tier>` 都要有 `<tier>_url` 与 `<tier>_path`。`fetch.py` / `verify.py` 只靠这条规则工作。（产物内嵌的地址字段另有一条**编码约定**，见第 19 条——两条并存，不是「只有一条」。）
 4. **新增站点**按 `docs/ADDING_A_SITE.md`：建 `sites/<id>/`（`scripts/build_gallery.py` 必填、`extract.py`/`manifest.py` 按需、`data/`、`index.html`、`LICENSE`、`NOTICE.md`、`README.md`），在 `sites.json` 追加一条，然后跑 `tools/build.py`。**`tools/` 无需改动。**
 5. **构建脚本读环境变量 `SITE_URL`**，站点根用 `dirname(dirname(__file__))` 自算，不依赖当前工作目录。
 6. **姿势两站共用生成器**：结构相同直接复用 `shared/pose_gallery.py` + `shared/pose_source.py`，只写一份 `config.py`（参考 `sites/pose/config.py`）；数据来自别的项目、系列名不同时参考 `sites/shisei/config.py`（系列顺序、视角顺序、中文名表、作者、`blurRatings` 默认模糊都在配置里）。
@@ -114,7 +114,7 @@ python tests/test_manager.py  # 素材管理器测试（需 Pillow），只走 H
 8. **部署**：站点根 = `tools/release.py` 产出的 `dist/`（扁平结构：`index.html` + `portrait/` + `pose/` + …），nginx 不需要 `alias`。线上更新先发到暂存目录（`--out dist-stage`），检查后逐站原子换入 `dist/`。**git commit 即版本**，不用 `releases/<版本>/public` + `current` 软链。
 9. **`release.py` 发布前会校验图片，缺图就中止**（只下了部分档位时加 `--skip-verify`）；它会先删除再重建目标站点目录。`--no-images` 只放站点文件、不放图片，**不能用来保留线上旧图**。
 10. **素材管理器的边界写在目录结构里**：`sites/` 只读（采集素材永不物理删除，只做视图隐藏）；`library/` 可写（导入素材允许删除）。任何代码路径都不得删除 `volume=sites` 的文件。
-11. **`index/catalog.py` 的 `SOURCES` 是字段映射的唯一来源**，`sync.py` 复用它，不另写一份。加新集合时映射表加一条即可。
+11. **`index/catalog.py` 的 `SOURCES` 是唯一字段映射**，`sync.py` 复用它，不另写一份。加新站点时映射表加一条即可。
 12. **`sync` 必须保住用户标注**：全量重建前把 `manual`/`auto` 标签、收藏、视图隐藏、`own` 集合存进临时表并在重建后放回（`store.reset` / `restore_user_data`）。否则「加一张图」会把几百小时的打标抹掉。
 13. **manifest 里的路径是站点相对的**（`img/...`，不是 `sites/<id>/img/...`）。`sync` 负责加 `sites/<集合>/` 前缀；漏了会让 `pose` 与 `pose-depth` 被当成同一批文件去重。
 14. **prompts 站的抓取与构建中间数据不入库**：`data/prompts_*.json`（132 MB）、`data/gallery_*.js`（84 MB）、`data/dims.json`、`data/*_id2cats.json` 合计约 220 MB，都能由 `import_youmind.py` / `scripts/manifest.py` / `build_gallery.py` 重新生成，`.gitignore` 已排除。**入库的只有 `manifest.json`（14 MB，`fetch.py` 与测试都要读它）**、`data/gallery.js`、`data/landing.json`、`data/gpt2_categories.json` 和页面本身。所以 CI 构建带 `--skip prompts`，全新克隆要先把数据拉下来才能本地构建该站 —— 这是有意的取舍，不是漏提交。
@@ -123,7 +123,9 @@ python tests/test_manager.py  # 素材管理器测试（需 Pillow），只走 H
 17. **有成人内容的站默认模糊，且不进落地页与 sitemap**：`prompthero-midjourney` 的 NSFW 条目在网格里默认 `blur(16px)`，点开单张或用页头开关才清晰；成人分类不生成静态落地页，也不出现在 `sitemap.xml` 与根 sitemap。实现参考 `shared/pose_gallery.py` 的 `blurRatings` 机制（`data-r="1"` + `html.blur-on` + `localStorage` 偏好）。
 18. **图源需要浏览器化请求头或 cookie 时，走站点级取图钩子**：在 `sites/<id>/scripts/fetch_hook.py` 里提供 `headers(url, referer)` 与 `prepare(opener, log)` 两个可选函数，`shared/assets.py` 会自动发现并调用（没有这个文件的站点行为不变）。`midjourney-explore` 用它带 Cloudflare 的 `__cf_bm` 通行证 —— `cdn.midjourney.com` 没有该 cookie 一律 403。**不要为此在 `tools/` 里加单站分支。**
 
-19. **取图策略按档位声明在 `sites.json` 里**（`imagePolicy`），三种取值：`local-first`（站内优先、加载失败回落到上游地址）、`online`（直连上游，站内不再保留该档图片）、`local-only`（仅本地，无回落）。共享层 `shared/image_policy.py` 是唯一读取入口，构建脚本与索引同步共用。两条硬约束：**构建过程不探测本地文件是否存在**（策略是提交进仓库的静态配置，产物只取决于配置，因此在有图与无图的环境里逐字节一致）；**通用代码里不出现站点分支**，站点差异只通过声明表达。编码约定：原字段保持「站内相对路径」语义不变，另加平行的上游地址字段——中图等按路径推导的规则只吃相对路径。`tests/run.py` 的 `ImagePolicy` 与 `ImageArtifacts` 守这条声明到产物的传导。
+19. **取图策略按档位声明在 `sites.json` 里**（`imagePolicy`），三种取值：`local-first`（站内优先、加载失败回落到上游地址）、`online`（直连上游，站内不再保留该档图片）、`local-only`（仅本地，无回落）。共享层 `shared/image_policy.py` 是唯一读取入口，构建脚本与索引同步共用。两条硬约束：**构建过程不探测本地文件是否存在**（策略是提交进仓库的静态配置，产物只取决于配置，因此在有图与无图的环境里逐字节一致）；**通用代码里不出现站点分支**，站点差异只通过声明表达。**编码约定（唯一编码约定，逐字以 `shared/image_policy.py` 的模块注释为准）**：`<字段>` 是展示地址——`online` 时是上游 URL，否则是站内相对路径；`<字段>Url` 是上游地址，仅 `local-first` 时写出，作加载失败的回落目标；`<字段>Path` 是站内相对路径，仅 `online` 时写出，供中图等按路径推导的规则使用。字段名各站不同（t/f、th/im/pg、s/m/g…），后缀约定一致，所以页面里的通用回落逻辑不需要知道每个站的具体字段名。`tests/run.py` 的 `ImagePolicy` 与 `ImageArtifacts` 守这条声明到产物的传导。
+
+20. **`shared/` 的准入门槛**：只有被**≥2 个站**引用的模块才放进 `shared/`；只服务一个站的逻辑留在那个站里。`shared/` 是共用层，不是收纳层——新增模块前先数引用它的站数。（当前 7 个模块均满足：assets/image_policy/landing/pose_gallery/pose_i18n/pose_seo/pose_source。）
 
 ## 性能约定（三档图）
 

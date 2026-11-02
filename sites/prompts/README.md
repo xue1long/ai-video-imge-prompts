@@ -84,4 +84,4 @@ cd ../.. && python tools/build.py --site prompts
 - **缩略图来自上游 CDN**（`mediaThumbnails`，约 20~25 KB/张），`fetch.py` 按 manifest 的 `thumb_path` 下载到 `thumbs/<key>/`。
 - **分类靠 `categories` 参数反查**：上游记录里的 `promptCategories` 字段对两个模型都不返回数据（Nano Banana 是 0/11,783），但 API 支持按 `categories` 过滤。`tag_categories.py` 逐类翻页把 id 收回，再反查成 id → 分类表。
 - **分类覆盖不完整，这是上游限制**：单页固定 85 条，深分页到 100~140 页后上游返回 `total=0`，所以大分类拿不全（Nano Banana 的 `photography` 12,021 条只取到 8,113，`social-media-post` 10,079 取到 6,625）。`sort` 参数对结果集没有影响，换排序也取不到另一批。实际覆盖 11,325/11,783 条提示词（96%），平均 4.8 个分类，398 条无任何分类。
-- `scripts/legacy/` 是独立本地页时期的脚手架（CSV 导入、演示数据），未接入构建管线。
+- `scripts/legacy/` 是独立本地页时期的脚手架（CSV 导入、演示数据），未接入构建管线；计划归档到 `docs/legacy/prompts-legacy-scaffold/`（见 `docs/REFACTOR_V7_LOCKED.md` 的 D08）。

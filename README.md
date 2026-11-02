@@ -156,7 +156,7 @@ ai-video-imge-prompts/
 
 | 命令 | 作用 |
 | --- | --- |
-| `python index/sync.py` | 把六个集合的 manifest 同步进 `gallery.db`；manifest 没变就跳过 |
+| `python index/sync.py` | 把八个站点的 manifest 同步进 `gallery.db`；manifest 没变就跳过 |
 | `python index/verify.py` | 探缺图：把盘上已不存在的资产标成 `missing` |
 | `python index/snapshot.py` | 给数据库留一个可回滚的快照，写到 `backups/` |
 

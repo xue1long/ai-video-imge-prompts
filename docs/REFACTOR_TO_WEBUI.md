@@ -253,7 +253,7 @@ UI（一套，替代 6 套）：
 
 `mj-gallery/` 目录当前是**空的**（2026-10-31 17:43 变更）。该目录从未被 git 跟踪（`git ls-files` 无记录），因此：
 
-- 源码（`extract.py` / `import_gpt2.py` / `build_gallery.py` / `make_sample.py`）与 `data/gallery.js`（84 MB）已不在磁盘上
+- 源码（`extract.py` / `import_gpt2.py` / `build_gallery.py` / `make_sample.py`）与 `data/gallery.js`（84 MB）已不在磁盘上（指 `mj-gallery/`；prompts 站现用的另一份同名脚手架在 `sites/prompts/scripts/legacy/`，与本段无关）
 - 图片资产无损失：22,268 张 youmind 图在 `sites/prompts/img/gpt2/` 有完整副本；`manifest` 数据在 `sites/prompts/manifest.json`
 - 若需要那套「收藏 / 手动标签 / 回收站」的前端实现，可按 `.workbuddy/memory/2026-10-31.md` 的记录重建；但方案 P2/P3 会用数据库方案替代它，建议不重建
 
