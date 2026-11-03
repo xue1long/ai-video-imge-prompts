@@ -122,8 +122,11 @@ aside h2::after{content:'';flex:1;height:1px;background:var(--line)}
 #addBox{margin-bottom:20px}
 
 .chips{display:flex;flex-wrap:wrap;gap:6px}
+/* max-width + 可换行：风格参考的值是 sref 码，多个码逗号相连最长 65 字符，
+   写死 nowrap 会被左栏边缘切掉、认不出是哪个码。短值视觉不变。 */
 .chip{padding:5px 11px;border:1px solid var(--line2);border-radius:99px;background:var(--bg2);
-  font-size:12px;color:var(--tx2);cursor:pointer;transition:.13s;white-space:nowrap}
+  font-size:12px;line-height:1.35;color:var(--tx2);cursor:pointer;transition:.13s;
+  max-width:100%;white-space:normal;overflow-wrap:anywhere;text-align:left}
 .chip:hover{border-color:var(--ac);color:var(--ac)}
 .chip[aria-pressed="true"]{background:var(--ac);border-color:var(--ac);color:var(--on-ac);font-weight:700}
 .chip .c{opacity:.6;font-size:10.5px;margin-left:4px;font-variant-numeric:tabular-nums}
@@ -552,9 +555,12 @@ function selectCollection(slug){
   state.current = null;
   $("detail").innerHTML = '<p class="hint">点一张图看详情。<br>拖图片或文件夹进来、或直接 <kbd>Ctrl</kbd>+<kbd>V</kbd> 贴图，都能导入。</p>';
   loadCollections().then(()=>{
+    /* 分面只跟集合有关、与视图无关，所以在这里取一次；
+       不要写进 selectView 里——切视图会白刷一次左栏。 */
+    loadFacets();
     /* 有视图的集合默认落在第一个视图（如 midjourney-explore → 图像） */
     if(state.views.length){ selectView(state.views[0]); }
-    else { loadFacets(); loadItems(true); }
+    else { loadItems(true); }
   });
   document.querySelector("main").scrollTop = 0;
 }

@@ -25,7 +25,9 @@ SKIP_BUILD = ["prompts"]
 SHARD_INDEX = ["prompts", "prompthero-midjourney"]
 PAGES = ["hub/index.html"] + [f"sites/{s}/{f}" for s in SITES for f in ("index.html", "404.html")] + [
     # 风格码库：独立静态页，由 scripts/build_styles_page.py 生成（不是 tools/build.py 的产物）
-    "sites/midjourney-explore/styles/index.html"]
+    "sites/midjourney-explore/styles/index.html",
+    # 素材管理器前端：本地服务直接发这份文件，之前没纳入闸门（重复 id / 选择器 / JS 语法都没管）
+    "index/web/index.html"]
 BUILD_OUTPUT = ["hub/index.html", "hub/robots.txt", "hub/sitemap.xml", "hub/llms.txt"] + [
     f"sites/{s}/{f}" for s in SITES for f in ("index.html", "404.html", "robots.txt", "sitemap.xml")] + [
     f"sites/{s}/data/landing.json" for s in SITES] + [
@@ -172,6 +174,15 @@ class Pages(unittest.TestCase):
         self.assertEqual({str(c) for c, _ in db["codes"]}, want,
                          "页面里的码与 data/styles.json 不一致，重跑 scripts/build_styles_page.py")
         self.assertTrue(db.get("latest"), "页面缺 latest，「只看最近新增」会失效")
+
+    def test_collection_switch_loads_facets(self):
+        # 2026-11-03：带「视图」的集合（midjourney-explore）走 selectView 分支，
+        # 那条路只刷网格不取分面，左栏永远停在「选一个集合后显示它自己的分面」。
+        # 分面只跟集合有关、与视图无关，所以加载点必须在 selectCollection 里。
+        h = read("index/web/index.html")
+        body = h.split("function selectCollection")[1].split("\nfunction ")[0]
+        self.assertIn("loadFacets()", body,
+                      "selectCollection 必须重取分面，否则带视图的集合左栏是空的")
 
     def test_inline_js_syntax(self):
         node = shutil.which("node")
