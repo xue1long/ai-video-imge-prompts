@@ -104,49 +104,22 @@ FETCH_PROXY=http://127.0.0.1:7897 python tools/fetch.py --site midjourney-explor
 `scripts/fetch_hook.py` 并调用它——钩子负责带上浏览器化请求头与通行证 cookie。
 没有这个钩子，CDN 会对所有请求返回 403。
 
-## 风格数据线（Styles）
+## 风格数据线（Styles）—— 已拆成兄弟站
 
-原站右上角的 Styles 是**独立内容类型**，不在 `feed=top` 的返回里。三步一条链路：
+原站右上角的 Styles 是**独立内容类型**，不在 `feed=top` 的返回里。
 
-```bash
-cd sites/midjourney-explore
-
-# 1) 取码（需要登录态，见下）
-python scripts/dump_styles.py --state "%USERPROFILE%\.workbuddy\secrets\midjourney-session.json"
-
-# 2) 下图 + 生成本地 384 缩略（不需要登录，CDN 直连）
-python scripts/fetch_styles.py --size 1024
-
-# 3) 重建风格码库页面（缺图会直接失败，不会生成半成品页）
-python scripts/build_styles_page.py
-
-# 会话过期时：起独立 profile 的 Chrome 人工登录，再跑
-python scripts/capture_session.py --cdp http://127.0.0.1:9333
-```
-
-三步各有独立产物（码表 / 图片 / 页面），可以单独验证，所以**不自动串成一条命令**：
-只补几张图时不该顺带改写已发布的 HTML。
-
-会话文件放在 `%USERPROFILE%\.workbuddy\secrets\midjourney-session.json`，**不要放 `.scratch/`**（那里会被清理）。`__Host-Midjourney.AuthUserTokenV3_*` 约 30 天有效，`cf_clearance` 约 1 年。
-
-产物：
-
-| 路径 | 内容 | 是否入库 |
-|---|---|---|
-| `data/styles.json` | 清单：feed / captured_at / 累计码表（含 `added_at`）/ 每次抓取快照 | 是 |
-| `data/styles_images.json` | 每码每类图的命中状态 | 是 |
-| `styles/index.html` | **风格码库页面**，单文件 29 KB，码表内嵌 | 是（`.gitignore` 单独放行） |
-| `styles/<码>/{portrait,landscape,still_life}.webp` | 1024 档示例图，灯箱用（987 张，235 MB） | 否 |
-| `styles/<码>/s/<kind>.webp` | 384 缩略，网格用，由 1024 本地缩放（987 张，17.5 MB） | 否 |
-
-**风格码库页面**（`/midjourney-explore/styles/`）是这一串数据唯一的展示面：
-一码一卡，网格走 384 缩略（首屏约 9 张 ≈ 125 KB），点开灯箱才拉 1024；
-卡上三态切换（人像 / 风景 / 静物）、一键复制 `--sref <码>`、回链原站、
-按码搜索、只看最近一轮新增、复制当前筛选结果的全部码。
-主题跟随主站的 `localStorage['mje.theme']`，不单独做开关。
-
-发布时 `styles/` 靠 `sites.json` 的 `imageDirs` 带上（`release.py` 走硬链接），
-不在 `SITE_DIRS` 里——它不是构建产物，是本地生成后随工作区发布的图片目录。
+> ✅ **2026-11-03：这条数据线已实施，但不再放在本目录。**
+> 它拆成了兄弟站 **`sites/mj-styles/`（MJ-STYLES-01，路径 `/mj-styles/`）**。
+>
+> 拆分的理由是**内容类型不同源**：Styles 是「一个风格码 + 三张语义示例图，
+> 没有提示词、没有作者」，本站是「一条社区作业 + 四格成图 + 提示词 + 作者」。
+> 实测两边的码表**完全不相交**（329 vs 45，交集 0）—— 作业里引用的
+> `prompt.styleRef` 与 Styles 榜单的码是两套东西。
+>
+> 原来的三个脚本（`dump_styles.py` / `fetch_styles.py` / `capture_session.py`）
+> 与页面生成器（`build_styles_page.py`）都已迁到新站，数据文件
+> `data/styles.json` / `data/styles_images.json` 一并迁走。
+> 完整说明见新站的 `README.md` 与 `NOTICE.md`。
 
 **每个码有三张语义化单图**：`portrait` / `landscape` / `still_life`，
 同一风格的三个不同题材。CDN 上只有 128 / 384 / 640 / 1024 四档；缩略不额外下载，

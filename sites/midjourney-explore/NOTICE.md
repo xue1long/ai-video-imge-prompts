@@ -19,11 +19,16 @@ Explore 页是**两个维度的组合**，不是一个扁平的 tab 列表：
 
 本站采集的是 **`feed=top`（Top day 排序）+ Images 内容类型**这一格。
 
-**Styles 没有采集。** 它是 Style Explorer：展示 Style Reference code（风格码，如
+**Styles 不在本站。** 它是 Style Explorer：展示 Style Reference code（风格码，如
 `2918660786`）以及每个码对应的一组示例图，可按 Random / Popular 排序、按词模糊搜索。
 官方文档《Website Overview》：「Open the Explore page and click the Styles tab in the
 top-right corner」。它的数据结构是「风格码 + 示例图组」，与本站现用的「作业 + 4 格成图」
 完全不同，不能塞进同一个 jobs 流程。
+
+> ✅ **2026-11-03 更新**：Styles 数据线**已实施，但拆成了兄弟站 `mj-styles`
+> （MJ-STYLES-01，路径 `/mj-styles/`）**，不是本站的附属数据集。
+> 两边的码表**完全不相交**（实测 329 vs 45，交集 0）——详见该站的 `NOTICE.md`。
+> 本站自此不再承载风格码。
 
 > ⚠️ **2026-11-02 更正**：本节此前写「官网并没有一个独立于热门榜的风格榜数据源；
 > `styles_top` 展示的就是 Explore 的热门作品流」。该结论**不成立**，已作废。
@@ -54,9 +59,10 @@ top-right corner」。它的数据结构是「风格码 + 示例图组」，与�
 > - **接口只能在浏览器页面上下文里调用**：把 cookie 导出后用 Python 直连，
 >   四组请求变体全部 `500`（含去掉 `cf_clearance` 的对照，证明是应用层拒绝，
 >   不是 CF 拦截）。因此取码脚本用 Playwright 在页面内 `fetch`。
-> - **收录范围的变化**：本站主榜单仍只收录 Images 内容类型；Styles 作为**独立的
->   附属数据集**（200 个码 + 600 张示例图）单独存放，不并入作业流、不参与分面。
-> - 实施脚本：`scripts/dump_styles.py`（取码）、`scripts/fetch_styles.py`（下图）；
+> - **收录范围的变化**：本站主榜单仍只收录 Images 内容类型；Styles 已拆成**兄弟站
+>   `mj-styles`**（200 个码 / 600 张示例图起家，现 329 码 / 987 张），
+>   不并入作业流、不参与本站分面。
+> - 实施脚本已迁到 `sites/mj-styles/scripts/`（`dump_styles.py` 取码、`fetch_styles.py` 下图）；
 >   清单 `data/styles.json` 入库，图片在 `styles/` 且不入库。
 >   完整证据链见 `docs/STYLES_FEASIBILITY.md` §10、§11。
 >

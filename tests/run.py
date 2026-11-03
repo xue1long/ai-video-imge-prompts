@@ -24,8 +24,6 @@ SKIP_BUILD = ["prompts"]
 # 数据分片外置的站：data/gallery.js 是索引（入库），data/gallery_<key>.js 是分片（不入库）
 SHARD_INDEX = ["prompts", "prompthero-midjourney"]
 PAGES = ["hub/index.html"] + [f"sites/{s}/{f}" for s in SITES for f in ("index.html", "404.html")] + [
-    # 风格码库：独立静态页，由 scripts/build_styles_page.py 生成（不是 tools/build.py 的产物）
-    "sites/midjourney-explore/styles/index.html",
     # 素材管理器前端：本地服务直接发这份文件，之前没纳入闸门（重复 id / 选择器 / JS 语法都没管）
     "index/web/index.html"]
 BUILD_OUTPUT = ["hub/index.html", "hub/robots.txt", "hub/sitemap.xml", "hub/llms.txt"] + [
@@ -163,10 +161,13 @@ class Pages(unittest.TestCase):
 
         页面是生成物（scripts/build_styles_page.py），码表以 `var DB=` 内嵌。
         少一个码等于发布一个看不见的残缺页，所以两边做集合比对。
+
+        2026-11-03：风格码库从 midjourney-explore 拆成兄弟站 mj-styles，
+        页面也从 sites/midjourney-explore/styles/index.html 挪到站点根 index.html。
         """
-        sid = "midjourney-explore"
+        sid = "mj-styles"
         data = json.loads(read(f"sites/{sid}/data/styles.json"))
-        h = read(f"sites/{sid}/styles/index.html")
+        h = read(f"sites/{sid}/index.html")
         m = re.search(r"var DB=(\{.*?\});", h, re.S)
         self.assertIsNotNone(m, "页面里找不到内嵌的 DB= 数据块")
         db = json.loads(m.group(1))
@@ -174,6 +175,26 @@ class Pages(unittest.TestCase):
         self.assertEqual({str(c) for c, _ in db["codes"]}, want,
                          "页面里的码与 data/styles.json 不一致，重跑 scripts/build_styles_page.py")
         self.assertTrue(db.get("latest"), "页面缺 latest，「只看最近新增」会失效")
+        # 图片前缀：页面在站点根，图在 styles/<码>/ 下，路径前缀必须写对
+        self.assertEqual(db.get("imgPrefix"), "styles/",
+                         "页面缺 imgPrefix 或写错，图片路径会 404")
+
+    def test_styles_page_reads_kind_hash(self):
+        """首页必须读 #kind=…：落地页的「在画廊中查看全部」靠它定位到该构图。
+
+        2026-11-03：拆分后 build_gallery.py 写的是 gallery_hash="kind=<slug>"，
+        但首页 JS 原本完全不读 location.hash —— 点「在画廊中查看全部」会跳回
+        默认的人像视图，落地页与首页之间断链。其余 8 个站都有这段读取。
+        """
+        h = read("sites/mj-styles/index.html")
+        self.assertIn("location.hash", h, "首页不读 location.hash，落地页的 #kind= 跳转会失效")
+        self.assertIn("kindSeg", h, "首页缺全站构图切换器（#kind= 无处落地）")
+        # slug 取值必须与落地页一致：still_life → still-life
+        self.assertIn("still-life", h, "hash 的 slug 取值与 landing 页的 gallery_hash 不一致")
+        # 落地页确实在写这个 hash
+        src = read("sites/mj-styles/scripts/build_gallery.py")
+        self.assertIn('gallery_hash="kind="', src,
+                      "落地页没写 #kind= 参数，首页的 hash 读取没有对应来源")
 
     def test_collection_switch_loads_facets(self):
         # 2026-11-03：带「视图」的集合（midjourney-explore）走 selectView 分支，
@@ -269,12 +290,38 @@ class Landing(unittest.TestCase):
     def test_gallery_hash_params_known(self):
         # 「在画廊中查看」带的 #参数必须是画廊能识别的
         # 各站的分面维度不同：cat（分类）、tag（标签）、series（系列）、
-        # sec（分区）、hair（发型）、ver（版本）、asp（宽高比）
+        # sec（分区）、hair（发型）、ver（版本）、asp（宽高比）、kind（示例图构图）
         for rel in self.pages:
             for hsh in re.findall(r'class="cta" href="[^"]*#([^"]+)"', read(rel)):
                 for kv in html.unescape(hsh).split("&"):
                     self.assertIn(kv.split("=")[0],
-                                  {"cat", "tag", "series", "sec", "hair", "ver", "asp"}, f"{rel}: {hsh}")
+                                  {"cat", "tag", "series", "sec", "hair", "ver", "asp", "kind"}, f"{rel}: {hsh}")
+
+    def test_gallery_hash_params_are_read(self):
+        """白名单上的参数必须在对应站的首页 JS 里真的被读取。
+
+        test_gallery_hash_params_known 只查「参数名在白名单里」，
+        查不出「白名单加了但画廊根本没读」—— 那种情况下落地页的
+        「在画廊中查看全部」点过去毫无反应（2026-11-03 mj-styles 就是这样）。
+        这里反向查：落地页用了哪个参数，同站的首页就必须读这个参数。
+        """
+        known = {"cat", "tag", "series", "sec", "hair", "ver", "asp", "kind"}
+        for rel in self.pages:
+            site = rel.split("/")[1]
+            used = set()
+            for hsh in re.findall(r'class="cta" href="[^"]*#([^"]+)"', read(rel)):
+                for kv in html.unescape(hsh).split("&"):
+                    used.add(kv.split("=")[0])
+            if not used:
+                continue
+            index = read(f"sites/{site}/index.html")
+            # 首页要么读 location.hash，要么有 readHash 之类的解析函数
+            self.assertIn("location.hash", index,
+                          f"{site} 的落地页用了 #{'/'.join(sorted(used))}，"
+                          f"但首页不读 location.hash —— 点过去不会定位")
+            for p in sorted(used & known):
+                self.assertIn(p, index,
+                              f"{site} 的落地页用了 #{p}=，但首页里找不到 {p} 这个参数")
 
     def test_adult_series_not_expanded(self):
         # 姿势两站：双人系列不生成落地页，性感系与上半身不展开到分类

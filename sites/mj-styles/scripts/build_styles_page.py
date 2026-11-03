@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""生成风格码库页面（styles/index.html）。
+"""生成风格码库站点的首页（index.html）。
 
 这个页面是什么
 --------------
@@ -7,9 +7,9 @@
 `styles/<码>/` 下有三张语义示例图（portrait / landscape / still_life），另有
 `styles/<码>/s/` 下的 384 缩略（由 fetch_styles.py 本地缩放生成）。
 
-它不是 WebUI 集合里的「风格」视图——那个已于 2026-11-03 删除：原站 Styles 是独立
-内容类型（一个码 + 三张示例图，无 prompt、无作者），与「一条作业四格成图」不同源。
-两边的取舍写在 index/catalog.py 里 midjourney-explore 的注释中。
+它是 midjourney-explore 站的**兄弟站**，不是那个站的视图：原站 Styles 是独立
+内容类型（一个码 + 三张示例图，无 prompt、无作者），与「一条作业四格成图」不同源，
+两边的码表也完全不相交（实测 329 vs 45，交集 0）。
 
 图片分两档，各司其职
 --------------------
@@ -23,13 +23,18 @@
 任何一个码的任何一档缺失，直接非零退出并列出缺什么。不做「降级成 1024」这种
 静默兜底——那会发布出一个慢一倍还看不出问题的页面。
 
+本模块只负责**页面主体**。站点协议那一层（robots / sitemap / 404 / 落地页 /
+og-cover / FAQPage / seo-intro）由 build_gallery.py 负责——两者共用同一份码表，
+但职责不重叠。
+
 产物
 ----
-    styles/index.html    单文件，数据内嵌（329 码约 13 KB JSON）
+    index.html    单文件，数据内嵌（329 码约 13 KB JSON）
 
 用法
 ----
-    python scripts/build_styles_page.py
+    python scripts/build_styles_page.py          # 单独构建页面
+    python scripts/build_gallery.py              # 站点全量构建（推荐，走这个）
 """
 import argparse
 import json
@@ -40,7 +45,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SITE = os.path.dirname(HERE)
 STYLES_JSON = os.path.join(SITE, "data", "styles.json")
 IMG_DIR = os.path.join(SITE, "styles")
-OUT_DEFAULT = os.path.join(IMG_DIR, "index.html")
+# 页面在站点根（styles/ 只放图片目录）；页面里引用图片时带 "styles/" 前缀
+IMG_PREFIX = "styles/"
+OUT_DEFAULT = os.path.join(SITE, "index.html")
 
 KINDS = ("portrait", "landscape", "still_life")
 KIND_ZH = {"portrait": "人像", "landscape": "风景", "still_life": "静物"}
@@ -121,7 +128,20 @@ h1{margin:0;font-size:24px;letter-spacing:-.01em}
 .btn{font:inherit;font-size:13px;padding:8px 13px;border-radius:9px;cursor:pointer;
   color:var(--tx);background:var(--bg2);border:1px solid var(--line)}
 .btn:hover{border-color:var(--ac);color:var(--ac)}
+.seg{display:inline-flex;flex:0 0 auto;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--bg2)}
+.seg button{font:inherit;font-size:13px;padding:8px 13px;cursor:pointer;color:var(--tx2);
+  background:transparent;border:0;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button:hover{color:var(--ac)}
+.seg button.on{color:#fff;background:var(--ac);font-weight:500}
+html[data-theme=dark] .seg button.on{color:#06201d}
 #count{margin-left:auto;font-size:13px;color:var(--tx3);font-variant-numeric:tabular-nums}
+@media(max-width:640px){
+  /* 窄屏下工具条会换行，计数单独占一行会孤零零的 */
+  .barin{gap:8px}
+  #q{flex:1 1 100%}
+  #count{margin-left:0;width:100%}
+}
 main{padding:22px 0 8px}
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
 @media(max-width:1020px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -186,6 +206,13 @@ JS = """
   var KN=['portrait','landscape','still_life'];
   var ZH={portrait:'人像',landscape:'风景',still_life:'静物'};
   var cards={}, order=[], cur=null;
+  /* 图片在 styles/<码>/ 下，页面在站点根：前缀由构建时注入，不散落硬编码 */
+  var P=DB.imgPrefix||'styles/';
+  /* 全站当前构图（人像/风景/静物）。落地页带 #kind=… 回来时全站切到该构图。 */
+  var state={kind:'portrait'};
+  /* hash 里用的 slug 与 config.KIND_SLUG 对齐（still_life → still-life） */
+  var SLUG={portrait:'portrait',landscape:'landscape',still_life:'still-life'};
+  var BYSLUG={}; KN.forEach(function(k){ BYSLUG[SLUG[k]]=k; });
 
   function el(tag,attrs){
     var n=document.createElement(tag);
@@ -207,9 +234,9 @@ JS = """
     var code=item[0];
     var card=el('article',{'class':'card','data-code':code,'data-kind':'portrait'});
     if(item[1]===DB.latest) card.setAttribute('data-fresh','1');
-    var shot=el('a',{'class':'shot','href':code+'/portrait.webp','data-open':'1',
+    var shot=el('a',{'class':'shot','href':P+code+'/portrait.webp','data-open':'1',
                      'aria-label':'放大查看风格码 '+code});
-    var img=el('img',{'src':code+'/s/portrait.webp','alt':'风格码 '+code+' 的人像示例',
+    var img=el('img',{'src':P+code+'/s/portrait.webp','alt':'风格码 '+code+' 的人像示例',
                       'loading':'lazy','width':'256','height':'384','decoding':'async'});
     shot.appendChild(img);
     var kinds=el('div',{'class':'kinds'});
@@ -253,17 +280,63 @@ JS = """
   function setKind(card,kind){
     var code=card.getAttribute('data-code');
     card.setAttribute('data-kind',kind);
-    card.querySelector('.shot').setAttribute('href',code+'/'+kind+'.webp');
+    card.querySelector('.shot').setAttribute('href',P+code+'/'+kind+'.webp');
     var img=card.querySelector('.shot img');
-    img.setAttribute('src',code+'/s/'+kind+'.webp');
+    img.setAttribute('src',P+code+'/s/'+kind+'.webp');
     img.setAttribute('alt','风格码 '+code+' 的'+ZH[kind]+'示例');
     var bs=card.querySelectorAll('.kinds button');
     for(var i=0;i<bs.length;i++) bs[i].className=(bs[i].getAttribute('data-kind')===kind?'on':'');
   }
 
+  /* 全站切构图：329 张卡一起换。落地页的「在画廊中查看全部」带 #kind=…，
+     从「风景示例图」那一页回来就看到一整页风景，而不是回到默认的人像。 */
+  function setAllKind(kind){
+    if(KN.indexOf(kind)<0) return;
+    state.kind=kind;
+    order.forEach(function(code){ setKind(cards[code],kind); });
+    var bs=kindSeg.querySelectorAll('button');
+    for(var i=0;i<bs.length;i++) bs[i].className=(bs[i].getAttribute('data-kind')===kind?'on':'');
+  }
+
+  /* 顶部全站构图切换器 */
+  var kindSeg=document.getElementById('kindSeg');
+  KN.forEach(function(k){
+    var b=el('button',{'type':'button','data-kind':k});
+    b.textContent=ZH[k];
+    if(k==='portrait') b.className='on';
+    kindSeg.appendChild(b);
+  });
+  kindSeg.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-kind]');
+    if(!b) return;
+    var k=b.getAttribute('data-kind');
+    setAllKind(k);
+    /* 同步地址栏 hash：刷新后仍停在同一构图，也方便分享。
+       写的是 slug（still-life），与落地页的 gallery_hash 同一套取值。 */
+    history.replaceState(null,'','#kind='+SLUG[k]);
+  });
+
+  /* 从落地页带 #kind=… 进来时全站切到该构图。 */
+  function readHash(){
+    var h=(location.hash||'').replace(/^#/,'');
+    if(!h) return;
+    h.split('&').forEach(function(kv){
+      var i=kv.indexOf('=');
+      if(i<0) return;
+      var k=kv.slice(0,i), v=decodeURIComponent(kv.slice(i+1));
+      if(k==='kind'&&BYSLUG[v]) setAllKind(BYSLUG[v]);
+    });
+  }
+  window.addEventListener('hashchange',readHash);
+
   grid.addEventListener('click',function(e){
     var b=e.target.closest('button[data-kind]');
-    if(b){ setKind(b.closest('.card'),b.getAttribute('data-kind')); return; }
+    if(b){
+      /* 卡内三态 = 「这一码看哪张图」，是浏览语义，不动顶部的全站切换器。
+         顶部 seg 代表全站显示哪种构图，两者各管各的。 */
+      setKind(b.closest('.card'),b.getAttribute('data-kind'));
+      return;
+    }
     var cp=e.target.closest('button[data-copy]');
     if(cp){ copy('--sref '+cp.closest('.card').getAttribute('data-code'),cp); return; }
     var op=e.target.closest('[data-open]');
@@ -303,7 +376,7 @@ JS = """
   /* 灯箱：只在同一个码的三张之间翻，不跨码（跨码会把人拖出上百张大图） */
   function openLb(code,kind){
     cur={code:code,kind:kind};
-    lbImg.setAttribute('src',code+'/'+kind+'.webp');
+    lbImg.setAttribute('src',P+code+'/'+kind+'.webp');
     lbImg.setAttribute('alt','风格码 '+code+' 的'+ZH[kind]+'示例（1024）');
     lbCode.textContent=code;
     var bs=lbKinds.querySelectorAll('button');
@@ -336,6 +409,8 @@ JS = """
     else if(e.key==='ArrowRight') step(1);
   });
 
+  /* 读 hash 必须在建卡之后：setAllKind 要遍历 cards */
+  readHash();
   apply();
 })();
 """
@@ -345,46 +420,64 @@ HTML = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>风格码库 · Midjourney Styles 参考（__COUNT__ 个码）</title>
-<meta name="description" content="Midjourney Styles 榜单的风格码（--sref）索引，共 __COUNT__ 个码，每个码附人像 / 风景 / 静物三张示例图，可一键复制 --sref 参数。">
-<meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme:light)">
-<meta name="theme-color" content="#0c0a09" media="(prefers-color-scheme:dark)">
+<title>__TITLE__</title>
+<meta name="description" content="__DESC__">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="canonical" href="__SITE__/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="__OGSITE__">
+<meta property="og:title" content="__OGTITLE__">
+<meta property="og:description" content="__OGDESC__">
+<meta property="og:url" content="__SITE__/">
+<meta property="og:image" content="__SITE__/og-cover.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="__TWTITLE__">
+<meta name="twitter:description" content="__TWDESC__">
+<meta name="twitter:image" content="__SITE__/og-cover.jpg">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script type="application/ld+json">__SCHEMA__</script>
+__FAQ_LD__
 <script>
-  /* 与主站共用 localStorage 的 mje.theme：在主站切过主题，这里跟着变 */
-  try{var t=localStorage.getItem('mje.theme'); if(t==='light'||t==='dark') document.documentElement.dataset.theme=t;}catch(e){}
+  /* 主题跟随参考素材库（ms.theme）：在入口页或别的站切过主题，这里跟着变 */
+  try{var t=localStorage.getItem('ms.theme'); if(t==='light'||t==='dark') document.documentElement.dataset.theme=t;}catch(e){}
 </script>
 <style>__CSS__</style>
 </head>
 <body>
 <header>
   <div class="wrap hd">
-    <p class="eyebrow">MJ-EXPLORE-01 · Styles</p>
-    <h1>风格码库</h1>
-    <a class="back" href="../">&larr; 探索镜像</a>
+    <p class="eyebrow">__EYEBROW__</p>
+    <h1>__H1__</h1>
+    <a class="back" href="../">&larr; __BACK__</a>
   </div>
   <div class="wrap">
-    <p class="lead">原站 Styles 榜单里的风格码，即提示词里 <code>--sref</code> 后面那串数字。
-      每个码附人像 / 风景 / 静物三张示例图，用来判断这套视觉语言长什么样。
-      这些条目在原站本身就不带 prompt。</p>
+    <p class="lead">__LEAD__</p>
   </div>
 </header>
 <div class="bar">
   <div class="wrap barin">
-    <input id="q" type="search" placeholder="搜码（任意几位数字）" aria-label="按码搜索" autocomplete="off">
-    <label class="chk"><input id="onlyNew" type="checkbox"> 只看最近新增</label>
-    <button id="copyAll" class="btn" type="button">复制全部码</button>
+    <div class="seg" id="kindSeg" role="group" aria-label="全站示例图构图"></div>
+    <input id="q" type="search" placeholder="__SEARCH__" aria-label="按码搜索" autocomplete="off">
+    <label class="chk"><input id="onlyNew" type="checkbox"> __ONLYNEW__</label>
+    <button id="copyAll" class="btn" type="button">__COPYALL__</button>
     <span id="count">__COUNT__ 个码</span>
   </div>
 </div>
 <main class="wrap">
   <div id="grid" class="grid"></div>
-  <p id="empty" hidden>没有匹配的码。</p>
+  <p id="empty" hidden>__EMPTY__</p>
+  __SEOINTRO__
 </main>
 <footer>
   <div class="wrap">
     <p>共 <strong>__COUNT__</strong> 个风格码、<strong>__SHOTS__</strong> 张示例图（每码三张 × 两档）。最近一次采集：__CAPTURED__。</p>
     <p>码与示例图来自 <a href="https://www.midjourney.com/explore?tab=styles_top" target="_blank" rel="noopener noreferrer">Midjourney Explore · Styles</a>，著作权归各原作者；本站为个人学习用途的索引，请勿再分发图片文件，引用请回链原站。</p>
     <p>复制 <code>--sref &lt;码&gt;</code> 直接贴进 Midjourney 提示词即可套用该风格。</p>
+    <p><a href="browse/">按示例图类型浏览</a> · <a href="../">← 参考素材库</a></p>
   </div>
 </footer>
 <div id="lb" class="lb" hidden>
@@ -404,20 +497,60 @@ HTML = """<!DOCTYPE html>
 """
 
 
-def build_html(items, latest, meta):
-    db = {"latest": latest, "codes": [[code, added] for code, added in items]}
-    return (HTML
+def build_html(items, latest, meta, site_url="https://example.com", extra=None):
+    """extra: 由 build_gallery.py 注入的站点协议内容（文案 / SEO / FAQ / seo-intro）。
+
+    extra 为 None 时按「独立小页」渲染（只填码表与计数），站点协议相关的占位符
+    留空 —— 单独跑本脚本时页面仍是一张能用的完整页面。
+    """
+    db = {"latest": latest, "imgPrefix": IMG_PREFIX,
+          "codes": [[code, added] for code, added in items]}
+    x = dict(extra or {})
+    x.setdefault("title", "风格码库 · Midjourney Styles 参考（%d 个码）" % len(items))
+    x.setdefault("desc", "Midjourney Styles 榜单的风格码（--sref）索引，共 %d 个码，"
+                         "每个码附人像 / 风景 / 静物三张示例图，可一键复制 --sref 参数。"
+                         % len(items))
+    x.setdefault("ogsite", "MJ Styles")
+    x.setdefault("ogtitle", x["title"])
+    x.setdefault("ogdesc", x["desc"])
+    x.setdefault("twtitle", x["title"])
+    x.setdefault("twdesc", x["desc"])
+    x.setdefault("schema", "")
+    x.setdefault("faqld", "")
+    x.setdefault("seointro", "")
+    x.setdefault("eyebrow", "MJ-STYLES-01 · Styles")
+    x.setdefault("h1", "风格码库")
+    x.setdefault("back", "参考素材库")
+    x.setdefault("lead", "原站 Styles 榜单里的风格码，即提示词里 <code>--sref</code> 后面那串数字。"
+                         "每个码附人像 / 风景 / 静物三张示例图，用来判断这套视觉语言长什么样。")
+    x.setdefault("search", "搜码（任意几位数字）")
+    x.setdefault("onlynew", "只看最近新增")
+    x.setdefault("copyall", "复制全部码")
+    x.setdefault("empty", "没有匹配的码。")
+    html = (HTML
             .replace("__CSS__", CSS)
             .replace("__JS__", JS)
             .replace("__DB__", "var DB=" + json.dumps(db, ensure_ascii=False, separators=(",", ":")) + ";")
             .replace("__COUNT__", str(len(items)))
             .replace("__SHOTS__", str(len(items) * len(KINDS)))
             .replace("__CAPTURED__", (meta.get("captured_at") or "").replace("T", " ")[:16]))
+    for key, val in (("SITE", site_url), ("TITLE", x["title"]), ("DESC", x["desc"]),
+                     ("OGSITE", x["ogsite"]), ("OGTITLE", x["ogtitle"]),
+                     ("OGDESC", x["ogdesc"]), ("TWTITLE", x["twtitle"]),
+                     ("TWDESC", x["twdesc"]), ("SCHEMA", x["schema"]),
+                     ("FAQ_LD", x["faqld"]), ("SEOINTRO", x["seointro"]),
+                     ("EYEBROW", x["eyebrow"]), ("H1", x["h1"]), ("BACK", x["back"]),
+                     ("LEAD", x["lead"]), ("SEARCH", x["search"]),
+                     ("ONLYNEW", x["onlynew"]), ("COPYALL", x["copyall"]),
+                     ("EMPTY", x["empty"])):
+        html = html.replace("__" + key + "__", val)
+    return html
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=OUT_DEFAULT)
+    ap.add_argument("--site-url", default=os.environ.get("SITE_URL", "https://example.com"))
     args = ap.parse_args()
 
     items, latest, meta = load_items()
@@ -433,7 +566,7 @@ def main():
               "删掉该码的 s/ 目录重跑即可）", file=sys.stderr)
         return 1
 
-    html = build_html(items, latest, meta)
+    html = build_html(items, latest, meta, site_url=args.site_url)
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w", encoding="utf-8", newline="\n") as f:
         f.write(html)

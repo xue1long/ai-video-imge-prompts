@@ -55,11 +55,12 @@
 | [Shisei 姿势线稿](https://photoai.life/shisei/) | 无脸人偶线稿，四个系列、每个姿势 5 个视角，偏性感的默认模糊 | 280 个姿势 / 1,133 张 | **CC0** |
 | [提示词生图集](https://photoai.life/prompts/) | AI 生图成图与提示词对照，两个模型（Imge-2 / Nano Banana）、可按模型与 41 个官方分类筛选，一条提示词的多张成图归为一条素材 | 26,458 条 / 41,261 张 | **CC BY 4.0** |
 | [Midjourney 探索榜](https://photoai.life/midjourney-explore/) | Midjourney 官网 Explore 热门榜的镜像，每条社区作业附原始英文提示词，按采集日与画面宽高比筛选 | 400 条作业 / 1,600 张 | 禁止再分发 |
+| [Midjourney 风格码库](https://photoai.life/mj-styles/) | Midjourney 官网 Explore Styles 榜单的风格码（`--sref`）索引，一码三张语义示例图（人像 / 风景 / 静物），可全站切换构图 | 329 个码 / 987 张 | 禁止再分发 |
 | [Midjourney 提示词集](https://photoai.life/prompthero-midjourney/) | Midjourney 提示词与成图对照，v1–v7 与 Niji 共 13 个版本、14 个分类，含成人内容分区（默认模糊） | 12,998 条 | 禁止再分发 |
 
 每个站都有：网格分页加载、筛选与搜索、灯箱（`←` `→` 翻页，`Esc` 关闭，手机可滑动）、原图下载、主题与语言切换。页面是单个 `index.html`，数据内嵌，没有框架、CDN 和外部字体。
 
-> **人像集和 Shisei 是 CC0**，姿势、深度姿势、服装、Midjourney 探索榜、Midjourney 提示词集五站的素材禁止再分发，**提示词生图集为 CC BY 4.0（可商用、须署名，作者与来源逐条保留）**。Shisei 的姿势目录沿用 ai-pose-gallery，只注明出处。Midjourney 提示词集的素材由 PromptHero 用户上传、Midjourney 探索榜的成图由社区用户生成，引用须回链原站。详见各站的 `sites/<id>/NOTICE.md`。
+> **人像集和 Shisei 是 CC0**，姿势、深度姿势、服装、Midjourney 探索榜、Midjourney 风格码库、Midjourney 提示词集六站的素材禁止再分发，**提示词生图集为 CC BY 4.0（可商用、须署名，作者与来源逐条保留）**。Shisei 的姿势目录沿用 ai-pose-gallery，只注明出处。Midjourney 提示词集的素材由 PromptHero 用户上传、Midjourney 探索榜的成图与风格码库的示例图由社区用户生成，引用须回链原站。详见各站的 `sites/<id>/NOTICE.md`。
 
 ## 快速开始
 

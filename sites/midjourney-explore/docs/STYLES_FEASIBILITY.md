@@ -556,6 +556,12 @@ python scripts/capture_session.py --cdp http://127.0.0.1:9333
 
 ## 十二、风格码库页面（2026-11-03 落地）
 
+> ⚠️ **本节描述的是拆分前的形态**：当时页面在 `midjourney-explore` 站内的
+> `styles/index.html`，由该站的 `scripts/build_styles_page.py` 生成。
+> **当天晚些时候已拆成兄弟站 `sites/mj-styles/`（§13）**，页面挪到新站的
+> 站点根 `index.html`，脚本与数据文件一并迁走。
+> 本节保留作为**决策依据的留档**（为什么长这样），当前形态见 §13。
+
 `styles/index.html` 是这批数据唯一的展示面，由 `scripts/build_styles_page.py` 生成。
 它不是 `tools/build.py` 的产物——`build.py` 只跑各站的 `build_gallery.py`，
 所以**改完码表要单独重跑第 3 步**，否则页面停在上一轮（测试会盯着这一点：
@@ -586,6 +592,73 @@ python scripts/capture_session.py --cdp http://127.0.0.1:9333
 
 已知边界：`release.py --no-images` 不会带 `styles/`，此时页面图片全 404——
 与「不发布图片」的本意一致，不额外处理。
+
+---
+
+## 十三、2026-11-03 拆分：风格码库独立成站（MJ-STYLES-01）
+
+§12 落地时，风格码库是 `midjourney-explore` 站里的一个独立静态页
+（`/midjourney-explore/styles/`）。**当天晚些时候拆成了兄弟站**
+`sites/mj-styles/`（路径 `/mj-styles/`），页面也挪到了站点根 `index.html`。
+
+### 13.1 为什么拆
+
+拆分的依据是三条实测事实，不是「感觉内容不同」：
+
+| 事实 | 出处 |
+|---|---|
+| Styles 是**独立内容类型**：一个码 + 三张语义图，**无 prompt、无作者、无标签** | §11 的浮层实测 |
+| 329 个 Styles 码与探索榜的 45 个 sref 码**交集 = 0** | 2026-11-03 实测比对 |
+| 两边的数据结构对不上：Styles 一码三图，Explore 一作业四格 | 两边 manifest 直接比对 |
+
+交集为 0 这一条最关键：它推翻了此前「探索榜的码能跳到风格码库」的假设，
+也说明「在同一个站里用分面近似出 Styles 视图」的做法是错的
+（那筛的其实是「挂了 sref 的作业」，与原站那个 tab **同名不同义**）。
+
+于是 WebUI 侧那个「风格」视图**已删除**（`tests/run.py` 有
+`assertNotIn("styles", views)` 防回归），`风格参考` 标签保留。
+
+### 13.2 拆分时踩到的三个坑
+
+| 坑 | 现象 | 根因 | 处理 |
+|---|---|---|---|
+| **`fetch_hook.py` 搬过头** | MJ 站的 `tools/fetch.py` 拿不到 Cloudflare 通行证，CDN 全 403 | `shared/assets.py` 会**自动发现** `sites/<id>/scripts/fetch_hook.py`，搬走后钩子换了归属 | `git mv` 搬回 MJ 站。**钩子是站级共享件，不是站级私产** |
+| **Node 搬 35 个目录只成功 1 个** | `renameSync` 后 34 个报 `MISSING` | Python 在 Windows 写的文本是 **CRLF**，Node 按 `\n` 切分后每行尾部残留 `\r` | 改用 Python `shutil.move`（同语言，无此问题）。**跨 Python/Node 传列表必须显式处理行尾** |
+| **`styles_images.json` 口径与码表不符** | 364 条 = 329×1024 + 35×384，多出的 35 条不在码表里 | 探测批（探索榜的 45 个码）的记录混进了榜单状态表 | 清理状态表；35 个码的清单与 404 名单另存 `data/styles_probe.json` |
+
+另有一个**档位不一致**的问题在拆分前就发现了：探测批是 384 档、库内码是 1024 档。
+若并库会导致灯箱静默降质，且 `fetch_styles.py` 的幂等判据（文件存在且 >1024 字节
+即跳过）会让重跑全量也**补不成 1024**。所以探测批不入库。
+
+### 13.3 拆分后新暴露的三个缺陷（已修 + 已加回归）
+
+拆站不是「移文件」，它把原先被掩盖的问题暴露了出来：
+
+| 缺陷 | 现象 | 根因 | 回归 |
+|---|---|---|---|
+| **索引分面恒等筛选** | WebUI 里「构图/人像」点了还是全部 329 条 | 构图是**图级**属性（329 码**全部**含人像/风景/静物），而 `sync_grouped` 只从 head（恒 portrait）取标签 | 撤掉该站的分面（`facets: {}`），构图只留在站点落地页 |
+| **首页不读 hash** | 落地页的「在画廊中查看全部」点了跳回默认人像视图 | `build_gallery.py` 写 `gallery_hash="kind=<slug>"`，但首页 JS 完全没有 `location.hash` 读取（其余 8 个站都有） | 首页加 `#kind=` 读取 + 全站构图切换器；新增 `test_gallery_hash_params_are_read` 反查「落地页用了哪个参数，首页就必须读」 |
+| **catalog 校验假通过** | `group_by` 声明根本没被校验 | `"title": "code"` 让 `code` 进 `_group_candidates` 的 skip 集 → 候选为空 → `continue` | 改 `"title": None`（标题回落到 gid=code，显示不变但校验有效），并加 `ignored: ["kind","kindZh"]` |
+
+### 13.4 落地页与首页的构图语义
+
+构图是**图级**属性，所以落地页 `#kind=<slug>` 的语义只能是
+**「全站切到该构图」**（329 张卡一起换），不能是「筛选出该构图的码」——
+后者恒等于全部 329 条。
+
+因此首页顶部加了三态切换器（人像 / 风景 / 静物），语义与卡内的三态按钮**分开**：
+
+- 顶部 seg = **全站显示哪种构图**（筛选语义，与 `#kind=` 双向同步）
+- 卡内 `.kinds` = **这一码看哪张图**（浏览语义，不动 seg）
+
+浏览器实测（2026-11-03，本地 `python -m http.server`）：
+
+```
+#kind=landscape → kindDist={"landscape":329}    329 张卡全切，不是只有首卡
+点击 seg        → afterClickHash=#kind=still-life   写回用 slug，与落地页同一套取值
+用该 hash 重载  → roundTripDist={"still_life":329}   往返无偏差
+落地页 CTA      → /mj-styles/#kind=still-life         静物高亮 + 首图是静物
+```
 
 ---
 
