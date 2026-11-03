@@ -67,6 +67,8 @@ def file_specs(sid, cfg, rec):
 
 # 每个集合的字段映射。键是目标语义，值是 manifest 里的原始键。
 # facets 是 OrderedDict 的语义：ns（分面名）→ manifest 键。
+# derived_facets：manifest 里没有该字段，按判定键非空写固定值：ns → [(判定键, 显示值)]。
+# ignored：索引明确不用的 manifest 字段（站点页面要用），声明了才不算「未映射」。
 # files 里每一项 (kind, key)，kind 对应 derivative 表的 kind。
 SOURCES = {
     "portrait": {
@@ -146,9 +148,18 @@ SOURCES = {
         # title 是提示词原文的前 80 字；title_alt 用完整提示词
         "title": "title",
         "title_alt": "prompt",
-        # 官网 Explore 榜没有官方分类，唯一稳定可枚举的维度是画面宽高比
-        # 「风格参考」是 p 值（原站点开图片显示 sref 2918660786），做成标签便于检索
-        "facets": {"宽高比": "aspect", "版本": "version", "风格参考": "sref", "批次": "batch"},
+        # 分面只留能真正分组的两维：宽高比 29 种（长尾每个只有 4 张）、风格参考
+        # 是「一码一条」的标识而不是分类，两者做左栏分面噪声大于信息，已撤掉
+        # （宽高比/风格参考仍留在 manifest 里：站点页面的徽标与灯箱复制要用）。
+        # 版本目前只有 8.2 一种值、批次按采集日，留着有信息量。
+        "facets": {"版本": "version", "批次": "batch"},
+        # 派生分面：manifest 里没有对应字段，按「判定键非空」写一条固定值。
+        # 用 sref 而不是 hasStyleRef —— 后者 108 条里有 74 条是图片型风格参考，
+        # 没有码；「有 sref 码」= 真的能复制出一串 --sref 参数的作业（34 条）。
+        "derived_facets": {"类别": [("sref", "有 sref 码")]},
+        # 宽高比不进索引（站点页面要用，索引里宽高已有 width/height 列）。
+        # 不声明这一条，unmapped_report 会把 aspect 一直报成「未映射字段」。
+        "ignored": ["aspect"],
         # 「视图」= 集合内的顶层分层。facet 只给命名空间 = 存在性过滤
         # （该命名空间下有任意标签即命中）。本集合只有两个视图：
         #   图像 → 不加过滤，本集合的全部条目
@@ -305,6 +316,21 @@ def build_portrait_like(sid, cfg):
     return rows, seen_keys
 
 
+def derived_facet_pairs(cfg, rec):
+    """派生分面 → [(命名空间, 值)]：manifest 里没有这个字段，按「判定键非空」写固定值。
+
+    声明在 SOURCES 的 derived_facets 里：{命名空间: [(manifest 键, 显示值), ...]}。
+    典型用途是「存在性」类别（如本站的「有 sref 码」）。CSV 导出与数据库同步
+    都调这一份，两边的分面口径不会有第二份实现。
+    """
+    out = []
+    for ns, rules in (cfg.get("derived_facets") or {}).items():
+        for key, value in rules:
+            if rec.get(key):
+                out.append((ns, value))
+    return out
+
+
 def _row_for(sid, cfg, gid, grp):
     """把一组记录（组内第一条即 head）写成一行 CSV。"""
     head = grp[0]
@@ -321,6 +347,7 @@ def _row_for(sid, cfg, gid, grp):
             facets.extend((ns, v) for v in val)
         elif val:
             facets.append((ns, val))
+    facets.extend(derived_facet_pairs(cfg, head))
 
     row = {c: "" for c in CSV_COLS}
     row["collection"] = sid
@@ -447,6 +474,11 @@ def unmapped_report(sid, seen, cfg):
     consumed.update((cfg.get("extra") or {}).values())
     consumed.update(cfg["facets"].values())
     consumed.update(cfg.get("facets", {}).keys())
+    # 派生分面的判定键也是「已消费」：它被拿去算标签了，不是漏映射
+    for rules in (cfg.get("derived_facets") or {}).values():
+        consumed.update(key for key, _value in rules)
+    # 显式声明「这个字段索引不用」：站内页面用、索引不用（如宽高比）
+    consumed.update(cfg.get("ignored") or [])
     missing = sorted(k for k in seen if k not in consumed and not k.endswith("_url"))
     return missing
 

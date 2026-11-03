@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import hashlib
 import json
 import os
 import sys
@@ -103,7 +104,11 @@ def zh_for(ns, name):
 
 
 def signature(root):
-    """各集合 manifest（+ 提示词站的多份文本数据）的 mtime+size 签名，用来判断要不要重建。"""
+    """各集合 manifest（+ 提示词站的多份文本数据）的 mtime+size 签名，用来判断要不要重建。
+
+    还要带上字段映射表本身的摘要：分面声明改了而 manifest 一个字节没动时，
+    只看 manifest 会让 sync 直接跳过 —— 新分面永远不出现，且没有任何报错。
+    """
     parts = []
     for sid, cfg in catalog.SOURCES.items():
         rels = [cfg.get(key) for key in ("manifest", "meta")]
@@ -115,7 +120,16 @@ def signature(root):
             if os.path.exists(p):
                 st = os.stat(p)
                 parts.append(f"{sid}:{rel}:{int(st.st_mtime)}:{st.st_size}")
+    parts.append("catalog:" + mapping_digest())
     return "|".join(parts)
+
+
+def mapping_digest():
+    """catalog.SOURCES 的摘要（只取声明本身，改注释不影响重建）。"""
+    payload = json.dumps(catalog.SOURCES, sort_keys=True, ensure_ascii=False,
+                         separators=(",", ":"))
+    return hashlib.sha1(payload.encode("utf-8")).hexdigest()
+
 
 
 # ── 写入 ────────────────────────────────────────────────────────
@@ -174,6 +188,11 @@ def facet_pairs(facets_cfg, rec, flags=None):
     return out
 
 
+def item_facets(cfg, rec, flags=None):
+    """一条记录该写哪些 (命名空间, 值)：映射表里的分面 + 声明式派生分面。"""
+    return facet_pairs(cfg["facets"], rec, flags) + catalog.derived_facet_pairs(cfg, rec)
+
+
 def sync_rows(conn, sid, cfg, recs):
     """通用处理：一行一条；或按 cfg["group_by"] 声明的键聚合成一条。
 
@@ -211,7 +230,7 @@ def sync_rows(conn, sid, cfg, recs):
             prompt_raw=prompt_raw,
             generator_meta="",
         )
-        write_tags(conn, item_id, facet_pairs(cfg["facets"], rec))
+        write_tags(conn, item_id, item_facets(cfg, rec))
 
         specs = catalog.file_specs(sid, cfg, rec)
         present = {kind: v[0] for kind, v in specs.items()}
@@ -289,7 +308,7 @@ def sync_grouped(conn, sid, cfg, recs, group_key):
             published_at=str(group_field(head, "published_at")),
             model=str(group_field(head, "model")),
         )
-        write_tags(conn, item_id, facet_pairs(cfg["facets"], head))
+        write_tags(conn, item_id, item_facets(cfg, head))
 
         for ordinal, rec in enumerate(grp):
             specs = catalog.file_specs(sid, cfg, rec)
@@ -354,7 +373,7 @@ def sync_prompts(conn, cfg, root):
             published_at=m.get("published") or "",
             model=m.get("model") or "",
         )
-        write_tags(conn, item_id, facet_pairs(cfg["facets"], m, flags=FLAGS))
+        write_tags(conn, item_id, item_facets(cfg, m, flags=FLAGS))
 
         for ordinal, rec in enumerate(g["files"]):
             original = rec.get("full_path")

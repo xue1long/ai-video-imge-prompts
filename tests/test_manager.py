@@ -1286,5 +1286,67 @@ class Sources(Base):
         self.assertEqual(body["error"], "bad_request")
 
 
+def midjourney_root(tmp):
+    """Midjourney 探索榜：一条作业四格、共用一段提示词。
+
+    两条作业里只有 jobA 真的带 sref 码；jobB 的 hasStyleRef=1 但没有码
+    （图片型风格参考）——「类别 / 有 sref 码」只能命中 jobA。
+    """
+    r = Root(tmp)
+    write(r.rel("sites.json"), json.dumps(
+        {"sites": [{"id": "midjourney-explore", "name": {"zh": "Midjourney 探索榜"}}]},
+        ensure_ascii=False))
+    rows = []
+    for job_id, sref, order in (("jobA", "2918660786", 0), ("jobB", "", 1)):
+        for index in range(4):
+            stem = f"{job_id}_{index}"
+            base = f"https://cdn.midjourney.com/{job_id}/0_{index}"
+            rows.append({
+                "id": stem, "jobId": job_id, "index": index, "batch": "2026-11-03",
+                "prompt": "a cat on a chair", "title": "a cat on a chair",
+                "aspect": "1:1", "version": "8.2", "username": "u1", "displayName": "U1",
+                "enqueueTime": 1762000000 + order, "width": 1024, "height": 1024,
+                "hasStyleRef": 1, "sref": sref,
+                "sourceUrl": "https://www.midjourney.com/jobs/" + job_id,
+                "thumb_url": base + "_640_N.webp",
+                "thumb_path": r.site_image("midjourney-explore", f"thumbs/{stem}.webp"),
+                "mid_url": base + "_1024_N.webp",
+                "mid_path": r.site_image("midjourney-explore", f"mid/{stem}.webp"),
+                "full_url": base + ".png",
+                "_ck_url": "https://www.midjourney.com/explore",
+            })
+    r.manifest("midjourney-explore", rows)
+    return r
+
+
+class MidjourneyFacets(Base):
+    """探索榜分面：宽高比 / 风格参考已撤，改由「类别」做存在性筛选。"""
+
+    make_root = staticmethod(midjourney_root)
+
+    def facets(self, **params):
+        params.setdefault("collection", "midjourney-explore")
+        status, body, _ = self.srv.get("/api/facets", **params)
+        self.assertEqual(status, 200)
+        return body["facets"]
+
+    def test_facet_namespaces_are_version_batch_category(self):
+        namespaces = {f["ns"] for f in self.facets()}
+        self.assertEqual(namespaces, {"版本", "批次", "类别"},
+                         "宽高比 / 风格参考 不该再做分面：%s" % sorted(namespaces))
+
+    def test_category_lists_only_items_with_sref_code(self):
+        cats = [(f["name"], f["count"]) for f in self.facets() if f["ns"] == "类别"]
+        self.assertEqual(cats, [("有 sref 码", 1)],
+                         "类别应只命中真带 sref 码的那条作业（jobB 只有 hasStyleRef=1）")
+
+    def test_category_filters_the_grid(self):
+        _, body, _ = self.srv.get("/api/items", collection="midjourney-explore",
+                                  facet="类别:有 sref 码")
+        self.assertEqual(body["total"], 1)
+        _, all_items, _ = self.srv.get("/api/items", collection="midjourney-explore")
+        self.assertEqual(all_items["total"], 2, "四格应聚合成一条素材（两条作业 = 2 条）")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

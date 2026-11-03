@@ -584,6 +584,41 @@ class IndexMapping(unittest.TestCase):
         extra = [s for s in src if s not in SITES]
         self.assertEqual(extra, [], "catalog.SOURCES 里有 sites.json 没有的站")
 
+    def test_midjourney_facet_declaration(self):
+        """探索榜的分面：宽高比 / 风格参考已撤，「类别」是派生的存在性分面。
+
+        宽高比 29 种、长尾每个只有 4 张；风格参考一码一条，是标识不是分类。
+        两者做左栏分面噪声大于信息，改由「类别 / 有 sref 码」筛「真的能复制出一串
+        --sref」的作业（hasStyleRef=1 但没有码的图片型风格参考不算）。
+        """
+        sys.path.insert(0, os.path.join(ROOT, "index"))
+        import catalog
+        cfg = catalog.SOURCES["midjourney-explore"]
+        self.assertEqual(set(cfg["facets"]), {"版本", "批次"})
+        self.assertEqual(cfg.get("derived_facets"), {"类别": [("sref", "有 sref 码")]})
+        self.assertIn("aspect", cfg.get("ignored") or [],
+                      "宽高比不进索引，必须在 ignored 里声明，否则报未映射字段")
+
+    def test_midjourney_derived_facet_fires_only_when_sref_present(self):
+        sys.path.insert(0, os.path.join(ROOT, "index"))
+        import catalog
+        cfg = catalog.SOURCES["midjourney-explore"]
+        rows = json.loads(read(cfg["manifest"]))
+        with_sref = [r for r in rows if (r.get("sref") or "").strip()]
+        hits = [r for r in rows if catalog.derived_facet_pairs(cfg, r)]
+        self.assertTrue(with_sref, "manifest 里一条带 sref 码的都没有，测试失去意义")
+        self.assertEqual([r["id"] for r in hits], [r["id"] for r in with_sref])
+
+    def test_midjourney_manifest_fields_stay_mapped(self):
+        """撤分面不能把字段丢成「未映射」：aspect 归 ignored，sref 归派生分面。"""
+        sys.path.insert(0, os.path.join(ROOT, "index"))
+        import catalog
+        cfg = catalog.SOURCES["midjourney-explore"]
+        seen = set()
+        for rec in json.loads(read(cfg["manifest"]))[:200]:
+            seen.update(rec.keys())
+        self.assertEqual(catalog.unmapped_report("midjourney-explore", seen, cfg), [])
+
     def test_views_declare_top_level_options(self):
         """集合内视图（分层）的配置约定。
 
@@ -1140,6 +1175,23 @@ class MjFullOnline(unittest.TestCase):
         img_dir = os.path.join(ROOT, "sites", "midjourney-explore", "img")
         self.assertFalse(os.path.exists(img_dir),
                          "img/ 目录应已清理（online 档本地不留原图）")
+
+    def test_mapping_change_invalidates_sync_signature(self):
+        """改了分面声明而 manifest 一个字节没动：签名必须变，否则 sync 直接跳过。
+
+        跳过时没有任何报错，只是新分面永远不出现——这正是「改了配置像没改」的
+        静默失败。签名只摘要声明本身，改注释不触发重建。
+        """
+        sync = self._load("index/sync.py", "idx_sync_sig")
+        before = sync.signature(ROOT)
+        cfg = sync.catalog.SOURCES["midjourney-explore"]
+        try:
+            cfg["facets"]["__probe__"] = "version"
+            after = sync.signature(ROOT)
+        finally:
+            cfg["facets"].pop("__probe__", None)
+        self.assertNotEqual(before, after, "映射表变了，签名却没变（sync 会跳过重建）")
+        self.assertEqual(sync.signature(ROOT), before, "恢复配置后签名应回到原值")
 
     def test_media_url_passthrough(self):
         """前端拼地址：本地路径加 /media/，外链原样返回。"""
