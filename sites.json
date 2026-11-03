@@ -418,7 +418,8 @@
       ],
       "imageDirs": [
         "thumbs",
-        "mid"
+        "mid",
+        "styles"
       ],
       "author": {
         "name": "Midjourney 社区",

@@ -106,7 +106,7 @@ FETCH_PROXY=http://127.0.0.1:7897 python tools/fetch.py --site midjourney-explor
 
 ## 风格数据线（Styles）
 
-原站右上角的 Styles 是**独立内容类型**，不在 `feed=top` 的返回里。它有三个脚本：
+原站右上角的 Styles 是**独立内容类型**，不在 `feed=top` 的返回里。三步一条链路：
 
 ```bash
 cd sites/midjourney-explore
@@ -114,12 +114,18 @@ cd sites/midjourney-explore
 # 1) 取码（需要登录态，见下）
 python scripts/dump_styles.py --state "%USERPROFILE%\.workbuddy\secrets\midjourney-session.json"
 
-# 2) 下图（不需要登录，CDN 直连）
+# 2) 下图 + 生成本地 384 缩略（不需要登录，CDN 直连）
 python scripts/fetch_styles.py --size 1024
+
+# 3) 重建风格码库页面（缺图会直接失败，不会生成半成品页）
+python scripts/build_styles_page.py
 
 # 会话过期时：起独立 profile 的 Chrome 人工登录，再跑
 python scripts/capture_session.py --cdp http://127.0.0.1:9333
 ```
+
+三步各有独立产物（码表 / 图片 / 页面），可以单独验证，所以**不自动串成一条命令**：
+只补几张图时不该顺带改写已发布的 HTML。
 
 会话文件放在 `%USERPROFILE%\.workbuddy\secrets\midjourney-session.json`，**不要放 `.scratch/`**（那里会被清理）。`__Host-Midjourney.AuthUserTokenV3_*` 约 30 天有效，`cf_clearance` 约 1 年。
 
@@ -127,12 +133,24 @@ python scripts/capture_session.py --cdp http://127.0.0.1:9333
 
 | 路径 | 内容 | 是否入库 |
 |---|---|---|
-| `data/styles.json` | 清单：feed / captured_at / 累计码表 / 每次抓取快照 | 是 |
+| `data/styles.json` | 清单：feed / captured_at / 累计码表（含 `added_at`）/ 每次抓取快照 | 是 |
 | `data/styles_images.json` | 每码每类图的命中状态 | 是 |
-| `styles/<码>/portrait.webp` 等 | 三类示例图，每码三张（329 码共 987 张，235 MB） | 否（`.gitignore`） |
+| `styles/index.html` | **风格码库页面**，单文件 29 KB，码表内嵌 | 是（`.gitignore` 单独放行） |
+| `styles/<码>/{portrait,landscape,still_life}.webp` | 1024 档示例图，灯箱用（987 张，235 MB） | 否 |
+| `styles/<码>/s/<kind>.webp` | 384 缩略，网格用，由 1024 本地缩放（987 张，17.5 MB） | 否 |
+
+**风格码库页面**（`/midjourney-explore/styles/`）是这一串数据唯一的展示面：
+一码一卡，网格走 384 缩略（首屏约 9 张 ≈ 125 KB），点开灯箱才拉 1024；
+卡上三态切换（人像 / 风景 / 静物）、一键复制 `--sref <码>`、回链原站、
+按码搜索、只看最近一轮新增、复制当前筛选结果的全部码。
+主题跟随主站的 `localStorage['mje.theme']`，不单独做开关。
+
+发布时 `styles/` 靠 `sites.json` 的 `imageDirs` 带上（`release.py` 走硬链接），
+不在 `SITE_DIRS` 里——它不是构建产物，是本地生成后随工作区发布的图片目录。
 
 **每个码有三张语义化单图**：`portrait` / `landscape` / `still_life`，
-同一风格的三个不同题材。CDN 上只有 128 / 384 / 640 / 1024 四档。
+同一风格的三个不同题材。CDN 上只有 128 / 384 / 640 / 1024 四档；缩略不额外下载，
+由 `fetch_styles.py` 从 1024 本地缩出来（幂等：比源旧才重建）。
 
 **榜单是滚动的**：单次抓取只有 200 条，相隔 45 分钟的两次抓取重合 139 条（约 30% 换血）。
 所以 `dump_styles.py` 默认**合并累积**，重复跑就是在攒库 —— 不需要一次抓全。

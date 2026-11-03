@@ -23,7 +23,9 @@ SITES = [s["id"] for s in CFG["sites"]]
 SKIP_BUILD = ["prompts"]
 # 数据分片外置的站：data/gallery.js 是索引（入库），data/gallery_<key>.js 是分片（不入库）
 SHARD_INDEX = ["prompts", "prompthero-midjourney"]
-PAGES = ["hub/index.html"] + [f"sites/{s}/{f}" for s in SITES for f in ("index.html", "404.html")]
+PAGES = ["hub/index.html"] + [f"sites/{s}/{f}" for s in SITES for f in ("index.html", "404.html")] + [
+    # 风格码库：独立静态页，由 scripts/build_styles_page.py 生成（不是 tools/build.py 的产物）
+    "sites/midjourney-explore/styles/index.html"]
 BUILD_OUTPUT = ["hub/index.html", "hub/robots.txt", "hub/sitemap.xml", "hub/llms.txt"] + [
     f"sites/{s}/{f}" for s in SITES for f in ("index.html", "404.html", "robots.txt", "sitemap.xml")] + [
     f"sites/{s}/data/landing.json" for s in SITES] + [
@@ -153,6 +155,23 @@ class Pages(unittest.TestCase):
         for s in SITES:
             size = os.path.getsize(os.path.join(ROOT, f"sites/{s}/index.html"))
             self.assertLess(size, 450 * 1024, f"{s}/index.html {size // 1024} KB，超出 450 KB")
+
+    def test_styles_page_matches_code_list(self):
+        """风格码库页面与 data/styles.json 必须同口径。
+
+        页面是生成物（scripts/build_styles_page.py），码表以 `var DB=` 内嵌。
+        少一个码等于发布一个看不见的残缺页，所以两边做集合比对。
+        """
+        sid = "midjourney-explore"
+        data = json.loads(read(f"sites/{sid}/data/styles.json"))
+        h = read(f"sites/{sid}/styles/index.html")
+        m = re.search(r"var DB=(\{.*?\});", h, re.S)
+        self.assertIsNotNone(m, "页面里找不到内嵌的 DB= 数据块")
+        db = json.loads(m.group(1))
+        want = {str(it["code"]) for it in data["items"]}
+        self.assertEqual({str(c) for c, _ in db["codes"]}, want,
+                         "页面里的码与 data/styles.json 不一致，重跑 scripts/build_styles_page.py")
+        self.assertTrue(db.get("latest"), "页面缺 latest，「只看最近新增」会失效")
 
     def test_inline_js_syntax(self):
         node = shutil.which("node")
@@ -557,7 +576,7 @@ class IndexMapping(unittest.TestCase):
     def test_views_declare_top_level_options(self):
         """集合内视图（分层）的配置约定。
 
-        视图是「集合内的顶层分层」——如 midjourney-explore 的 图像/风格/视频。
+        视图是「集合内的顶层分层」——如 midjourney-explore 的 图像/视频。
         约定：
           · 至少两个（一个视图等于没分层）
           · 键 k 不重复、都要有展示名 name
@@ -582,15 +601,22 @@ class IndexMapping(unittest.TestCase):
                 ok = ns in declared or ns in catalog.RESERVED_NS
                 self.assertTrue(ok, f"{sid} 的视图 {v['k']} 用了既没声明也没预留的命名空间 {ns!r}")
 
-    def test_midjourney_explore_has_three_views(self):
-        """Midjourney 探索榜要对齐原站的三个选项：图像 / 风格 / 视频。"""
+    def test_midjourney_explore_has_two_views(self):
+        """Midjourney 探索榜的视图：图像 / 视频。
+
+        「风格」视图已于 2026-11-03 删除：原站 Styles 是独立内容类型
+        （sref 码 + 三张语义图，无 prompt / 无作者），与集合里「挂了 sref 的作业」
+        同名不同义。风格实体改由站点 styles/ 页承载，不进 WebUI 集合。
+        这个断言是防回归——防止有人又用 facet="风格参考" 把它近似回来。
+        """
         cfg = self.sources().get("midjourney-explore")
         self.assertIsNotNone(cfg, "catalog.SOURCES 里没有 midjourney-explore")
         views = {v["k"]: v for v in cfg.get("views") or []}
-        for k in ("images", "styles", "videos"):
+        for k in ("images", "videos"):
             self.assertIn(k, views, f"midjourney-explore 缺少视图 {k}")
-        self.assertEqual(views["styles"]["facet"], "风格参考",
-                         "风格视图应按 sref 码（风格参考标签）过滤")
+        self.assertNotIn("styles", views,
+                         "「风格」视图已弃用：原站 Styles 与「挂了 sref 的作业」不是一回事，"
+                         "不要再用 facet=风格参考 近似")
         self.assertIsNone(views["images"]["facet"], "图像视图应覆盖整个集合")
 
     def test_grouped_sites_declare_group_by(self):

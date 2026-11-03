@@ -471,7 +471,7 @@ def list_items(conn, collection=None, page=1, size=120, facets=None, q=None, inc
             args.extend([ns, name])
         else:
             # 只要命名空间、不要值：存在性过滤（该命名空间下有任意标签即命中）。
-            # 用途是集合内的「视图」——如「风格」= 带 sref 码的条目 = 有「风格参考」标签。
+            # 用途是集合内的「视图」——如「视频」= 「类型」命名空间下有任意标签的条目。
             where.append(
                 "EXISTS (SELECT 1 FROM item_tag it JOIN tag t ON t.id=it.tag_id "
                 "WHERE it.item_id=item.id AND t.ns=?)"

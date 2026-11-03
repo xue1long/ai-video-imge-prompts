@@ -914,7 +914,7 @@ def inject_seo_intro(rows, urls, cfg):
     facts = [("成图", "%d 张" % n_images), ("作业", "%d 条" % n_jobs),
              ("作者", "%d 位" % len({r["username"] for r in rows})),
              ("授权", "禁止再分发")]
-    links = [("browse/", "按宽高比浏览")]
+    links = [("browse/", "按宽高比浏览"), ("styles/", "风格码库")]
     card = landing_mod.static_intro(sp["introParas"](n_jobs, n_images), facts, links, sp["faq"])
     # 插到 </footer> 之前
     marker = "</footer>"

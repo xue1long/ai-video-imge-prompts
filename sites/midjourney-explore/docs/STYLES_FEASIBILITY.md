@@ -1,6 +1,6 @@
 # Styles 数据线可行性结论
 
-> 状态：**可行并已落地 —— 登录态下单次取到 Top day 全量 200 个风格码；每码三张示例图匿名可下（§11，2026-11-03 定案）**
+> 状态：**可行并已落地 —— 登录态下单次取到 Top day 全量 200 个风格码；每码三张示例图匿名可下（§11，2026-11-03 定案）；累计 329 码已生成可浏览页面 `/midjourney-explore/styles/`（§12）**
 > 日期：2026-11-02（首版 22:30，定案 23:40）；2026-11-03 追加 §10、§11 两次修正
 > 方法：前端 bundle 反查 + 生产采集链路实测 + 登录态 Chrome（Playwright/CDP）实测
 > 结论前置：**Styles 的「列表 / 排行」只在登录态下存在，匿名无旁路（§4）。
@@ -380,7 +380,9 @@ https://cdn.midjourney.com/styles/0_<码>/grid_4x2_<宽度>_N.webp
 | 主键 | job UUID | `0_<码>` |
 | 数据来源 | `/api/explore`（已有） | `/styles/0_<码>` 的 og:image（§10.1） |
 
-两者同名不同义。若将来真做 styles 集合，`index/catalog.py` 里那个视图名必须先改。
+两者同名不同义。**2026-11-03 处理完毕**：WebUI 里的「风格」视图**已删除**
+（集合只剩 图像 / 视频，测试防回归），§10.6 这张对照表里的「8 格示例拼图」
+也已被 §11.3 推翻（实际是三张语义化单图）。风格实体只由 `styles/` 页面承载（§12）。
 
 ---
 
@@ -474,10 +476,13 @@ cdn.midjourney.com/styles/0_<码>/still_life_<尺寸>_N.webp
 |---|---|
 | `scripts/dump_styles.py` | 取码。`--cdp` 接管已开 Chrome / `--state` 用会话文件起全新 Chrome / `--profile --login` 等人工登录 |
 | `scripts/capture_session.py` | **取会话**。等人工登录 → 导出 `storage_state` → 自动跑一次接口自检。会话过期后重跑这一个就行 |
-| `scripts/fetch_styles.py` | 下图。`--size` / `--codes` / `--limit` / `--force`，幂等跳过已存在文件 |
-| `data/styles.json` | 清单（feed / captured_at / 累计 code / snapshots 快照账本）—— **入库** |
+| `scripts/fetch_styles.py` | 下图 + 生成 384 缩略。`--size` / `--codes` / `--limit` / `--force`，幂等跳过已存在文件；缩略由大图本地缩放（比源旧才重建） |
+| `scripts/build_styles_page.py` | 生成 `styles/index.html`。缺任何一档图即非零退出并列出缺哪个，不产出半成品页 |
+| `data/styles.json` | 清单（feed / captured_at / 累计 code / `added_at` / snapshots 快照账本）—— **入库** |
 | `data/styles_images.json` | 每个码每类图的命中状态 —— **入库** |
-| `styles/<码>/{portrait,landscape,still_life}.webp` | 图片本体，`.gitignore` 已加 `sites/*/styles/`，**不入库** |
+| `styles/index.html` | 风格码库页面（单文件 29 KB，码表内嵌）—— **入库**（`.gitignore` 单独放行） |
+| `styles/<码>/{portrait,landscape,still_life}.webp` | 1024 档图片本体，灯箱用，**不入库** |
+| `styles/<码>/s/<kind>.webp` | 384 缩略，网格用，**不入库** |
 
 会话文件位置（**必须在仓库外**）：
 
@@ -492,7 +497,8 @@ cdn.midjourney.com/styles/0_<码>/still_life_<尺寸>_N.webp
 ```bash
 cd sites/midjourney-explore
 python scripts/dump_styles.py --state "%USERPROFILE%\.workbuddy\secrets\midjourney-session.json"   # 取码
-python scripts/fetch_styles.py --size 1024                                                        # 下图
+python scripts/fetch_styles.py --size 1024                                                        # 下图 + 384 缩略
+python scripts/build_styles_page.py                                                               # 重建页面
 ```
 
 会话过期时（接口返回 401 / 500）：
@@ -513,6 +519,8 @@ python scripts/capture_session.py --cdp http://127.0.0.1:9333
 | 图片 | **987 张**（portrait / landscape / still_life 各 329） |
 | 失败 | **0 个 404、0 个错误**（三次合计 987 次请求全部命中） |
 | 体积 | 235 MB（单张 14–690 KB；三类平均 251 / 276 / 240 KB） |
+| 缩略 | 987 张 384 档，**17.5 MB**（平均 18 KB），本地缩放 0 失败 |
+| 页面 | `styles/index.html` 29 KB；首屏实测只拉 **9 张 / 125 KB** |
 | 耗时 | 首跑 600 张 10 分 45 秒；补 183 张 3 分 50 秒；补 204 张 3 分 45 秒（`--sleep 0.25~0.3`） |
 
 三次快照的重合度：第 1↔2 次重合 139/200（30% 换血），第 2↔3 次重合 132/200（34% 换血）。
@@ -537,8 +545,46 @@ python scripts/capture_session.py --cdp http://127.0.0.1:9333
    styles_top_month` 三个 feed 未实测数据量与重叠度。
 3. **数据本身很薄**。一个风格只有「码 + 三张图」，没有提示词、没有作者。
    做「风格速查」够用，做「风格详情页」撑不起来。
-4. **WebUI 的「风格」视图仍与本文的 Styles 同名不同义**（§10.6），
-   若要在 WebUI 加集合，必须先给 `index/catalog.py` 里那个 facet 改名。
+4. **WebUI 不再镜像 Styles**（2026-11-03 定案）。此前 `index/catalog.py` 用
+   `facet="风格参考"` 近似出来的「风格」视图（筛的是「挂了 sref 的作业」）与原站这个
+   tab 同名不同义，已删除；集合只剩「图像 / 视频」两个视图，并有测试守着不让它回来。
+   `facets` 里的「风格参考」标签**保留**——它描述「这条作业挂了 sref」这个事实，
+   检索仍然有用，只是不再冒充成一整层。风格实体只由本目录的 `styles/` 页面承载。
+
+---
+
+## 十二、风格码库页面（2026-11-03 落地）
+
+`styles/index.html` 是这批数据唯一的展示面，由 `scripts/build_styles_page.py` 生成。
+它不是 `tools/build.py` 的产物——`build.py` 只跑各站的 `build_gallery.py`，
+所以**改完码表要单独重跑第 3 步**，否则页面停在上一轮（测试会盯着这一点：
+`tests/run.py` 里 `test_styles_page_matches_code_list` 比对页面内嵌码表与
+`data/styles.json`）。
+
+### 12.1 页面形态
+
+| 决策 | 选择 | 理由 |
+|---|---|---|
+| 落点 | 站点内独立静态页 `styles/`，不进导航、不进 sitemap | 走 `shared/landing.py` 那套落地页要动 `landing.json`、sitemap 与三层闸门，代价远超收益 |
+| 一卡几图 | 一码一卡，卡内三态切换 | 三张图是同一套视觉语言的三个场景，拆成三卡会被误读成三个风格 |
+| 图片档位 | 网格 384 / 灯箱 1024 | 首屏实测 9 张 125 KB；不点灯箱永不拉 1024 |
+| 缩略来源 | 1024 本地缩放，不额外下 CDN 的 384 | 原站 384 大概率同源编码，本地 Lanczos 肉眼无差；省一次 987 次网络流程 |
+| 排序 | `added_at` 倒序（新码在前） | 榜单顺序每轮都在变，只有首次收录时间稳定；「只看最近新增」也靠它 |
+| 缺图 | 硬失败，列出缺哪个码哪一档 | 静默降级会发布出一个慢一倍还看不出问题的页面 |
+| 复制 | 主按钮 `--sref <码>` | 唯一「拿来就能贴进 prompt」的形态；码本身另作纯文本展示 |
+
+`added_at` 是合并累积时补的字段：首次收录写入当次快照时间，之后每轮沿用旧值。
+历史 329 条由三次快照的 `new`（200 / 61 / 68）按 items 插入顺序反推补齐。
+
+### 12.2 发布链路
+
+`styles/` 不在 `tools/release.py` 的 `SITE_DIRS`（那里只有 `data`），而是加进
+`sites.json` 的 `imageDirs`，走 `copy_tree_links` 的硬链接复制。代价：加了
+`imageDirs` 会改变 hub 入口页的体量统计，`hub/index.html` 必须跟着重建
+（`tests/run.py` 的构建产物一致性测试会拦住这件事）。
+
+已知边界：`release.py --no-images` 不会带 `styles/`，此时页面图片全 404——
+与「不发布图片」的本意一致，不额外处理。
 
 ---
 

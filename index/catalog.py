@@ -149,15 +149,21 @@ SOURCES = {
         # 官网 Explore 榜没有官方分类，唯一稳定可枚举的维度是画面宽高比
         # 「风格参考」是 p 值（原站点开图片显示 sref 2918660786），做成标签便于检索
         "facets": {"宽高比": "aspect", "版本": "version", "风格参考": "sref", "批次": "batch"},
-        # 「视图」= 集合内的顶层分层，对齐原站 Explore 的 Styles / Images / Videos
-        # 三个选项。facet 只给命名空间 = 存在性过滤（该命名空间下有任意标签即命中）：
+        # 「视图」= 集合内的顶层分层。facet 只给命名空间 = 存在性过滤
+        # （该命名空间下有任意标签即命中）。本集合只有两个视图：
         #   图像 → 不加过滤，本集合的全部条目
-        #   风格 → 带 sref 码的条目（有「风格参考」标签）
         #   视频 → 命名空间「类型」；上游 explore 的 video feed 尚未采集，
         #          采集入库后给视频条目打「类型/视频」标签，这里自动生效
+        #
+        # 原站 Explore 的三个 tab 里还有一个 Styles，但**本站不镜像它**：
+        # 原站「风格」（2026-11-03 实测）是独立内容类型——一个 sref 码 + 三张
+        # 语义图（portrait / landscape / still_life），没有 prompt、没有作者，
+        # 与本集合「一条作业四格成图」的素材结构不同源。此前用
+        # facet="风格参考" 近似出来的「风格」视图，实际筛的是「挂了 sref 的
+        # 作业」，与原站那个 tab 同名不同义，已删除。风格实体由站点
+        # sites/midjourney-explore/styles/ 单独承载（码表 data/styles.json）。
         "views": [
             {"k": "images", "name": "图像", "facet": None},
-            {"k": "styles", "name": "风格", "facet": "风格参考"},
             {"k": "videos", "name": "视频", "facet": "类型"},
         ],
         # full 档直连上游（imagePolicy.full=online）：原图 2.3 GB/天，

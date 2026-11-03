@@ -457,7 +457,7 @@ async function loadCollections(){
     if(!c.items) continue;
     tabs.append(mk(c.slug, c.name, c.items));
   }
-  /* 当前集合的「视图」（集合内顶层分层，如 图像 / 风格 / 视频） */
+  /* 当前集合的「视图」（集合内顶层分层，如 图像 / 视频） */
   const cur = collections.find(c=>c.slug===state.collection);
   state.views = (cur && cur.views) || [];
   renderViews();

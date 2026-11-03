@@ -18,7 +18,10 @@
     # 3) 都没有时：起一个 Chrome 并等待人工登录
     python scripts/dump_styles.py --profile "%USERPROFILE%\\.workbuddy\\mj-profile" --login
 
-输出：data/styles.json（feed / captured_at / count / items[code,id,width,height,type]）
+输出：data/styles.json
+    feed / source / captured_at / count / snapshots[]
+    items[] = code, id, width, height, type, added_at
+    （added_at 是首次收录时间，合并时沿用旧值；「最近新增」靠它判定）
 
 登录态来源：人工在 Chrome 里登录 midjourney.com 后，用 scripts/capture_session.py 导出
     python scripts/capture_session.py --cdp http://127.0.0.1:9333
@@ -165,6 +168,9 @@ def main():
 
         # 榜单是**滚动**的：实测相隔约 45 分钟的两次抓取重合 139/200（约 30% 换血），
         # 重合项位置平均偏移 22 位。所以默认合并累积，不覆盖已有码。
+        #
+        # added_at = 这个码**首次**被收录的那次快照时间，是「最近新增」的判据。
+        # 合并时必须沿用旧值：榜单顺序每轮都在变，只有首次收录时间是稳定的。
         merged, snapshots = {}, []
         if not args.no_merge and os.path.exists(args.out):
             try:
@@ -175,6 +181,8 @@ def main():
                 merged, snapshots = {}, []
         added = [it["code"] for it in fresh if it["code"] not in merged]
         for it in fresh:
+            prev = merged.get(it["code"]) or {}
+            it["added_at"] = prev.get("added_at") or now
             merged[it["code"]] = it
         snapshots.append({"at": now, "feed": args.feed, "count": len(fresh), "new": len(added)})
 

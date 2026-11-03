@@ -239,7 +239,7 @@ class Collections(Base):
 
 
 class Views(Base):
-    """集合内的顶层分层（视图）：三个选项 = 图像 / 风格 / 视频。
+    """集合内的顶层分层（视图），如 图像 / 视频。
 
     视图的配置源是 catalog.SOURCES；这里临时给 portrait 挂一组视图，
     验证「视图计数」与「按同一条件过滤出来的条数」永远是同一个口径。
