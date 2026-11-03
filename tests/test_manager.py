@@ -1348,5 +1348,178 @@ class MidjourneyFacets(Base):
         self.assertEqual(all_items["total"], 2, "四格应聚合成一条素材（两条作业 = 2 条）")
 
 
+def styles_root(tmp):
+    """风格码站：一个码三张构图图，按 code 聚合成一条素材。"""
+    r = portrait_root(tmp)
+    rows = []
+    for i, code in enumerate(["1005826943", "1050544466"]):
+        for j, kind in enumerate(["portrait", "landscape", "still_life"]):
+            rows.append(
+                {
+                    "id": f"{code}_{kind}",
+                    "code": code,
+                    "index": j,
+                    "kind": kind,
+                    "kindZh": {"portrait": "人像", "landscape": "风景", "still_life": "静物"}[kind],
+                    "addedAt": "2026-11-03T00:50:08+08:00",
+                    "sourceUrl": f"https://www.midjourney.com/styles/0_{code}",
+                    "width": 896,
+                    "height": 1344,
+                    "thumb_path": r.site_image("mj-styles", f"styles/{code}/s/{kind}.png"),
+                    "thumb_url": f"https://cdn.midjourney.com/styles/0_{code}/{kind}_384_N.webp",
+                    "full_path": r.site_image("mj-styles", f"styles/{code}/{kind}.png"),
+                    "full_url": f"https://cdn.midjourney.com/styles/0_{code}/{kind}_1024_N.webp",
+                }
+            )
+    r.manifest("mj-styles", rows)
+    write(
+        r.rel("sites.json"),
+        json.dumps(
+            {"meta": {}, "sites": [
+                {"id": "portrait", "name": {"zh": "人像集"}},
+                {"id": "mj-styles", "name": {"zh": "Midjourney 风格码库"}},
+            ]},
+            ensure_ascii=False,
+        ),
+    )
+    return r
+
+
+class AutoSync(Base):
+    """服务端的自动重同步。
+
+    坑的由来：serve 以前只在「库文件不存在」时同步一次。于是往
+    catalog.SOURCES 和 sites.json 里各加一行之后，站点页面一切正常，
+    但 WebUI 里那条集合永远是空的——静默失效，零报错。
+    拆 mj-styles 那次就栽在这里：交付时只验了临时库，真实库没同步。
+
+    这里盯的是「库建好之后，manifest 又变了」这条路径。
+    """
+
+    make_root = staticmethod(styles_root)
+
+    def test_new_collection_appears_without_manual_resync(self):
+        # 服务起来时库已经建好，集合只有 portrait
+        _, body, _ = self.srv.get("/api/collections")
+        slugs = [c["slug"] for c in body["collections"]]
+        self.assertIn("portrait", slugs)
+
+        # 现在往 sites.json 里加一个新站，并写它的 manifest
+        write(
+            self.root.rel("sites.json"),
+            json.dumps(
+                {"meta": {}, "sites": [
+                    {"id": "portrait", "name": {"zh": "人像集"}},
+                    {"id": "mj-styles", "name": {"zh": "Midjourney 风格码库"}},
+                ]},
+                ensure_ascii=False,
+            ),
+        )
+        self.root.manifest(
+            "mj-styles",
+            [
+                {
+                    "id": "9001_portrait", "code": "9001", "index": 0, "kind": "portrait",
+                    "kindZh": "人像", "addedAt": "2026-11-03T00:50:08+08:00",
+                    "sourceUrl": "https://www.midjourney.com/styles/0_9001",
+                    "width": 896, "height": 1344,
+                    "thumb_path": self.root.site_image("mj-styles", "styles/9001/s/portrait.png"),
+                    "thumb_url": "https://cdn.midjourney.com/styles/0_9001/portrait_384_N.webp",
+                    "full_path": self.root.site_image("mj-styles", "styles/9001/portrait.png"),
+                    "full_url": "https://cdn.midjourney.com/styles/0_9001/portrait_1024_N.webp",
+                }
+            ],
+        )
+
+        # 不手动 sync，直接请求：新站应该自己出现
+        _, body, _ = self.srv.get("/api/collections")
+        counts = {c["slug"]: c["items"] for c in body["collections"]}
+        self.assertIn(
+            "mj-styles", counts,
+            "manifest 变了却没重同步：WebUI 里查不到新加的集合（%s）" % sorted(counts),
+        )
+        self.assertEqual(counts["mj-styles"], 1)
+
+    def test_items_of_new_collection_are_reachable(self):
+        self.root.manifest(
+            "mj-styles",
+            [
+                {
+                    "id": "9001_portrait", "code": "9001", "index": 0, "kind": "portrait",
+                    "kindZh": "人像", "addedAt": "2026-11-03T00:50:08+08:00",
+                    "sourceUrl": "https://www.midjourney.com/styles/0_9001",
+                    "width": 896, "height": 1344,
+                    "thumb_path": self.root.site_image("mj-styles", "styles/9001/s/portrait.png"),
+                    "thumb_url": "https://cdn.midjourney.com/styles/0_9001/portrait_384_N.webp",
+                    "full_path": self.root.site_image("mj-styles", "styles/9001/portrait.png"),
+                    "full_url": "https://cdn.midjourney.com/styles/0_9001/portrait_1024_N.webp",
+                }
+            ],
+        )
+        _, body, _ = self.srv.get("/api/items", collection="mj-styles")
+        self.assertEqual(body["total"], 1)
+        self.assertEqual(body["items"][0]["title"], "9001")
+
+    def test_stale_index_is_refreshed_when_manifest_changes(self):
+        """manifest 内容变了（条目数变了）也要跟着变，不只是「加站」。"""
+        _, body, _ = self.srv.get("/api/items", collection="mj-styles")
+        self.assertEqual(body["total"], 2, "起始应有 2 个码")
+
+        # 再加一个码
+        with open(self.root.rel("sites/mj-styles/manifest.json"), encoding="utf-8") as fh:
+            rows = json.load(fh)
+        rows.append(
+            {
+                "id": "7777_portrait", "code": "7777", "index": 0, "kind": "portrait",
+                "kindZh": "人像", "addedAt": "2026-11-03T00:50:08+08:00",
+                "sourceUrl": "https://www.midjourney.com/styles/0_7777",
+                "width": 896, "height": 1344,
+                "thumb_path": self.root.site_image("mj-styles", "styles/7777/s/portrait.png"),
+                "thumb_url": "https://cdn.midjourney.com/styles/0_7777/portrait_384_N.webp",
+                "full_path": self.root.site_image("mj-styles", "styles/7777/portrait.png"),
+                "full_url": "https://cdn.midjourney.com/styles/0_7777/portrait_1024_N.webp",
+            }
+        )
+        self.root.manifest("mj-styles", rows)
+
+        _, body, _ = self.srv.get("/api/items", collection="mj-styles")
+        self.assertEqual(body["total"], 3, "manifest 加了一条，索引没跟上")
+
+    def test_no_reload_disables_automatic_sync(self):
+        """--no-reload 要真的起作用：不再自动同步。"""
+        serve_mod.Handler.auto_sync = False
+        try:
+            self.root.manifest(
+                "mj-styles",
+                [
+                    {
+                        "id": "9001_portrait", "code": "9001", "index": 0, "kind": "portrait",
+                        "kindZh": "人像", "addedAt": "2026-11-03T00:50:08+08:00",
+                        "sourceUrl": "https://www.midjourney.com/styles/0_9001",
+                        "width": 896, "height": 1344,
+                        "thumb_path": self.root.site_image("mj-styles", "styles/9001/s/portrait.png"),
+                        "thumb_url": "https://cdn.midjourney.com/styles/0_9001/portrait_384_N.webp",
+                        "full_path": self.root.site_image("mj-styles", "styles/9001/portrait.png"),
+                        "full_url": "https://cdn.midjourney.com/styles/0_9001/portrait_1024_N.webp",
+                    }
+                ],
+            )
+            _, body, _ = self.srv.get("/api/items", collection="mj-styles")
+            self.assertEqual(
+                body["total"], 2,
+                "--no-reload 开了却还是同步了：索引被偷偷重建",
+            )
+        finally:
+            serve_mod.Handler.auto_sync = True
+
+    def test_sync_if_stale_returns_false_when_nothing_changed(self):
+        first = serve_mod.sync_if_stale(self.root.path, self.srv.db)
+        self.assertFalse(first, "没变就不该重建")
+        self.assertTrue(
+            serve_mod.sync_if_stale(self.root.path, self.srv.db, force=True),
+            "force=True 必须重建",
+        )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

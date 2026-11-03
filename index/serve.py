@@ -4,10 +4,14 @@
 契约见 docs/SPEC_MATERIAL_MANAGER.md，改动端点前先改那份文档。
 同一个进程既发接口又发静态页面，前端不需要跨域，也不需要第二个服务。
 
+读接口之前会按需重同步索引：manifest 或字段映射变了就重建（见 sync_if_stale）。
+加站之后 WebUI 里查不到新集合，就是缺了这一步。
+
 用法:
   python index/serve.py                  # http://127.0.0.1:8787/
   python index/serve.py --port 9000
   python index/serve.py --root <dir>     # 指定数据根（测试用）
+  python index/serve.py --no-reload      # manifest 变了也不自动同步
 """
 from __future__ import annotations
 
@@ -20,6 +24,7 @@ import shutil
 import socket
 import sys
 import tempfile
+import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -46,6 +51,12 @@ class Handler(BaseHTTPRequestHandler):
     db_path = "gallery.db"
     config = {}
     server_version = "MaterialManager/1.0"
+    # 自动重同步的闸门：manifest 或字段映射变了就重建索引。
+    # 以前这里只判断「库在不在」——库在就永远不同步，于是新加的站
+    # （加进 catalog.SOURCES + sites.json 之后）在 WebUI 里根本查不到，
+    # 而站点页面一切正常，没有任何报错。拆 mj-styles 那次就栽在这里。
+    auto_sync = True
+    sync_lock = threading.Lock()
 
     def read_json(self):
         n = int(self.headers.get("Content-Length") or 0)
@@ -80,6 +91,9 @@ class Handler(BaseHTTPRequestHandler):
             path = urllib.parse.unquote(parsed.path)
             query = urllib.parse.parse_qs(parsed.query)
             if path.startswith("/api/"):
+                # 读接口前按需重同步：manifest 变了（采集更新 / 加站）时
+                # 索引跟着变。否则库里还是旧内容，页面看着正常但数据是陈的。
+                maybe_sync()
                 return self.route_api(path, query)
             if path == "/" or path == "/index.html":
                 return self.serve_web("index.html")
@@ -576,6 +590,59 @@ def make_server(root, db_path, port=DEFAULT_PORT):
     return httpd
 
 
+def sync_if_stale(root, db_path, force=False):
+    """manifest / 字段映射变了就重建索引；没变就什么都不做。
+
+    返回 True 表示这次真的重建了。
+
+    为什么要有这个函数：以前 serve 只在「库文件不存在」时同步一次。
+    于是加站（往 catalog.SOURCES 和 sites.json 里各加一行）之后，
+    站点页面一切正常，但 WebUI 里那条集合永远是空的——
+    静默失效，没有任何报错。拆 mj-styles 那次就栽在这里，
+    交付时只验了临时库，真实库没同步。
+
+    判定用 sync.signature()：各站 manifest 的 mtime+size + 字段映射表的摘要，
+    算一次约 1 ms，放在请求路径上也不算负担。
+    """
+    if not os.path.exists(db_path):
+        import sync as sync_mod
+
+        sync_mod.sync(root, db_path)
+        return True
+    try:
+        import sync as sync_mod
+        import store as store_mod
+
+        conn = store_mod.connect(db_path)
+        try:
+            same = (
+                not force
+                and store_mod.kv_get(conn, "manifest_signature") == sync_mod.signature(root)
+                and store_mod.kv_get(conn, "schema_version") == str(store_mod.SCHEMA_VERSION)
+            )
+        finally:
+            conn.close()
+        if same:
+            return False
+        sync_mod.sync(root, db_path, force=force)
+        return True
+    except Exception as e:  # noqa: BLE001 - 同步失败不能拖垮整个服务
+        print(f"[同步] 失败：{e}")
+        return False
+
+
+def maybe_sync():
+    """在请求进来时按需重同步。用锁避免并发请求同时触发重建。"""
+    if not Handler.auto_sync:
+        return
+    if not Handler.sync_lock.acquire(blocking=False):
+        return  # 另一个请求正在同步，等它
+    try:
+        sync_if_stale(Handler.root, Handler.db_path)
+    finally:
+        Handler.sync_lock.release()
+
+
 def free_port(start=DEFAULT_PORT):
     for port in range(start, start + 40):
         with socket.socket() as s:
@@ -597,10 +664,10 @@ def main():
 
     root = os.path.abspath(args.root)
     db = args.db or os.path.join(root, "gallery.db")
-    if not os.path.exists(db):
-        import sync as sync_mod
-
-        sync_mod.sync(root, db)
+    # 启动时先同步一次：库不存在就建；库存在但 manifest/字段映射变过就重建。
+    # 以前只在「库不存在」时同步，于是加站后 WebUI 里那条集合永远是空的。
+    Handler.auto_sync = not args.no_reload
+    sync_if_stale(root, db)
 
     port = args.port or free_port(DEFAULT_PORT)
     httpd = make_server(root, db, port)

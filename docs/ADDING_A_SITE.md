@@ -177,6 +177,28 @@ python tests/run.py                    # 含索引接线测试
 `check_wiring.py` 逐站核对「实际条目数 == 按配置推算的条目数」，
 `tests/run.py` 的 `IndexMapping` 核对清单、聚合声明、字段映射是否自洽。
 
+**⚠ 一定要对**真实库**跑，别只验临时库。**
+
+索引是**一份文件**（`gallery.db`），站点页面和 WebUI 各读一份数据：
+页面读 `manifest.json`，WebUI 读库。两者不同步时，
+**站点页面一切正常，但 WebUI 里那条集合永远是空的**——零报错。
+
+更隐蔽的一种：拿临时库（`--db /tmp/x.db`）验完就说「全部核对通过」，
+但真实库根本没重建。拆 `mj-styles` 那次就是这么交的，
+交付前只验了临时库，真实库停留在加站之前的状态，
+用户在 WebUI 里根本看不到新站。
+
+规矩：
+
+- `check_wiring.py` 的 `--db` **默认就是真实库**（`gallery.db`），
+  不要为了省事传临时库路径，那等于没验。
+- 跑完 `sync.py` 后，**确认 serve 进程是新的**：
+  改了 `catalog.py` 之后，旧 serve 进程不会自动加载新代码，必须杀掉重启。
+- 现在 serve 会**自动重同步**（读接口前按 manifest 签名判断，见 §9），
+  但自动重同步只覆盖「进程还活着」的情况；
+  改完 `catalog.py` 之后**旧的进程里跑的还是旧代码**，照样看不到新站。
+
+
 ## 6. 声明取图策略（这一站的图片从哪来）
 
 站点清单 `sites.json` 里每站要声明 `imagePolicy`，按档位给出，三种取值：
@@ -226,6 +248,32 @@ python index/verify.py           # 有上游地址的资产不再报缺图
   `verify.py` 保证最终每条每档都有可用文件。
 
 上线到已有服务器的步骤见 [DEPLOY.md](../deploy/DEPLOY.md) §6。
+
+## 9. 索引什么时候重建（serve 的自动重同步）
+
+`index/serve.py` 在**读接口进来之前**会判断索引是否过期：
+`sync.signature()` 算出「各站 manifest 的 mtime+size + 字段映射表的摘要」，
+跟库里存的 `manifest_signature` 比。一样就什么都不做；不一样就重建。
+
+- 判定成本约 **1 ms**（`signature()` 实测），放在请求路径上不心疼。
+- **加站自动生效**：往 `catalog.SOURCES` 和 `sites.json` 里各加一行之后，
+  manifest 的 mtime 变了 → 签名变了 → 下一次读接口就重建 → 新站立刻出现在 WebUI。
+- `--no-reload` 可以关掉这个行为（以前这个参数声明了但从没被读过，是个死参数）。
+- 重建**保留用户标注**：`store.reset()` 先把标签 / 收藏 / 隐藏 / 手工挂图
+  存进 `_keep_*` 临时表，`restore_user_data()` 再放回来。
+
+**但自动重同步只覆盖「进程还活着」的情况。**
+改了 `catalog.py`（比如加了分面、改了视图）之后，
+**旧 serve 进程里跑的还是旧代码**——它启动时加载过一次模块，
+不会自动重新 import。这时候必须杀掉重启。
+
+判断「serve 跑的是新代码」有个现成的探针：
+
+```bash
+# 打这个接口，如果返回的 URL 是纯 CDN 地址（没有多余的 /media/ 前缀），
+# 说明进程加载的是新代码
+curl -s "http://127.0.0.1:8788/api/items?collection=midjourney-explore&size=1"
+```
 
 ## 设计约定
 
