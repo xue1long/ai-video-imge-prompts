@@ -34,8 +34,7 @@ sys.path.insert(0, SITE)
 sys.path.insert(0, os.path.join(ROOT, "shared"))
 
 import landing as landing_mod                                   # noqa: E402
-from config import (CODE, FACET_GROUP, FAQ, IMAGE_BASES, KIND_SLUG,  # noqa: E402
-                    KIND_ZH, KINDS, SEO, SOURCE, UI)
+from config import CODE, FAQ, IMAGE_BASES, KINDS, SEO, SOURCE, UI  # noqa: E402
 import build_styles_page as page_mod                            # noqa: E402
 
 SITE_URL = os.environ.get("SITE_URL", "https://example.com").rstrip("/")
@@ -63,41 +62,15 @@ def fill(text, stats):
 
 
 def build_facets(items):
-    """按示例图类型分面：人像 / 风景 / 静物，各一张示例图一个码。"""
-    by_kind = {k: [] for k in KINDS}
-    for code, added in items:
-        for k in KINDS:
-            by_kind[k].append((code, added))
+    """返回 (site, facets)。facets 为空 → 本站不生成落地页。
 
-    facets = []
-    for k in KINDS:
-        codes = by_kind[k]
-        if not codes:
-            continue
-        zh = KIND_ZH[k]
-        facets.append(landing_mod.Facet(
-            slug="kind/%s" % KIND_SLUG[k],
-            title=f"{zh}示例图的 Midjourney 风格码 · {len(codes)} 个",
-            h1=f"{zh} · Midjourney 风格码库",
-            description=(f"Midjourney 风格码库中以{zh}构图展示的 {len(codes)} 个风格码，"
-                         f"每个码附一张{zh}示例图，可一键复制 --sref 参数。"),
-            intro=[f"这一页收录 Midjourney 风格码库里以{zh}构图展示的 {len(codes)} 个风格码。",
-                   "同一个码在库里有三张示例图（人像 / 风景 / 静物），这里按构图拆开看。",
-                   "码可以直接复制成 --sref 参数贴进提示词。"],
-            items=[landing_mod.Item(
-                thumb="%s%s/s/%s.webp" % (IMG_PREFIX, code, k),
-                alt="风格码 %s 的%s示例图" % (code, zh),
-                caption=code,
-                w=384, h=576) for code, _ in codes],
-            # 落地页回到首页时带上 #kind=<类型>，首页据此筛出该构图
-            gallery_hash="kind=" + KIND_SLUG[k],
-            facts=[("构图类型", zh), ("风格码", "%d 个" % len(codes)),
-                   ("授权", "禁止再分发")],
-            related=[("kind/%s" % KIND_SLUG[o], KIND_ZH[o], len(by_kind[o]))
-                     for o in KINDS if o != k],
-            group=FACET_GROUP,
-            label=zh))
-
+    2026-11-04：这个站**不再生成落地页**（用户裁决）。
+    风格码本身没有可枚举的分类，唯一稳定的分组维度是「这张示例图属于
+    哪种构图」——而这个维度已经由首页顶部的全站构图切换器（#kind=…）
+    覆盖了，再单独开三个落地页只是重复内容、还多一份维护成本。
+    仍然返回 site，是为了让 shared/landing.py 的 write_site 能照常把上次的
+    落地页清掉（写一份空 landing.json），release.py 与 sitemap 随之收敛。
+    """
     site = landing_mod.Site(
         id=os.path.basename(SITE), root=SITE, site_url=SITE_URL,
         name=UI["zh"]["name"], tagline=UI["zh"]["tagline"],
@@ -107,7 +80,7 @@ def build_facets(items):
         index_title=UI["zh"]["name"] + " · 全部示例图类型",
         index_intro="按示例图的构图类型浏览风格码：每个码在库里有三张示例图，"
                     "这里按人像 / 风景 / 静物拆开。")
-    return site, facets
+    return site, []
 
 
 def build_index(items, latest, meta, stats):
@@ -127,7 +100,8 @@ def build_index(items, latest, meta, stats):
         ],
     }
     facts = [(k, fill(v, stats)) for k, v in zh["facts"]]
-    links = [("browse/", "按示例图类型浏览")]
+    # 2026-11-04：落地页已删除，首页不再链到 browse/（会 404）
+    links = []
     paras = [fill(zh["lead"], stats), fill(zh["lead2"], stats)]
     seointro = landing_mod.static_intro(paras, facts, links, FAQ)
 
@@ -212,22 +186,31 @@ def main():
     items, latest, meta = load_codes()
     stats = count_stats(items)
 
-    # 缺图是硬失败：不生成一个图片全 404 的页面（详见 build_styles_page.py）
+    # 缺图：本地有图时才检查，缺了报出来但不阻断构建。
+    #
+    # 为什么不再硬失败（2026-11-04）：
+    #   1. 这个站的图片不入库（.gitignore: sites/*/styles/*），CI 的干净检出
+    #      上必然「缺图 1974 个」。硬失败意味着 CI 永远红。
+    #   2. 更要紧的是「构建产物只取决于配置」这条约定（shared/image_policy.py）：
+    #      同一份代码在有图与无图的环境里必须产出同一份页面。硬失败会让本地
+    #      与 CI 产出不同结果 —— 那正是这个 bug 的根源。
+    #   3. 本地仍然保留告警：缺图时把清单打到 stderr，人能看见。
     missing = page_mod.check_images(items)
     if missing:
-        print("缺图 %d 个，未生成页面：" % len(missing), file=sys.stderr)
+        print("缺图 %d 个（页面仍会生成，部署后需要补图）：" % len(missing), file=sys.stderr)
         for rel in missing[:15]:
             print("  " + rel, file=sys.stderr)
         if len(missing) > 15:
             print("  …还有 %d 个" % (len(missing) - 15), file=sys.stderr)
-        print("\n先补齐：python scripts/fetch_styles.py", file=sys.stderr)
-        return 1
+        print("先补齐：python scripts/fetch_styles.py", file=sys.stderr)
 
     page = build_index(items, latest, meta, stats)
     with open(os.path.join(SITE, "index.html"), "w", encoding="utf-8", newline="\n") as f:
         f.write(page)
 
-    # 静态落地页
+    # 落地页：2026-11-04 起本站不生成落地页（用户裁决）。
+    # 仍然调用 write_site —— 它会把上次生成的落地页清掉（写一份空 landing.json），
+    # 这样 release.py 与 sitemap 都自动跟着收敛，不需要各处单独改。
     site, facets = build_facets(items)
     urls = landing_mod.write_site(site, facets)
     landing_mod.sitemap(SITE_URL, urls, os.path.join(SITE, "sitemap.xml"))
@@ -239,8 +222,9 @@ def main():
     size = os.path.getsize(os.path.join(SITE, "index.html")) / 1024
     print("index.html %.1f KB（%d 个码 / %d 张示例图）"
           % (size, stats["n_codes"], stats["n_shots"]))
-    print("落地页 %d 个" % len(urls))
+    print("落地页 %d 个（本站不生成落地页）" % len(urls))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

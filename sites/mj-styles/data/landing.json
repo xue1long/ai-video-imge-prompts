@@ -1,12 +1,4 @@
 {
- "dirs": [
-  "browse",
-  "kind"
- ],
- "pages": [
-  "browse",
-  "kind/portrait",
-  "kind/landscape",
-  "kind/still-life"
- ]
+ "dirs": [],
+ "pages": []
 }

@@ -1,8 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://example.com/mj-styles/</loc><changefreq>monthly</changefreq><priority>1.0</priority></url>
-  <url><loc>https://example.com/mj-styles/browse/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://example.com/mj-styles/kind/portrait/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://example.com/mj-styles/kind/landscape/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://example.com/mj-styles/kind/still-life/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 </urlset>

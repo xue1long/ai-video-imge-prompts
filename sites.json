@@ -484,7 +484,8 @@
       "imagePolicy": {
         "thumb": "local-only",
         "full": "local-only"
-      }
+      },
+      "landing": false
     },
     {
       "id": "prompthero-midjourney",

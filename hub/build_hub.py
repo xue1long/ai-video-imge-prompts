@@ -344,8 +344,10 @@ def hub_seo(cfg, base):
          "这里是各原站的中文索引镜像：把日文分类、标签和姿势名译成中文，加了组合筛选、搜索和中日切换。"
          "图片著作权归原作者，每个图库页脚都有原站和作者链接。"),
     ]
-    # 入口页上方的卡片已经链到各图库首页，这里链到各图库的分类索引
-    links = [(f"{s['id']}/browse/", f"{s['name']['zh']} · 分类") for s in cfg["sites"]]
+    # 入口页上方的卡片已经链到各图库首页，这里链到各图库的分类索引。
+    # 只有声明了落地页的站才有 browse/ —— 不声明的站链过去就是 404。
+    links = [(f"{s['id']}/browse/", f"{s['name']['zh']} · 分类")
+             for s in cfg["sites"] if s.get("landing", True)]
     intro = landing.static_intro(
         [f"photoai.life 收录 {K} 个 AI 绘画参考图库，共 {N} 张 AI 生成的参考图，可在线浏览、按标签筛选和下载。",
          f"人像集 {stat('portrait', 0)} 张，用来让 AI 生成的角色保持同一张脸，CC0 可商用；"
@@ -385,7 +387,8 @@ def hub_seo(cfg, base):
         lines.append(f"- [{s['name']['zh']}]({base}/{s['id']}/)：{what.get(s['id'], s['desc']['zh'])}"
                      f" 授权：{lic.get(s['id'], '')} 原站：{s['source']}")
     lines += ["", "## 分类与标签索引", ""]
-    lines += [f"- [{s['name']['zh']} · 全部分类]({base}/{s['id']}/browse/)" for s in cfg["sites"]]
+    lines += [f"- [{s['name']['zh']} · 全部分类]({base}/{s['id']}/browse/)"
+              for s in cfg["sites"] if s.get("landing", True)]
     lines += ["", "## 常见问题", ""] + [f"- **{q}** {a}" for q, a in faq]
     lines += ["", "## 其他", "",
               f"- [站点地图]({base}/sitemap.xml)",

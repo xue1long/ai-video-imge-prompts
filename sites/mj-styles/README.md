@@ -23,15 +23,14 @@ sites/mj-styles/
 │   ├── capture_session.py  # 人工登录一次 → 导出 storage_state 会话文件
 │   ├── fetch_styles.py     # 下载三张示例图 → styles/<码>/（1024 + 本地缩放 384）
 │   ├── manifest.py         # data/styles.json → manifest.json
-│   ├── build_gallery.py    # 站点协议层：落地页 + SEO + robots/sitemap/404
+│   ├── build_gallery.py    # 站点协议层：SEO + robots/sitemap/404
 │   └── build_styles_page.py  # 页面主体（码表网格 + 灯箱 + 构图切换），被 build_gallery.py 调用
 ├── data/
 │   ├── styles.json         # 码表（入库）：329 码 + 快照历史 + added_at
 │   ├── styles_images.json  # 每码每类的命中状态（入库）
 │   ├── styles_probe.json   # 探测批留档（入库）：不并入码表的 35 个码
-│   └── landing.json        # 落地页清单（入库）
+│   └── landing.json        # 落地页清单（入库）—— **当前为空**：本站不生成落地页
 ├── manifest.json           # 索引清单（987 行 = 329 码 × 3 张，入库）
-├── browse/ kind/           # 静态落地页（由 shared/landing.py 生成）
 ├── styles/<码>/            # 图片（不入库，用 scripts/fetch_styles.py 下载）
 │   ├── portrait.webp       #   1024 大图（灯箱用）
 │   └── s/portrait.webp     #   384 缩略（网格用，本地从 1024 缩出）
@@ -77,11 +76,18 @@ python scripts/manifest.py     # styles.json → manifest.json
 python scripts/build_gallery.py
 ```
 
-构建产物：`index.html`（首页）、`browse/`（分面索引页）、`kind/`（按构图类型的落地页）、
-`data/landing.json`、`sitemap.xml`、`robots.txt`、`404.html`、`og-cover.jpg`。
+构建产物：`index.html`（首页）、`data/landing.json`（**空清单**）、
+`sitemap.xml`、`robots.txt`、`404.html`、`og-cover.jpg`。
 
-**缺图是硬失败**：任何一个码的任何一档缺失，构建直接非零退出并列出缺什么。
-不做「降级成 1024」这种静默兜底——那会发布出一个慢一倍还看不出问题的页面。
+**本站不生成落地页**（2026-11-04 起）。`sites.json` 里声明 `"landing": false`，
+hub 与 sitemap 据此不再链到 `browse/`。原因：风格码本身没有可枚举的分类
+（原站只有搜索框），唯一稳定的分组维度「这张示例图属于哪种构图」已经由
+首页顶部的全站构图切换器覆盖了，再单独开三个落地页只是重复内容。
+
+**缺图不阻断构建**（2026-11-04 起）：缺图会打到 stderr 列出清单，但构建照常
+生成页面、退出码 0。两个原因：图片不入库，CI 的干净检出上必然「缺图 1974 个」，
+硬失败意味着 CI 永远红；更要紧的是「构建产物只取决于配置」这条约定 ——
+同一份代码在有图与无图的环境里必须产出同一份页面。
 
 ## 排序与筛选
 
@@ -104,10 +110,16 @@ python scripts/build_gallery.py
 | 卡内 `.kinds` 三态按钮 | **这一码看哪张图** | 只改这一张卡，不动 seg |
 
 **不能**做成「筛选出该构图的码」——那是恒等筛选（点了还是全部 329 条）。
-落地页 `kind/<slug>/` 的 CTA 带 `#kind=<slug>`，语义是「全站切到该构图」。
+`#kind=<slug>` 的语义是「全站切到该构图」：用户在地址栏直接敲
+`#kind=still-life`，或从别处带 hash 进来，首页会切到该构图。
 
 slug 取值：`portrait` / `landscape` / `still-life`（`still_life` 的连字符形式，
 与 `config.KIND_SLUG` 一致）。
+
+> 落地页 `kind/<slug>/` 已于 2026-11-04 删除，原先放在那里的 CTA
+> （「在画廊中查看全部」，带 `#kind=<slug>`）随之取消。首页自己读
+> `location.hash` 的能力保留 —— 那段 JS 是给「带 hash 进来」用的，
+> 与落地页在不在无关。
 
 ## 相关文档
 

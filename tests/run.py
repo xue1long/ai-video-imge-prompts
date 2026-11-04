@@ -180,21 +180,22 @@ class Pages(unittest.TestCase):
                          "页面缺 imgPrefix 或写错，图片路径会 404")
 
     def test_styles_page_reads_kind_hash(self):
-        """首页必须读 #kind=…：落地页的「在画廊中查看全部」靠它定位到该构图。
+        """首页必须读 #kind=…：全站构图切换器靠它定位到该构图。
 
         2026-11-03：拆分后 build_gallery.py 写的是 gallery_hash="kind=<slug>"，
         但首页 JS 原本完全不读 location.hash —— 点「在画廊中查看全部」会跳回
         默认的人像视图，落地页与首页之间断链。其余 8 个站都有这段读取。
+
+        2026-11-04：mj-styles 的落地页已删除（用户裁决），不再有页面写
+        gallery_hash="kind="。但首页仍然读 location.hash —— 用户可以直接
+        在地址栏敲 #kind=still-life 切构图，这个能力保留，所以断言只查
+        首页这一侧，不再断言「有页面在写这个 hash」。
         """
         h = read("sites/mj-styles/index.html")
-        self.assertIn("location.hash", h, "首页不读 location.hash，落地页的 #kind= 跳转会失效")
+        self.assertIn("location.hash", h, "首页不读 location.hash，#kind= 定位会失效")
         self.assertIn("kindSeg", h, "首页缺全站构图切换器（#kind= 无处落地）")
-        # slug 取值必须与落地页一致：still_life → still-life
-        self.assertIn("still-life", h, "hash 的 slug 取值与 landing 页的 gallery_hash 不一致")
-        # 落地页确实在写这个 hash
-        src = read("sites/mj-styles/scripts/build_gallery.py")
-        self.assertIn('gallery_hash="kind="', src,
-                      "落地页没写 #kind= 参数，首页的 hash 读取没有对应来源")
+        # slug 取值：still_life → still-life
+        self.assertIn("still-life", h, "hash 的 slug 取值与 config.KIND_SLUG 不一致")
 
     def test_collection_switch_loads_facets(self):
         # 2026-11-03：带「视图」的集合（midjourney-explore）走 selectView 分支，
@@ -226,12 +227,49 @@ class Landing(unittest.TestCase):
     def setUp(self):
         self.pages = landing_pages()
 
+    def cfg_site(self, sid):
+        """sites.json 里这个站的条目（站能力声明的唯一来源）。"""
+        for s in CFG["sites"]:
+            if s["id"] == sid:
+                return s
+        raise KeyError(sid)
+
     def site_pages(self, sid):
         return [p for p in self.pages if p.startswith(f"sites/{sid}/")]
 
     def test_every_site_has_landing_pages(self):
+        """声明了落地页的站必须真的有落地页。
+
+        2026-11-04：sites.json 新增 "landing": false 作为站能力声明。
+        mj-styles 不生成落地页（用户裁决），所以这里按声明分流：
+        声明 true / 未声明的站必须有落地页，声明 false 的站必须没有。
+        """
         for s in SITES:
-            self.assertTrue(self.site_pages(s), f"{s} 没有落地页")
+            if self.cfg_site(s).get("landing", True):
+                self.assertTrue(self.site_pages(s), f"{s} 没有落地页")
+            else:
+                self.assertFalse(self.site_pages(s),
+                                 f"{s} 声明 landing:false，却还有落地页")
+
+    def test_no_landing_site_has_no_landing_dir(self):
+        """声明 landing:false 的站，磁盘上不能残留任何落地页目录。
+
+        不写死目录名 —— 判据是「站点根之外还有哪个目录里放着 index.html」。
+        落地页都是 <dir>/index.html 的形状，站点首页是根下的 index.html，
+        所以这个判据能覆盖任意命名的落地页目录。
+        """
+        for s in SITES:
+            if self.cfg_site(s).get("landing", True):
+                continue
+            d = os.path.join(ROOT, "sites", s)
+            leftovers = []
+            for dp, _dirs, fns in os.walk(d):
+                if os.path.normpath(dp) == os.path.normpath(d):
+                    continue
+                if "index.html" in fns:
+                    leftovers.append(os.path.relpath(dp, d).replace(os.sep, "/"))
+            self.assertEqual(leftovers, [],
+                             f"{s} 声明 landing:false，但还有落地页目录 {leftovers}")
 
     def test_head_and_body_basics(self):
         titles = collections.Counter()

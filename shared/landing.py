@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""八站共用：为筛选分面（标签、分类、发型等）生成静态落地页
+"""各站共用：为筛选分面（标签、分类、发型等）生成静态落地页
 
 主画廊是单页 JS 渲染，搜索引擎和 AI 读到的几乎是空壳。这里为每个分面输出一页
 不依赖 JS 的 HTML：标题、介绍、数据事实、缩略图网格（带 alt）、相关分面、FAQ，
@@ -15,7 +15,7 @@
 
 页面只用站点已有的缩略图档（thumbs/），不额外暴露中图或原图。
 """
-import html, json, os, shutil
+import html, json, os
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -216,29 +216,98 @@ def index_page(site, facets):
                  crumbs=[("../../", "photoai.life"), ("../", site.name), (None, "分类与标签")], body=body, ld=ld, depth=1)
 
 
+def _prev_pages(site):
+    """上次构建生成的落地页清单（slug 列表）。没有记录时返回空。"""
+    p = os.path.join(site.root, "data", "landing.json")
+    if not os.path.exists(p):
+        return []
+    try:
+        with open(p, encoding="utf-8") as fh:
+            return list(json.load(fh).get("pages") or [])
+    except (ValueError, OSError):
+        return []
+
+
+def _remove_orphans(site, slugs):
+    """删掉「上次生成过、这次不再生成」的落地页文件，返回删掉的数量。
+
+    为什么不是整目录 rmtree：
+        1. rmtree 一个分面目录会一次性删掉几十个文件。WorkBuddy 运行时给删除
+           API 加了批量闸门（按 tool call 累计**文件数**，阈值 50），一次构建里
+           删多个站必然触发 → 构建被 SystemExit(1) 打断，留下一片半删状态。
+        2. 整目录 rmtree 还会误删「本次不生成、但上次也没生成过」的目录里
+           别人放的东西。
+        「逐文件删」也不够 —— 闸门按 tool call **累计**，50 次单文件删照样
+        累计到 50，一样触发。真正让闸门不触发的是**正常构建删 0 个文件**。
+
+    所以这里的口径是「只删差集」：页面集合不变时一个文件都不动，
+    只有分面改名或删除时才会删掉真正该删的那几个。
+    """
+    prev = _prev_pages(site)
+    if not prev:
+        return 0
+    now = set(slugs)
+    n = 0
+    for slug in prev:
+        if slug in now:
+            continue
+        path = os.path.join(site.root, *slug.split("/"), "index.html")
+        if os.path.exists(path):
+            os.remove(path)
+            n += 1
+        # 顺带清掉空目录（只清空壳，不递归删）
+        d = os.path.dirname(path)
+        while os.path.normpath(d) != os.path.normpath(site.root):
+            try:
+                os.rmdir(d)
+            except OSError:
+                break
+            d = os.path.dirname(d)
+    if n:
+        print("landing: 清理 %d 个孤儿页（本次不再生成）" % n)
+    return n
+
+
 def write_site(site, facets):
     """写出全部分面页与索引页，返回绝对 URL 列表（不含站点首页）。
-    先清掉上次生成的分面目录，避免改名后留下孤儿页。"""
+
+    facets 为空列表时表示**这个站不要落地页** —— 只写一份空的 landing.json，
+    把上次的落地页清掉（release.py 据此决定复制哪些目录，sitemap 据此列哪些 URL）。
+    """
     keep = [f for f in facets if len(f.items) >= MIN_ITEMS]
     slugs = [f.slug for f in keep]
     assert len(slugs) == len(set(slugs)), "分面 slug 重复"
-    tops = {s.split("/")[0] for s in slugs} | {"browse"}
-    for top in tops:
-        shutil.rmtree(os.path.join(site.root, top), ignore_errors=True)
+
+    if keep:
+        pages = ["browse"] + slugs
+    else:
+        pages = []
+
+    # 孤儿页清理：先算差集，再删。只删「上次有、这次没有」的那几个文件。
+    _remove_orphans(site, pages)
+
     for f in keep:
         out = os.path.join(site.root, *f.slug.split("/"), "index.html")
         os.makedirs(os.path.dirname(out), exist_ok=True)
         with open(out, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(facet_page(site, f, keep))
-    out = os.path.join(site.root, "browse", "index.html")
-    os.makedirs(os.path.dirname(out), exist_ok=True)
-    with open(out, "w", encoding="utf-8", newline="\n") as fh:
-        fh.write(index_page(site, keep))
-    # 记录生成了哪些目录，release.py 据此复制
+    if keep:
+        out = os.path.join(site.root, "browse", "index.html")
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        with open(out, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(index_page(site, keep))
+
+    tops = {s.split("/")[0] for s in slugs}
+    if keep:
+        tops.add("browse")
+    # 记录生成了哪些目录与页面，release.py 据此复制，测试据此比对
     with open(os.path.join(site.root, "data", "landing.json"), "w", encoding="utf-8", newline="\n") as fh:
-        json.dump({"dirs": sorted(tops), "pages": ["browse"] + slugs}, fh, ensure_ascii=False, indent=1)
-    print(f"landing: {len(keep)} 个分面页 + 1 个索引页（跳过 {len(facets) - len(keep)} 个不足 {MIN_ITEMS} 张的分面）")
-    return [f"{site.site_url}/browse/"] + [f"{site.site_url}/{s}/" for s in slugs]
+        json.dump({"dirs": sorted(tops), "pages": pages}, fh, ensure_ascii=False, indent=1)
+    if keep:
+        print(f"landing: {len(keep)} 个分面页 + 1 个索引页（跳过 {len(facets) - len(keep)} 个不足 {MIN_ITEMS} 张的分面）")
+    else:
+        print("landing: 该站不生成落地页（已清理旧页）")
+    return [f"{site.site_url}/{s}/" for s in pages]
 
 
 def sitemap(site_url, urls, path):

@@ -477,7 +477,7 @@ __FAQ_LD__
     <p>共 <strong>__COUNT__</strong> 个风格码、<strong>__SHOTS__</strong> 张示例图（每码三张 × 两档）。最近一次采集：__CAPTURED__。</p>
     <p>码与示例图来自 <a href="https://www.midjourney.com/explore?tab=styles_top" target="_blank" rel="noopener noreferrer">Midjourney Explore · Styles</a>，著作权归各原作者；本站为个人学习用途的索引，请勿再分发图片文件，引用请回链原站。</p>
     <p>复制 <code>--sref &lt;码&gt;</code> 直接贴进 Midjourney 提示词即可套用该风格。</p>
-    <p><a href="browse/">按示例图类型浏览</a> · <a href="../">← 参考素材库</a></p>
+    <p><a href="../">← 参考素材库</a></p>
   </div>
 </footer>
 <div id="lb" class="lb" hidden>
