@@ -17,6 +17,12 @@
     3  当天批次已存在（extract.py 的「不覆盖」约定）—— 正常情况，非错误
     4  构建 / 索引失败 —— 数据可能已更新但不提交，交给人判断
     5  提交或推送失败 —— 数据已在本地提交，git 状态需人工确认
+
+契约是**封闭**的：脚本只会以这五个码退出。子进程返回任何其它退出码
+（1、137、其它脚本自造的码）时，一律归到 4（构建 / 索引失败）——
+那一步失败就是失败，外层需要知道「有东西没做完，需要人看」。
+2026-11-04 实测踩中：构建被运行时的删除闸门打断（SystemExit(1)），
+退出码 1 逃逸出去，落在契约之外，自动化只能走「未定义」分支。
 """
 import argparse
 import datetime
@@ -36,8 +42,13 @@ def log(msg):
     print(msg, flush=True)
 
 
-def run(args, cwd=ROOT, env=None, allow_rc=(0,)):
-    """跑一条命令，返回 (rc, 输出)。输出直接转发到日志，便于事后排查。"""
+def run(args, cwd=ROOT, env=None, allow_rc=(0,), fail_rc=4):
+    """跑一条命令，返回 (rc, 输出)。输出直接转发到日志，便于事后排查。
+
+    fail_rc：子进程返回不在 allow_rc 里的退出码时，本脚本以它退出。
+    默认 4（构建 / 索引失败）——这是契约里唯一适合「某一步没做成」的码。
+    采集那一步显式传 fail_rc=2（上游限流，语义不同：不重试也没坏）。
+    """
     e = dict(os.environ)
     if env:
         e.update(env)
@@ -49,8 +60,76 @@ def run(args, cwd=ROOT, env=None, allow_rc=(0,)):
         print(out, end="", flush=True)
     log("  → rc=%d" % p.returncode)
     if p.returncode not in allow_rc:
-        sys.exit(p.returncode if p.returncode else 1)
+        # 退出码 0 不可能走到这里（0 恒在 allow_rc 里），但保底不返回 0
+        rc = p.returncode or fail_rc
+        if rc != fail_rc:
+            log("  （子进程退出码 %d → 归入契约码 %d）" % (rc, fail_rc))
+        sys.exit(fail_rc)
     return p.returncode, out
+
+
+def build_with_committed_config():
+    """用**仓库里已提交的** sites.json 重建入口页（hub）。
+
+    为什么必须用已提交版本，而不是工作区当前版本：
+        hub/build_hub.py 读 sites.json 算总图数（total_images）与站点统计。
+        CI 的闸门 3 跑在干净检出上，用的必然是**已提交**的配置。
+        若工作区有别人未提交的 sites.json 改动，我们按工作区配置算出的 hub
+        就与 CI 重建出的结果对不上 —— 提交上去 CI 必红。
+        2026-11-04 实测踩中：另一会话在改 sites.json（prompthero 去掉 full 档），
+        改动未提交；我们按工作区配置算出 115,931 提交上去，
+        CI 按已提交配置重建得 128,929 → 闸门 3 红。
+
+    做法：构建前把 sites.json 临时换成已提交版本，构建完再换回来。
+    工作区那份改动全程不丢（用 try/finally 保证还原）。
+
+    只影响 hub —— 站点自己的产物由各自 build_gallery.py 生成，
+    它们不读 sites.json（已核实：midjourney-explore 的 build_gallery.py 不读）。
+
+    返回备份文件路径（构建后需用 restore_working_config 还原），
+    工作区本就等于已提交版本时返回 None。
+    """
+    import shutil
+    import tempfile
+
+    p = subprocess.run(["git", "show", "HEAD:sites.json"],
+                       cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    if p.returncode != 0:
+        log("取不到 HEAD 版 sites.json —— 按工作区配置构建（可能有偏差）")
+        return False
+
+    cur_path = os.path.join(ROOT, "sites.json")
+    with open(cur_path, "rb") as f:
+        cur_bytes = f.read()
+    if cur_bytes == p.stdout:
+        return None   # 工作区就是已提交版本，没什么要换的
+
+    bak = os.path.join(tempfile.mkdtemp(prefix="mj-cfg-"), "sites.json")
+    try:
+        with open(bak, "wb") as f:
+            f.write(cur_bytes)
+        with open(cur_path, "wb") as f:
+            f.write(p.stdout)
+        log("  已临时换用 HEAD 版 sites.json 构建入口页（工作区改动稍后还原）")
+        return bak
+    except Exception:
+        shutil.rmtree(os.path.dirname(bak), ignore_errors=True)
+        raise
+
+
+def restore_working_config(bak):
+    """把 build_with_committed_config 换掉的 sites.json 还原回工作区版本。"""
+    if not bak:
+        return
+    import shutil
+    try:
+        with open(bak, "rb") as f:
+            data = f.read()
+        with open(os.path.join(ROOT, "sites.json"), "wb") as f:
+            f.write(data)
+        log("  已还原工作区的 sites.json")
+    finally:
+        shutil.rmtree(os.path.dirname(bak), ignore_errors=True)
 
 
 def current_proxy():
@@ -98,6 +177,119 @@ def current_proxy():
             s.close()
     log("  未找到可用的本地代理端口")
     return None
+
+
+def verify_gate3_clean_checkout():
+    """在「干净检出」上预演 CI 闸门 3：新提交必须自洽（重建产物 == 提交产物）。
+
+    CI 闸门 3 跑在干净检出上：
+        python3.8 tools/build.py --skip prompts
+        git diff --exit-code -- hub sites
+    它比对的是「**新提交里的产物**」与「**新提交重建出来的产物**」——
+    两边都是新提交的内容，所以闸门绿的条件是：
+        新提交的产物，必须能用新提交里的输入重建出来。
+
+    这里用 `git worktree` 造一个临时检出，把「将要提交的内容」放进去：
+        - 站点与 hub 的产物：工作区版本（即将提交的那份）
+        - 配置源 sites.json：**仓库里已提交的版本**
+          （CI 跑在干净检出上，用的必然是已提交的配置；
+           如果工作区有别人未提交的 sites.json 改动，那份改动不在新提交里，
+           CI 就看不到它 —— 而我们本地产物是按那份改动算出来的，必然对不上）
+        - 其余输入（其他站的 manifest 等）：已提交版本
+
+    为什么必须这样验：
+        「重建前后一致」只保证**确定性**（同输入→同输出），
+        不保证**产物与输入自洽**。
+        工作区若有别人未提交的配置改动（如 2026-11-04 的 sites.json），
+        我们构建出的 hub 会带着那份改动；CI 的干净检出按已提交配置重建 ——
+        两边对不上，CI 必红，而本地任何确定性校验都查不出来。
+
+    返回 True=闸门会绿；False=会红（调用方应放弃提交）。
+    """
+    import shutil
+    import tempfile
+
+    log("闸门预演：模拟干净检出，验证新提交自洽")
+
+    def git_in(cwd, *args):
+        return subprocess.run(["git", "-C", cwd] + list(args),
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    tmp = tempfile.mkdtemp(prefix="mj-gate3-")
+    try:
+        # 1. 临时检出：内容 = HEAD（含已提交的历史批次与配置）
+        r = git_in(ROOT, "worktree", "add", "--detach", tmp, "HEAD")
+        if r.returncode != 0:
+            log("  无法创建临时检出（%s）—— 跳过闸门预演"
+                % r.stderr.decode("utf-8", "replace").strip())
+            return True
+
+        # 2. 放入「将要提交的内容」
+        for path in ("sites/%s" % SITE, "hub"):
+            src = os.path.join(ROOT, path)
+            dst = os.path.join(tmp, path)
+            if os.path.isdir(src):
+                shutil.copytree(src, dst, dirs_exist_ok=True,
+                                ignore=shutil.ignore_patterns(
+                                    "thumbs", "mid", "img", "png", "raw",
+                                    "__pycache__", "*.pyc"))
+        #   配置源必须用**已提交版本**：CI 看不到未提交的改动。
+        head_cfg = git_in(ROOT, "show", "HEAD:sites.json")
+        if head_cfg.returncode == 0:
+            with open(os.path.join(tmp, "sites.json"), "wb") as f:
+                f.write(head_cfg.stdout)
+
+        # 3. 干净检出里重建（跳过 prompts：它的数据源不入库，CI 也跳过）
+        p = subprocess.run([PY, os.path.join("tools", "build.py"), "--skip", "prompts"],
+                           cwd=tmp, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if p.returncode != 0:
+            log("  干净检出里重建失败 —— 放弃提交：")
+            print(p.stdout.decode("utf-8", "replace"), end="")
+            return False
+
+        # 4. 比对：重建后的产物 vs 我们将要提交的产物
+        #    （不是 vs HEAD —— HEAD 里没有今天的新批次，比那个必然不一致）
+        #    只比「会被提交、且 CI 闸门 3 会看」的产物：
+        #      - 图片目录（thumbs/ mid/ img/ png/ raw/）不入库，不比
+        #      - __pycache__ / .pyc 不入库，不比
+        #      - 其余已跟踪的文件逐字节比
+        ignored_dirs = ("thumbs", "mid", "img", "png", "raw", "__pycache__")
+        names = []
+        for path in ("sites/%s" % SITE, "hub"):
+            src = os.path.join(ROOT, path)
+            dst = os.path.join(tmp, path)
+            if not os.path.isdir(src):
+                continue
+            for dirpath, dirs, files in os.walk(src):
+                dirs[:] = [d for d in dirs if d not in ignored_dirs]
+                for fn in files:
+                    if fn.endswith(".pyc"):
+                        continue
+                    a = os.path.join(dirpath, fn)
+                    rel = os.path.relpath(a, ROOT)
+                    b = os.path.join(tmp, rel)
+                    if not os.path.isfile(b):
+                        names.append(rel)
+                        continue
+                    with open(a, "rb") as f1, open(b, "rb") as f2:
+                        if f1.read() != f2.read():
+                            names.append(rel)
+        if names:
+            log("  !! 干净检出重建后与将要提交的产物不一致 —— 提交上去 CI 闸门 3 会红：")
+            for n in sorted(names)[:20]:
+                log("     %s" % n)
+            if len(names) > 20:
+                log("     …… 共 %d 个文件" % len(names))
+            log("  常见原因：工作区有别人未提交的配置改动（如 sites.json），")
+            log("  产物是用工作区配置算出来的，而 CI 用的是仓库里已提交的配置。")
+            log("  请让配置改动先入库，或把本地产物改到与已提交配置一致。")
+            return False
+
+        log("  干净检出重建结果与将要提交的产物一致 —— 闸门 3 会绿")
+        return True
+    finally:
+        git_in(ROOT, "worktree", "remove", "--force", tmp)
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def git_commit_and_push(batch, n_images, n_jobs):
@@ -161,6 +353,29 @@ def git_commit_and_push(batch, n_images, n_jobs):
     changed = [p for p in watch if before.get(p) != after.get(p)]
     if changed:
         log("!! 重建后产物发生变化，构建不是确定性的 —— 放弃提交：%s" % changed)
+        return 4
+
+    # ── 闸门预演：用「干净检出」重建，比对是否与仓库产物一致 ──────────
+    #
+    # 上面那个「重建前后」校验只保证**确定性**（同样输入 → 同样输出），
+    # 但保证不了「产物与仓库里已提交的版本对得上」。CI 的闸门 3 是：
+    #
+    #     python3.8 tools/build.py --skip prompts
+    #     git diff --exit-code -- hub sites
+    #
+    # 它跑在**干净检出**上 —— 输入是**仓库里已提交的配置**。
+    # 而我们在工作区构建，输入是**工作区当前的配置**。
+    # 两者只要有一处不同（哪怕是别人还没提交的在改改动），产物就会对不上，
+    # CI 必红。
+    #
+    # 2026-11-04 实测踩中：另一个会话正在改 sites.json（prompthero 去掉 full 档），
+    # 改动未提交。我们在工作区构建 hub → 算出 115,931；提交上去后，
+    # CI 的干净检出按仓库里已提交的 sites.json 重建 → 算出 128,929 → 闸门 3 红。
+    # 提交前那套「重建前后」校验完全查不出来（重建是确定的，只是输入不同）。
+    #
+    # 这里补上缺的那一环：把「将要提交的内容」放进一个临时干净检出里重建，
+    # 与仓库里的产物比对 —— 等于在本地把 CI 的闸门 3 先跑一遍。
+    if not verify_gate3_clean_checkout():
         return 4
 
     # ── 隔离提交：只用 git commit --only -- <paths> ────────────────────
@@ -271,9 +486,10 @@ def main():
 
     # ── 1. 采集 ──────────────────────────────────────────────
     # extract.py 的退出码：0 成功 / 2 采集失败 / 3 该批次已有结果
+    # 采集失败的语义是「上游限流，明日重试」，与构建失败不同 → fail_rc=2
     rc, _ = run([PY, os.path.join("scripts", "extract.py"),
                  "--batch", batch],
-                cwd=SITE_DIR, allow_rc=(0, 2, 3))
+                cwd=SITE_DIR, allow_rc=(0, 2, 3), fail_rc=2)
     if rc == 3:
         log("批次 %s 已有采集结果（退出码 3）—— 跳过本次采集" % batch)
         rc = 0
@@ -293,8 +509,15 @@ def main():
     sync_baseline()
 
     # ── 3. 站点构建 ──────────────────────────────────────────
-    # 只构建本站 + hub（--no-hub 是反的，这里要 hub）
-    run([PY, os.path.join("tools", "build.py"), "--site", SITE])
+    # 只构建本站 + hub（--no-hub 是反的，这里要 hub）。
+    # 构建入口页时临时换用已提交的 sites.json —— CI 的闸门 3 跑在干净检出上，
+    # 用的是已提交配置；按工作区配置算出来的产物提交上去必然对不上。
+    cfg_bak = None
+    try:
+        cfg_bak = build_with_committed_config()
+        run([PY, os.path.join("tools", "build.py"), "--site", SITE])
+    finally:
+        restore_working_config(cfg_bak)
 
     # ── 4. WebUI 索引 ────────────────────────────────────────
     # sync.py 自带签名判断：manifest 没变就跳过（返回 skipped）

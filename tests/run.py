@@ -1199,19 +1199,48 @@ class MjStrategy(unittest.TestCase):
             self.assertTrue(os.path.exists(b), "成功时应写入基线")
 
     def test_manifest_covers_all_daily(self):
-        """manifest 行数应等于各批次 jobs.json 行数之和（累积不漏批）。"""
+        """manifest 应覆盖各批次的全部作业（累积不漏批）。
+
+        口径是**并集**不是行数之和：同一条作业可能连续多天在榜上
+        （Explore 榜按热度排序，热度高的作业会滞留），extract.py 每天
+        都把它采进当日批次，而 manifest.py 按契约去重只留一份 ——
+        见 manifest.py 的「同一作业可能连续多天在榜上，只留一份」。
+        所以「各批次行数之和」会大于「manifest 唯一作业数」，
+        按行数之和断言会在作业滞留的那天误报失败。
+
+        这里断言两个方向：
+          1. manifest ⊇ 各批次作业的并集（不漏批、不漏作业）
+          2. manifest ⊆ 各批次作业的并集（不多出没采集过的作业）
+        """
         mod = self._mod()
         rows = mod.load_manifest()
         ddir = os.path.join(mod.SITE, "data", "daily")
+        batch_ids = set()
         total = 0
         if os.path.isdir(ddir):
-            for name in os.listdir(ddir):
+            for name in sorted(os.listdir(ddir)):
                 p = os.path.join(ddir, name, "jobs.json")
-                if os.path.isfile(p):
-                    with open(p, encoding="utf-8") as f:
-                        total += len(json.load(f))
-        self.assertEqual(len({r["jobId"] for r in rows}), total,
-                         "manifest 的作业数应与各批次之和一致")
+                if not os.path.isfile(p):
+                    continue
+                with open(p, encoding="utf-8") as f:
+                    jobs = json.load(f)
+                total += len(jobs)
+                batch_ids |= {j.get("id") for j in jobs if j.get("id")}
+        manifest_ids = {r["jobId"] for r in rows if r.get("jobId")}
+
+        self.assertTrue(batch_ids, "没有采集到任何批次作业")
+        missing = batch_ids - manifest_ids
+        self.assertFalse(missing,
+                         "有 %d 条作业没进 manifest（如 %s）"
+                         % (len(missing), sorted(missing)[:3]))
+        extra = manifest_ids - batch_ids
+        self.assertFalse(extra,
+                         "manifest 里有 %d 条不来自任何批次的作业（如 %s）"
+                         % (len(extra), sorted(extra)[:3]))
+        # 去重后 manifest 应恰好等于各批次并集（作业数，不含格子数）
+        self.assertEqual(len(manifest_ids), len(batch_ids),
+                         "manifest 的唯一作业数应等于各批次作业的并集"
+                         "（各批次行数之和 %d，去重后 %d）" % (total, len(batch_ids)))
 
 
     def test_extract_refuses_overwrite_without_force(self):
