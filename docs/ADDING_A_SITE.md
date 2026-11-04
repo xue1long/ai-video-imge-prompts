@@ -79,8 +79,16 @@ def prepare(opener, log):
 | `tiers` | 下载与校验的档位，对应 manifest 里的 `<tier>_url` / `<tier>_path` |
 | `imageDirs` | `release.py` 硬链接的目录；含 `mid` 时 `mid.py` 会为该站生成中图（`tiers` 里已有 `mid` 的站点由上游提供，不生成） |
 | `license` | `cc0` / `conditional` / `restricted`，决定入口页卡片上的授权徽章 |
+| `landing` | 可选，站能力声明。默认 `true`（生成落地页）；`false` 表示这个站**不生成落地页**，hub 与 sitemap 据此不再链到它的 `browse/` |
 
 站点在入口页的顺序 = `sites.json` 数组顺序。
+
+> **`landing: false` 意味着什么。** 该站的 `scripts/build_gallery.py` 要让
+> `build_facets()` 返回空分面列表，`shared/landing.py` 的 `write_site()` 会据此
+> 清掉上次的落地页并写一份空 `landing.json`；hub 的 `browse/` 链接与
+> `llms.txt` 的分类索引按这个字段条件生成。`tests/run.py` 双向校验：
+> 声明 `false` 的站必须**没有**落地页，声明 `true` / 未声明的站必须**有**。
+> 现有例子：`mj-styles`（2026-11-04 起）。
 
 ## 3. 测试会强制的隐含约束
 
@@ -93,7 +101,8 @@ def prepare(opener, log):
 | `index.html` ≤ 450 KB | `Pages.test_page_size_budget` |
 | 去掉 JS 与样式后可读文字 ≥ 500 字 | `Landing.test_static_intro_on_gallery_pages` |
 | 恰好 1 个 `<h1>`，含 `"@type":"FAQPage"`，含 `class="seo-intro"` 与 `<details class="seo-more">` | 同上 |
-| 至少 1 个静态落地页（`browse/`），分面不足 6 张不成页 | `Landing.test_every_site_has_landing_pages` |
+| 至少 1 个静态落地页（`browse/`），分面不足 6 张不成页 | `Landing.test_every_site_has_landing_pages`（`landing: false` 的站除外） |
+| 声明 `landing: false` 的站必须没有落地页，且磁盘上不留落地页目录 | `Landing.test_no_landing_site_has_no_landing_dir` |
 | 落地页只用缩略图，不得出现 `/mid/` `/img/` `/png/` | `Landing.test_only_thumbnails_exposed` |
 | 落地页每张 `<img>` 必须有 `alt` 且 ≥6 字符 | `Landing.test_head_and_body_basics` |
 | 落地页引用的图必须在 manifest 的 `thumb_path` 里，路径层级要对 | `Landing.test_thumbs_are_in_manifest` |
@@ -103,6 +112,12 @@ def prepare(opener, log):
 | 封面必须在 manifest 的 `thumb_path` 里 | `Manifests.test_cover_in_manifest` |
 | `imageDirs` 含 `mid` 时，页面里必须有 `midOf` 函数，且与 `tools/mid.py` 的 `mid_rel` 逐条一致 | `MidRule.test_python_and_js_agree` |
 | 新站的 `README.md` 与 `NOTICE.md` 必须存在，其中的相对链接不能失效 | `Docs.test_relative_links_and_anchors` |
+
+> **`midOf` 必须真被调用。** 定义了一份却没人用的规则等于没有规则，而且它会
+> 漂移 —— 2026-11-04 就发现 `prompthero-midjourney` 的 `midOf` 描述的是别的站的
+> `img/` 布局（本站根本没有 `img/` 目录），算出来的路径必然 404。
+> `MidRule` 现在会跳过没有调用点的 `midOf`；但更好的做法是**直接删掉**它 ——
+> 本站的中图是上游直给的衍生图（数据里的 `m` 字段），没有「按路径复算」这回事。
 
 > **数据量大的站要分片。** 单页内嵌全部数据会撞上 450 KB 上限。
 > 参考 `sites/prompts/`：把数据写成 `data/gallery_<key>.js`（`JSON.parse` 赋值），
@@ -231,6 +246,66 @@ python index/sync.py --force     # 重建索引（含上游地址）
 python index/verify.py           # 有上游地址的资产不再报缺图
 ```
 
+### 删本地原图之前：先确认「页面确实不请求它」
+
+`online` 档位**声明了**不等于**页面没用本地文件**。删之前逐项核实，
+否则删完才发现页面裂图，而且上游往往下不回来（不可逆）。
+
+**判据（按这个顺序查）**：
+
+| 查什么 | 怎么看 | 结论 |
+|---|---|---|
+| 页面/分片里的展示地址是什么 | 搜数据里的 `<字段>`（full 档是 `g`）| 指向 `https://` = 页面用上游；指向 `img/` = 页面用本地 |
+| 页面 JS 里有没有引用本地路径 | 搜 `<字段>Path`（如 `gPath`）| **没人引用**才安全——它只是给「按路径推导的规则」留的备用字段 |
+| 索引里这一档记的是什么 | `SELECT path, url FROM derivative WHERE kind='full'` | `path` 是上游 URL = 索引不依赖本地文件 |
+| 上游现在能不能访问 | 浏览器里 `new Image().src = 上游URL` | **浏览器能加载**才算数 |
+
+⚠️ **用浏览器验，别用 Python 裸请求。** Python 直连会被代理策略、
+Cloudflare 人机校验挡住，得出「上游不通」的假结论；
+浏览器走系统代理，可能其实通着。实测：
+`cdn.prompthero.com` 用 Python 直连 TCP 超时（判「不通」），
+但浏览器里 `new Image()` **加载成功 3300×4200**。
+
+**静态站没有服务端回落。** WebUI 的媒体路由（`serve.py` 的 `serve_media`）
+会在本地文件缺失时 302 到上游，静态站（部署到 nginx 的那些）没有这层 ——
+只有 `local-first` 才会给 `<img>` 写 `data-fb` 回落属性。
+所以「WebUI 里还能看」不等于「部署出去还能看」。
+
+**当前各站的情况（2026-11-04 实测）**：
+
+| 站 | 档位 | 策略 | 本地体积 | 能不能删 |
+|---|---|---|---|---|
+| ~~prompthero-midjourney~~ | `img/`（full） | online | ~~36.3 GB~~ | ✅ **已删**（2026-11-04） |
+| prompts | `img/`（full） | online | 7.2 GB | ✅（本地只剩 2 个文件，已删过） |
+| costume | `png/` | online | 1.3 GB | ✅（本地只剩 8 个） |
+| portrait | `img/`（full） | local-only | 4.6 GB | ❌ 删了永久裂图 |
+| prompthero-midjourney | `mid/`、`thumbs/` | local-only | 2.1 GB | ❌ |
+| midjourney-explore | `mid/`、`thumbs/` | local-only | 571 MB | ❌ 上游要 CF 通行证，裸请求过不去 |
+| mj-styles | `styles/` | 全 local-only | 252 MB | ❌ |
+
+`prompthero-midjourney` 原先是「策略说 online、磁盘上却留着全量」的状态 ——
+**37 GB 白占着**，页面行为零影响。2026-11-04 已删，并做了配套的三处改动：
+
+1. `sites.json` 的 `tiers` 去掉 `full`、`imageDirs` 去掉 `img`
+   —— 声明与磁盘现实对齐，`fetch.py` / `verify.py` 不再把 full 档当成本地档位。
+2. `scripts/manifest.py` **不写 `full_path`** —— 没有本地文件，写一个站内路径
+   就是谎报，索引会拿它当本地文件去找、永远找不到。
+   （`full_url` 照写，页面直连上游靠它。）
+3. `scripts/build_gallery.py` 的 `_addr()` 用 `rec.get(tier + "_path") or ""`
+   —— 严格索引遇到 online 档（没有本地路径）会 KeyError。
+   对照 `sites/midjourney-explore/scripts/build_gallery.py` 的同名函数。
+
+删完记得同步索引（路径没变，但 `verify.py` 的缺图数会变）：
+
+```bash
+python index/sync.py --force
+python tools/verify.py
+```
+
+`verify.py` 只检查 `sites.json` 声明的 `imageDirs` —— full 档已从 `imageDirs`
+里去掉，所以它**不再报 full 档缺失**。如果哪天看到「full 档缺失 12998」，
+说明 `tiers` / `imageDirs` 又被改回去了，是配置与现实脱节，不是磁盘故障。
+
 ## 7. 从原站接口采集数据（prompthero-midjourney 的经验）
 
 数据没有现成交档、要从上游接口抓时，按这几条走，能少走弯路：
@@ -246,6 +321,38 @@ python index/verify.py           # 有上游地址的资产不再报缺图
 - **图片缺口的回落链**：多档位（原图 / 中图 / 缩略图）不必逐档都存在，
   manifest 里缺失的档位回落到下一档并记 fallback 标记，
   `verify.py` 保证最终每条每档都有可用文件。
+
+### prompthero-midjourney：full 档是 online，本地那 37 GB 是白占的
+
+这一站是全仓最大的一个（`sites/prompthero-midjourney/`，36.3 GB 原图 + 2.1 GB 中图/缩略）。
+但它的 `imagePolicy` 是：
+
+```json
+{"thumb": "local-only", "mid": "local-only", "full": "online"}
+```
+
+**`full` 档本来就是直连上游的** —— 页面的展示地址是
+`https://cdn.prompthero.com/<slug>`（分片里的 `g` 字段），
+本地 `img/` 里的 12998 个 PNG **页面一个都不请求**。
+
+删之前已逐项核实（2026-11-03）：
+
+| 查什么 | 结果 |
+|---|---|
+| 分片里 `g` 指向 | 12998/12998 都是上游 URL（**0 个**指向 `img/`）|
+| 页面 JS 里 `gPath`（本地路径字段）| **零引用** —— 只在数据里，页面不读 |
+| 索引里 full 档 | `path` 和 `url` **都是上游 URL**，不依赖本地文件 |
+| 浏览器实测（删掉 5 个后）| `new Image(src=g)` **加载成功 3300×4200**；`m`（本地中图）正常；`gPath` 失效（预期，无人用）|
+
+**结论：`sites/prompthero-midjourney/img/` 可以整目录删掉，省 36.3 GB，页面行为零影响。**
+删完 `tools/verify.py` 会报 full 档「缺失 12998」—— 这是预期信号，不是故障。
+
+教训写在这里：**「策略声明成 online」和「磁盘上还留着全量」是两件事。**
+这个站策略早就切了，本地副本却一直没人清，37 GB 白占了很久。
+以后切完 online 策略，顺手把对应目录清掉。
+
+⚠️ 上游直连要**用浏览器验**。Python 裸请求 `cdn.prompthero.com` 会 TCP 超时
+（判「不通」），但浏览器走系统代理实际能加载。别被 Python 的假结论误导。
 
 上线到已有服务器的步骤见 [DEPLOY.md](../deploy/DEPLOY.md) §6。
 

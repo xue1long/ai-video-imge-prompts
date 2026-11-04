@@ -79,7 +79,7 @@ cd ../.. && python tools/build.py --site prompts
 ## 与其他站的差异
 
 - **数据外置且分片**：`data/gallery_<key>.js` 是构建产物，**不入库**（54 MB + 30 MB；每次重抓都会变，入库会让 git 历史反复存两份几十 MB 的 blob）。构建时本地生成。
-- **宽高来自 `data/dims.json`**：构建不读图片文件，所以没有图片也能构建；**但必须有 `data/prompts_<key>.json`**，那是从上游抓来的文本数据，同样不入库。全新克隆要先跑 `import_youmind.py` + `scripts/manifest.py` 才能构建本站，因此 CI 的构建步骤带 `--skip prompts`，其余五站照常校验。
+- **宽高来自 `data/dims.json`**：构建不读图片文件，所以没有图片也能构建；**但必须有 `data/prompts_<key>.json`**，那是从上游抓来的文本数据，同样不入库。全新克隆要先跑 `import_youmind.py` + `scripts/manifest.py` 才能构建本站，因此 CI 的构建步骤带 `--skip prompts`，其余八站照常校验。
 - **入库的只有小文件**：`manifest.json`（14 MB，图片清单，`fetch.py` 与测试都要读它）、`data/gallery.js`（275 B 索引）、`data/landing.json`、`data/gpt2_categories.json`（41 个分类的静态清单）以及页面本身。忽略规则见仓库根 `.gitignore` 的「prompts 站的抓取与构建中间数据」段。
 - **缩略图来自上游 CDN**（`mediaThumbnails`，约 20~25 KB/张），`fetch.py` 按 manifest 的 `thumb_path` 下载到 `thumbs/<key>/`。
 - **分类靠 `categories` 参数反查**：上游记录里的 `promptCategories` 字段对两个模型都不返回数据（Nano Banana 是 0/11,783），但 API 支持按 `categories` 过滤。`tag_categories.py` 逐类翻页把 id 收回，再反查成 id → 分类表。

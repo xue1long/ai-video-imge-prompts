@@ -906,8 +906,17 @@ class MidRule(unittest.TestCase):
 
 class Docs(unittest.TestCase):
 
-    DOCS = ["README.md", "README_en.md", "README_ja.md", "docs/ADDING_A_SITE.md", "deploy/DEPLOY.md"] + \
+    DOCS = ["README.md", "README_en.md", "README_ja.md", "docs/ADDING_A_SITE.md", "deploy/DEPLOY.md",
+            "CONTEXT.md"] + \
            [f"sites/{s}/{f}" for s in SITES for f in ("README.md", "NOTICE.md")]
+
+    @classmethod
+    def adr_files(cls):
+        """docs/adr/ 下的决策记录。目录不存在时返回空。"""
+        d = os.path.join(ROOT, "docs", "adr")
+        if not os.path.isdir(d):
+            return []
+        return sorted(f"docs/adr/{f}" for f in os.listdir(d) if f.endswith(".md"))
 
     @staticmethod
     def slug(h):
@@ -916,7 +925,7 @@ class Docs(unittest.TestCase):
 
     def test_relative_links_and_anchors(self):
         problems = []
-        for rel in self.DOCS:
+        for rel in self.DOCS + self.adr_files():
             text = read(rel)
             base = os.path.dirname(rel)
             body = re.sub(r"```.*?```", "", text, flags=re.S)       # 代码块里的不算链接
@@ -936,6 +945,37 @@ class Docs(unittest.TestCase):
         gone = ["scripts/download.py", "scripts/verify.py", "build_dist.sh"]
         hits = [f"{rel}: {g}" for rel in self.DOCS for g in gone if g in read(rel)]
         self.assertEqual(hits, [])
+
+    def test_adr_numbers_are_sequential(self):
+        """ADR 文件名用连续编号，删掉中间一篇会让后续编号断档。
+
+        断档不是错误，但会让「下一篇该写几号」这件事需要额外判断。
+        连续编号时，新增一篇永远是 max+1。
+        """
+        files = self.adr_files()
+        if not files:
+            self.skipTest("还没有 ADR")
+        nums = []
+        for rel in files:
+            m = re.match(r"docs/adr/(\d{4})-", rel)
+            self.assertTrue(m, f"{rel} 的文件名不是 NNNN-slug.md 形式")
+            nums.append(int(m.group(1)))
+        self.assertEqual(nums, list(range(nums[0], nums[0] + len(nums))),
+                         "ADR 编号不连续")
+
+    def test_adr_has_context_and_consequences(self):
+        """每篇 ADR 至少说清「背景 + 选择」与「后果」。
+
+        只写「我们决定 X」的 ADR 没有价值 —— 读者缺的是「为什么」和
+        「那接下来要注意什么」。
+        """
+        for rel in self.adr_files():
+            text = read(rel)
+            heads = re.findall(r"^#{1,6} (.+)$", text, re.M)
+            self.assertTrue(any("考虑过的替代方案" in h or "替代方案" in h for h in heads),
+                            f"{rel} 缺「考虑过的替代方案」—— 决策的权衡没被记录")
+            self.assertTrue(any("后果" in h for h in heads),
+                            f"{rel} 缺「后果」—— 下游要受什么影响没被记录")
 
 
 class GitIgnore(unittest.TestCase):

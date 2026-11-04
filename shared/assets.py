@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
-"""八站共用的图片下载与校验
+"""各站共用的图片下载与校验
 
 档位 → manifest 字段的对应只有一条规则：<tier>_url / <tier>_path。
-  portrait / pose / pose-depth / prompts：thumb、full
-  costume：thumb、img、png
-  shisei / prompthero-midjourney：thumb、mid、full
-  midjourney-explore：thumb、mid
+各站的档位组合以 sites.json 的 tiers 为准（本文件不再复述清单，
+免得两处漂移）：声明了哪个 tier，就下载哪个目录的哪个文件。
 各站只需在 sites.json 里写 tiers 和 source（下载时作为 Referer）。
 
 下载幂等：已存在且大于 1 KB 的文件跳过；先写 .part 再改名，中断不会留下半个文件。

@@ -57,7 +57,7 @@ sites/*/dist/
 *.zip
 
 # ── 素材管理器（index/）的本地数据 ──────────────────────
-# catalog.csv 由 index/catalog.py 生成，可由六份 manifest 重建
+# catalog.csv 由 index/catalog.py 生成，可由九份 manifest 重建
 # gallery.db 是本地索引与标注，备份走 server 的 snapshot
 # library/ 是用户自己导入的素材，与 sites/ 的采集素材物理隔离
 exports/
