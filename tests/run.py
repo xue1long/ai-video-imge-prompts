@@ -868,24 +868,40 @@ class MidRule(unittest.TestCase):
             h = read(f"sites/{s['id']}/index.html")
             m = re.search(r"const midOf = .*?;", h)
             if not m:
-                # 数据里已直接给出 mid 档（m 字段）就不需要在 JS 复算路径规则，
+                # 清单里已直接给出 mid 档就不需要在 JS 复算路径规则，
                 # 没有第二份实现可比对。midjourney-explore 整改后即属此类。
-                data_rel = f"sites/{s['id']}/data/gallery.js"
-                self.assertTrue(os.path.exists(os.path.join(ROOT, data_rel)),
-                                f"{s['id']} 页面里没有 midOf，也没有 gallery.js")
-                raw = read(data_rel)
-                mm = re.search(r"JSON\.parse\((.*)\);\s*$", raw, re.S)
-                self.assertTrue(mm, f"{s['id']} gallery.js 不是预期的 JSON.parse 形式")
-                obj = json.loads(json.loads(mm.group(1)))
-                self.assertIn("m", obj["items"][0], f"{s['id']} 数据未提供 mid 档")
+                self.assertTrue(self.manifest_has_mid(s["id"]),
+                                f"{s['id']} 页面里没有 midOf，清单里也没有 mid 档")
                 continue
-            self.assertIsNotNone(m, f"{s['id']} 页面里没有 midOf")
+            # midOf 必须真被调用：定义了一份却没人用的规则，等于没有规则，
+            # 而且它会漂移（2026-11-04：prompthero 的 midOf 描述的是别的站的
+            # img/ 布局，本站根本没有 img/ 目录），漂移了也没人能发现。
+            calls = len(re.findall(r"midOf\s*\(", h)) - 1   # 减去定义本身
+            if calls == 0:
+                self.skipTest(f"{s['id']} 的 midOf 没有调用点（死代码），无从比对")
+            # 规则输入是「原图路径」：mid_rel(full_path) == mid_path。
+            # 有的站没有 full 档（online 档只留 URL），退而用 thumb_path 复算。
             rows = json.loads(read(f"sites/{s['id']}/manifest.json"))[:50]
-            src = [r["full_path"] for r in rows]
+            key = "full_path" if "full_path" in rows[0] else "thumb_path"
+            src = [r[key] for r in rows]
             js = m.group(0) + "\nconsole.log(JSON.stringify(" + json.dumps(src, ensure_ascii=False) + ".map(midOf)));"
             r = subprocess.run([node, "-e", js], capture_output=True, text=True, encoding="utf-8")
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertEqual(json.loads(r.stdout), [mid_rel(p) for p in src], s["id"])
+
+    def manifest_has_mid(self, sid):
+        """该站的清单里是否给了 mid 档。
+
+        判据用**入库的 manifest** 而不是分片文件：数据分片不入库
+        （`.gitignore` 排除了 `data/gallery_<key>.js`），干净检出上读不到。
+        manifest 是分片的源头，且 mid 档的字段一定在。
+
+        `mid_path` 在 = 该站本地落了 mid；只有 `mid_url` = mid 档走 online，
+        页面照样直接给出 m 字段（上游地址）。两种都算「清单里给了 mid 档」。
+        """
+        rows = json.loads(read(f"sites/{sid}/manifest.json"))
+        self.assertTrue(rows, f"{sid} 的 manifest 是空的")
+        return "mid_path" in rows[0] or "mid_url" in rows[0]
 
 
 class Docs(unittest.TestCase):

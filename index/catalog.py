@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""把八份互不相同的 manifest 合并成一张统一清单。
+"""把九份互不相同的 manifest 合并成一张统一清单。
 
 只读现有文件，不修改任何东西。产出一份 CSV，顺带做三件事：
   1. 验证字段映射表是否覆盖所有字段（未映射字段必须报告，不能静默丢）
@@ -239,7 +239,11 @@ SOURCES = {
         "title_alt": "description",
         # 上游分类是英文原文；版本是 Midjourney 的版本号
         "facets": {"分类": "category", "版本": "modelVersion"},
-        "files": [("thumb", "thumb_path"), ("mid", "mid_path"), ("full", "full_path")],
+        # full 档直连上游（imagePolicy.full=online）：原图 36.3 GB，本地不留。
+        # 双键写法「full_path|full_url」：manifest 里**没有** full_path
+        # （online 档不写本地路径，写了就是谎报），path 取空、地址取 full_url。
+        # 双键是必需的 —— file_specs 靠它区分「站内路径键」与「上游地址键」。
+        "files": [("thumb", "thumb_path"), ("mid", "mid_path"), ("full", "full_path|full_url")],
         "size": ("width", "height"),
         "bytes": None,
         "keywords": "prompt",

@@ -534,13 +534,11 @@
       "coverPos": "center 30%",
       "tiers": [
         "thumb",
-        "mid",
-        "full"
+        "mid"
       ],
       "imageDirs": [
         "thumbs",
-        "mid",
-        "img"
+        "mid"
       ],
       "author": {
         "name": "PromptHero 社区",

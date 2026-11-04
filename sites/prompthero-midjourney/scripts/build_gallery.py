@@ -87,14 +87,20 @@ def build_shards(rows):
 
 
 def _addr(site, tier, rec, fkey):
-    """该档位的展示地址与伴随字段（见 shared/image_policy.py 的编码约定）。"""
-    path = rec[tier + "_path"]
+    """该档位的展示地址与伴随字段（见 shared/image_policy.py 的编码约定）。
+
+    online 档（如本站的 full）：地址就是上游 URL，本地没有副本 —— 此时
+    **不写 <字段>Path**：那个路径指向不存在的文件，留着只会误导下游
+    （页面按路径推导图片时会算出必然 404 的地址）。
+    对照 sites/midjourney-explore/scripts/build_gallery.py 的同名函数。
+    """
+    path = rec.get(tier + "_path") or ""
     url = rec.get(tier + "_url") or ""
     display, fallback, keep_path = tier_addr(site, tier, path, url)
     out = {fkey: display}
     if fallback:
         out[fkey + "Url"] = fallback
-    if keep_path:
+    if keep_path and path:
         out[fkey + "Path"] = path
     return out
 
@@ -740,11 +746,11 @@ io.observe($("#more"));
 
 /* —— 灯箱 —— */
 var cur = -1;
-/* 中图路径规则：img/x.png → mid/x.webp（与 tools/mid.py 的 mid_rel 一致）。
-   manifest 的 m 字段是上游实际提供的档位（1080，或上游只有 640 时回落到 640）；
-   上游没生成衍生图的条目 m 字段是缩略图 URL，此时 midOf 给出的路径不存在，
-   灯箱用 m 字段，midOf 作为规则参考与兜底。 */
-const midOf = function(p){ return "mid/" + String(p).replace(/\\/g, "/").replace(/^img\//, "").replace(/\.[^./]+$/, "") + ".webp" };
+/* 中图直接用数据里的 m 字段（上游实际提供的档位：1080，或上游只有 640 时回落到 640）。
+   本站没有 img/ 目录，中图不是本地由原图转出来的，而是上游直给的衍生图，
+   所以这里没有「按路径规则复算」这回事 —— 也不需要 midOf。
+   （2026-11-04 删掉了原先那份 midOf：它描述的是别的站的 img/ 布局，
+     本站从来没有 img/ 目录，那条规则算出来的路径必然 404。） */
 function open(i){
   cur = i;
   var r = state.rows[i];
@@ -754,8 +760,6 @@ function open(i){
   $("#pmeta").textContent = [catLabel(r.c), r.v, "♥ " + (r.f||0), (r.w||0) + " views"].filter(Boolean).join(" · ");
   $("#originBtn").href = r.u;
   $("#dlBtn").href = r.g;
-  // 直连上游时 download 属性跨源无效，改为新标签打开
-  $("#dlBtn").target = /^https?:/.test(r.g) ? '_blank' : '';
   // 直连上游时 download 属性跨源无效，改为新标签打开
   $("#dlBtn").target = /^https?:/.test(r.g) ? '_blank' : '';
   var big = $("#big");

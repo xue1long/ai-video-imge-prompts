@@ -52,8 +52,10 @@ cd ../..
 FETCH_PROXY=http://127.0.0.1:7897 python tools/fetch.py --site prompthero-midjourney
 ```
 
-三档约 40 GB：缩略图 640 档 0.64 GB、中图 1080 档 1.34 GB、原图 38.1 GB。
-原图偶发 SSL 中断（实测约 6%），重跑 `fetch.py` 会只补失败的文件。
+本地两档约 2.0 GB：缩略图 640 档 0.64 GB、中图 1080 档 1.34 GB。
+原图（full，38.1 GB）**不在本地落地** —— 页面上的「下载原图」直连
+cdn.prompthero.com（`sites.json` 的 `imagePolicy.full = online`），
+所以 `fetch.py` 不会去下它，本地也不留副本。
 
 ## 构建
 
