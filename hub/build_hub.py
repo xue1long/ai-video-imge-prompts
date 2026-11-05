@@ -382,7 +382,8 @@ def hub_seo(cfg, base):
             "prompthero-midjourney": f"{stat('prompthero-midjourney', 0)} 条 Midjourney 提示词与成图，覆盖 {stat('prompthero-midjourney', 3)} 个版本、"
                        f"{stat('prompthero-midjourney', 2)} 个分类；提示词原文可直接复制，含成人内容分区（默认模糊）。",
             "midlibrary": f"{stat('midlibrary', 0)} 条 Midjourney 风格条目（含 {stat('midlibrary', 2)} 个风格参考码）、"
-                      f"{stat('midlibrary', 3)} 个分类；每条附一行可复制的提示词与示例图，先看图再决定用不用这个码。"}
+                      f"{stat('midlibrary', 3)} 个分类；每条附一行可复制的提示词、示例图，"
+                      f"以及站方写的风格描述、分面词与主色 —— 先看图再决定用不用这个码。"}
     lines = ["# photoai.life", "",
              f"> AI 绘画参考图库合集：人像、人体姿势、ControlNet 姿势深度图、服装、CC0 姿势线稿、提示词生图集、Midjourney 提示词集、Midlibrary 风格库，共 {N} 张，全部为 AI 生成。"
              "中文索引镜像，界面支持中文与日本語。", "",

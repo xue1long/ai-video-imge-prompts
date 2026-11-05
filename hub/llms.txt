@@ -14,7 +14,7 @@
 - [提示词生图集](https://example.com/prompts/)：26458 条 AI 生图提示词与 41261 张对照成图，覆盖 2 个模型、41 个分类；展示中文提示词、复制英文原文。此外还可将自己跑出的图挂到提示词下。 授权：图片与提示词文本 CC BY 4.0，共享、改编与商用均可，须署名；标注为「自制」的图不在该授权内。 原站：https://youmind.com/gpt-image-2-prompts/explore
 - [Midjourney 探索榜](https://example.com/midjourney-explore/)：Midjourney 官网 Explore 热门榜的镜像。每条社区作业附原始英文提示词，可按画面宽高比筛选。 授权： 原站：https://www.midjourney.com/explore?tab=top
 - [Midjourney 提示词集](https://example.com/prompthero-midjourney/)：12998 条 Midjourney 提示词与成图，覆盖 13 个版本、14 个分类；提示词原文可直接复制，含成人内容分区（默认模糊）。 授权：素材由 PromptHero 用户上传，版权归各原作者；允许免费用于作品制作与参考，禁止再分发、转载、转售图片文件本身，引用须回链原站。 原站：https://prompthero.com/midjourney-prompts
-- [Midlibrary 风格库](https://example.com/midlibrary/)：10140 条 Midjourney 风格条目（含 4638 个风格参考码）、16 个分类；每条附一行可复制的提示词与示例图，先看图再决定用不用这个码。 授权：已获站方书面许可：允许个人学习用途的镜像（含图片），条件是署名并回链原站；素材著作权归 Midlibrary 团队与各艺术家。 原站：https://midlibrary.io/library
+- [Midlibrary 风格库](https://example.com/midlibrary/)：10140 条 Midjourney 风格条目（含 4638 个风格参考码）、16 个分类；每条附一行可复制的提示词、示例图，以及站方写的风格描述、分面词与主色 —— 先看图再决定用不用这个码。 授权：已获站方书面许可：允许个人学习用途的镜像（含图片），条件是署名并回链原站；素材著作权归 Midlibrary 团队与各艺术家。 原站：https://midlibrary.io/library
 
 ## 分类与标签索引
 
