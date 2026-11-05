@@ -4,7 +4,7 @@
 
 **Eight AI art reference galleries, built from one repo and served from one directory**
 
-Portrait · Pose · Pose Depth · Costume · CC0 Pose Line Art · Prompt Gallery · Midjourney Explore · Prompt Set · 113,957 images · Chinese / Japanese UI · Light / Dark
+Portrait · Pose · Pose Depth · Costume · CC0 Pose Line Art · Prompt Gallery · Midjourney Explore · Prompt Set · 114,709 images · Chinese / Japanese UI · Light / Dark
 
 [![CI](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml/badge.svg)](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml)
 [![online](https://img.shields.io/badge/online-photoai.life-2563eb?style=flat-square)](https://photoai.life/)
@@ -54,7 +54,7 @@ Screenshots are taken from the live site to show the UI. The artwork belongs to 
 | [Costume](https://photoai.life/costume/) | Outfits without models, 86 faceted tags | 1,407 items / 4,221 files | No redistribution |
 | [Shisei line art](https://photoai.life/shisei/) | Faceless mannequin line art, 4 series × 5 angles; suggestive poses blurred by default | 280 poses / 1,133 | **CC0** |
 | [Prompt gallery](https://photoai.life/prompts/) | AI generation prompts with their images, two models (Imge-2 / Nano Banana), filterable by model and 41 official categories | 26,458 prompts / 41,261 | **CC BY 4.0** |
-| [Midjourney Explore](https://photoai.life/midjourney-explore/) | Mirror of the Midjourney Explore leaderboard, each community job with its original English prompt | 400 jobs / 1,600 | No redistribution |
+| [Midjourney Explore](https://photoai.life/midjourney-explore/) | Mirror of the Midjourney Explore leaderboard, each community job with its original English prompt | 987 jobs / 3,948 | No redistribution |
 | [Midjourney prompt set](https://photoai.life/prompthero-midjourney/) | Midjourney prompts with their images, v1–v7 plus Niji, 13 versions and 14 categories, adult section blurred by default | 12,998 | No redistribution |
 
 Every site has paginated grids, filters and search, a lightbox (`←` `→` to step, `Esc` to close, swipe on touch), original downloads, and theme and language switches. Each page is a single `index.html` with embedded data and no framework, CDN or web fonts.

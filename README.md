@@ -4,7 +4,7 @@
 
 **八个 AI 绘画参考图库，一个仓库构建，一个目录部署**
 
-人像 · 姿势 · 深度姿势 · 服装 · CC0 姿势线稿 · 提示词生图集 · Midjourney 探索榜 · 提示词集 · 113,957 个图片文件 · 中日双语 · 浅色 / 深色
+人像 · 姿势 · 深度姿势 · 服装 · CC0 姿势线稿 · 提示词生图集 · Midjourney 探索榜 · 提示词集 · 114,709 个图片文件 · 中日双语 · 浅色 / 深色
 
 [![CI](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml/badge.svg)](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml)
 [![online](https://img.shields.io/badge/online-photoai.life-2563eb?style=flat-square)](https://photoai.life/)
@@ -54,7 +54,7 @@
 | [服装集](https://photoai.life/costume/) | 不含真人的服装图，86 个标签分面筛选 | 1,407 件 / 4,221 张 | 禁止再分发 |
 | [Shisei 姿势线稿](https://photoai.life/shisei/) | 无脸人偶线稿，四个系列、每个姿势 5 个视角，偏性感的默认模糊 | 280 个姿势 / 1,133 张 | **CC0** |
 | [提示词生图集](https://photoai.life/prompts/) | AI 生图成图与提示词对照，两个模型（Imge-2 / Nano Banana）、可按模型与 41 个官方分类筛选，一条提示词的多张成图归为一条素材 | 26,458 条 / 41,261 张 | **CC BY 4.0** |
-| [Midjourney 探索榜](https://photoai.life/midjourney-explore/) | Midjourney 官网 Explore 热门榜的镜像，每条社区作业附原始英文提示词，按采集日与画面宽高比筛选 | 400 条作业 / 1,600 张 | 禁止再分发 |
+| [Midjourney 探索榜](https://photoai.life/midjourney-explore/) | Midjourney 官网 Explore 热门榜的镜像，每条社区作业附原始英文提示词，按采集日与画面宽高比筛选 | 987 条作业 / 3,948 张 | 禁止再分发 |
 | [Midjourney 提示词集](https://photoai.life/prompthero-midjourney/) | Midjourney 提示词与成图对照，v1–v7 与 Niji 共 13 个版本、14 个分类，含成人内容分区（默认模糊） | 12,998 条 | 禁止再分发 |
 
 每个站都有：网格分页加载、筛选与搜索、灯箱（`←` `→` 翻页，`Esc` 关闭，手机可滑动）、原图下载、主题与语言切换。页面是单个 `index.html`，数据内嵌，没有框架、CDN 和外部字体。

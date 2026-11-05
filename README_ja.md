@@ -4,7 +4,7 @@
 
 **AI イラスト向けの参照画像ギャラリー 8 つ、1 リポジトリでビルド、1 ディレクトリで公開**
 
-ポートレート · ポーズ · デプス ポーズ · 衣装 · CC0 ポーズ線画 · プロンプト生图集 · Midjourney 探索榜 · プロンプト集 · 113,957 枚 · 中国語 / 日本語 · ライト / ダーク
+ポートレート · ポーズ · デプス ポーズ · 衣装 · CC0 ポーズ線画 · プロンプト生图集 · Midjourney 探索榜 · プロンプト集 · 114,709 枚 · 中国語 / 日本語 · ライト / ダーク
 
 [![CI](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml/badge.svg)](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml)
 [![online](https://img.shields.io/badge/online-photoai.life-2563eb?style=flat-square)](https://photoai.life/)
@@ -54,7 +54,7 @@
 | [衣装集](https://photoai.life/costume/) | 人物なしの衣装、86 タグで絞り込み | 1,407 着 / 4,221 枚 | 再配布禁止 |
 | [Shisei 線画](https://photoai.life/shisei/) | 顔なしマネキン線画、4 シリーズ × 5 アングル。suggestive はぼかし表示 | 280 ポーズ / 1,133 枚 | **CC0** |
 | [プロンプト生图集](https://photoai.life/prompts/) | AI 生成のプロンプトと成図の対照、2 モデル（Imge-2 / Nano Banana）、モデルと 41 の公式カテゴリで絞り込み | 26,458 件 / 41,261 枚 | **CC BY 4.0** |
-| [Midjourney 探索榜](https://photoai.life/midjourney-explore/) | Midjourney 公式 Explore 人気ランキングのミラー、各コミュニティ作業に原文プロンプト付き | 400 作業 / 1,600 枚 | 再配布禁止 |
+| [Midjourney 探索榜](https://photoai.life/midjourney-explore/) | Midjourney 公式 Explore 人気ランキングのミラー、各コミュニティ作業に原文プロンプト付き | 987 作業 / 3,948 枚 | 再配布禁止 |
 | [Midjourney プロンプト集](https://photoai.life/prompthero-midjourney/) | Midjourney プロンプトと成図の対照、v1〜v7 と Niji の 13 バージョン、14 カテゴリ。成人向けセクションはぼかし表示 | 12,998 件 | 再配布禁止 |
 
 各サイト共通：ページ送り付きグリッド、絞り込みと検索、ライトボックス（`←` `→` で移動、`Esc` で閉じる、タッチでスワイプ）、原寸ダウンロード、テーマと言語の切り替え。ページは単一の `index.html` でデータを内蔵し、フレームワーク・CDN・Web フォントを使いません。
