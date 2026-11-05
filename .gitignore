@@ -46,6 +46,15 @@ sites/midjourney-explore/manifest.csv
 sites/midjourney-explore/data/daily/*/jobs.new.json
 sites/midjourney-explore/data/daily/*/jobs.new.json.tmp
 
+# ── Midlibrary 站：清单的可读导出 ────────────────────────
+# manifest.csv 是 manifest.py 的派生可读导出（无脚本消费），
+# 需要时可随时由 python scripts/manifest.py 重新生成。
+sites/midlibrary/manifest.csv
+# data/items.json 是上游记录的原样快照（全量约 7.4 MB），
+# 能由 python scripts/extract.py 重新拉（212 页，约 2 分钟），
+# 入库的只有 manifest.json（清单，fetch.py 与测试都要读它）。
+sites/midlibrary/data/items.json
+
 # ── 构建与发布产物 ────────────────────────────────────
 dist/
 sites/*/dist/

@@ -1,0 +1,25 @@
+{
+ "dirs": [
+  "browse",
+  "cat"
+ ],
+ "pages": [
+  "browse",
+  "cat/painters",
+  "cat/illustrators",
+  "cat/photographers",
+  "cat/various-artists",
+  "cat/sculpture-installation",
+  "cat/designers",
+  "cat/fashion-designers",
+  "cat/filmmakers",
+  "cat/architects",
+  "cat/street-artists",
+  "cat/printmakers",
+  "cat/genres-art-movements",
+  "cat/general-modifiers",
+  "cat/techniques",
+  "cat/titles",
+  "cat/sref-styles"
+ ]
+}

@@ -251,4 +251,22 @@
   <url><loc>https://example.com/prompthero-midjourney/ver/1/</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://example.com/prompthero-midjourney/ver/3/</loc><changefreq>weekly</changefreq></url>
   <url><loc>https://example.com/prompthero-midjourney/ver/2/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/browse/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/painters/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/illustrators/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/photographers/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/various-artists/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/sculpture-installation/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/designers/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/fashion-designers/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/filmmakers/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/architects/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/street-artists/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/printmakers/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/genres-art-movements/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/general-modifiers/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/techniques/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/titles/</loc><changefreq>weekly</changefreq></url>
+  <url><loc>https://example.com/midlibrary/cat/sref-styles/</loc><changefreq>weekly</changefreq></url>
 </urlset>

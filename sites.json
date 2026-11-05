@@ -497,6 +497,69 @@
         "mid": "local-only",
         "full": "online"
       }
+    },
+    {
+      "id": "midlibrary",
+      "code": "MIDLIB-01",
+      "name": {
+        "zh": "Midlibrary 风格库",
+        "ja": "Midlibrary スタイル集"
+      },
+      "desc": {
+        "zh": "Midjourney 风格名与风格参考码（SREF）索引。每条附可复制的一行提示词与示例图，先看图再决定要不要用这个码。",
+        "ja": "Midjourney のスタイル名とスタイル参照コード（SREF）の索引。各項目にそのままコピーできる一命令とサンプル画像を掲載。"
+      },
+      "stats": [
+        {
+          "v": "10140",
+          "l": {
+            "zh": "条目",
+            "ja": "項目"
+          }
+        },
+        {
+          "v": "5502",
+          "l": {
+            "zh": "风格名",
+            "ja": "スタイル名"
+          }
+        },
+        {
+          "v": "4638",
+          "l": {
+            "zh": "风格码",
+            "ja": "SREF コード"
+          }
+        },
+        {
+          "v": "16",
+          "l": {
+            "zh": "分类",
+            "ja": "カテゴリ"
+          }
+        }
+      ],
+      "license": "conditional",
+      "source": "https://midlibrary.io/library",
+      "cover": "thumbs/studio-ghibli.webp",
+      "coverPos": "center 35%",
+      "tiers": [
+        "thumb",
+        "mid"
+      ],
+      "imageDirs": [
+        "thumbs",
+        "mid"
+      ],
+      "author": {
+        "name": "Midlibrary 团队",
+        "url": "https://midlibrary.io/midlibrary"
+      },
+      "imageBase": "https://midlibrary.io/img/",
+      "imagePolicy": {
+        "thumb": "local-only",
+        "mid": "local-only"
+      }
     }
   ]
 }

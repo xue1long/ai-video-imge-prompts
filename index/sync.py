@@ -73,6 +73,8 @@ ORIGINAL_TIER = {
     "shisei": "full",
     "prompts": "full",
     "prompthero-midjourney": "full",
+    # midlibrary 的 thumb 是 sheet 的一角（上游裁的），mid 才是那张完整的样例表
+    "midlibrary": "mid",
 }
 
 # 分面命名空间 → 中文名表。没列出的命名空间 name_zh 与 name 相同。

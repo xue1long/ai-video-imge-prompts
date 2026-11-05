@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://example.com/midlibrary/</loc><changefreq>monthly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://example.com/midlibrary/browse/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/painters/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/illustrators/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/photographers/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/various-artists/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/sculpture-installation/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/designers/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/fashion-designers/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/filmmakers/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/architects/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/street-artists/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/printmakers/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/genres-art-movements/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/general-modifiers/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/techniques/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/titles/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://example.com/midlibrary/cat/sref-styles/</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+</urlset>

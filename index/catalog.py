@@ -227,6 +227,33 @@ SOURCES = {
             "view_count": "viewCount",
         },
     },
+    "midlibrary": {
+        "manifest": "sites/midlibrary/manifest.json",
+        # 站名就是条目标题：风格条目是风格名，SREF 条目是站方给码起的好记名字
+        "title": "name",
+        # title_alt 用那一行可复制的提示词（风格是 "by Puuung --v 8.2"，
+        # SREF 是 "--sref 3383230063 --v 8.2"）
+        "title_alt": "prompt",
+        # 分面两维：类型（7 种 kind）与分类（16 个 categorySlug）
+        "facets": {"类型": "kind", "分类": "category"},
+        # 三个上游徽章做派生分面：按「标记位非空」写固定值，
+        # 索引里能按「站方精选 / 公有领域 / 已实测」筛
+        "derived_facets": {"标记": [("isPick", "站方精选"),
+                                    ("isPublicDomain", "公有领域"),
+                                    ("testedMark", "已实测")]},
+        # thumb 与 mid 都在本地（imagePolicy 两条都是 local-only）：
+        # 上游按 Referer 门放行，外站热链实测必 403，镜像只能存本地
+        "files": [("thumb", "thumb_path"), ("mid", "mid_path")],
+        "size": None,
+        "bytes": None,
+        "keywords": "prompt",
+        "prompt": "prompt",
+        "extra": {
+            "source_url": "sourceUrl",
+            # SREF 条目的纯码（不含 --sref 前缀），非码条目为空
+            "style_ref": "sref",
+        },
+    },
 }
 
 CSV_COLS = [
