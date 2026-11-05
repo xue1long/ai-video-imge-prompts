@@ -52,8 +52,12 @@ sites/midjourney-explore/data/daily/*/jobs.new.json.tmp
 sites/midlibrary/manifest.csv
 # data/items.json 是上游记录的原样快照（全量约 7.4 MB），
 # 能由 python scripts/extract.py 重新拉（212 页，约 2 分钟），
-# 入库的只有 manifest.json（清单，fetch.py 与测试都要读它）。
+# 入库的只有 manifest.json（清单，fetch.py 与测试都要读它）与
+# data/details.json（详情层文本，抓详情页才能重拉）。
 sites/midlibrary/data/items.json
+# 富文本分片是构建产物（由入库的 data/details.json 切出来），
+# 与 prompthero-midjourney 的分片同一性质：不入库，CI 构建时重建。
+sites/midlibrary/data/detail-*.js
 
 # ── 构建与发布产物 ────────────────────────────────────
 dist/

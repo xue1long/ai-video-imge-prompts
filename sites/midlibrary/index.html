@@ -137,6 +137,27 @@ footer a{color:var(--tx2)}
 /* SREF 码单独配色，方便一眼认出、点一下就复制 */
 .lb .foot #lbSref{color:#e8c98a;border-color:#4a4028;cursor:copy}
 .lb .foot #lbSref:hover{background:#2a2418}
+/* 富文本层：描述 / 分面词 / 主色（来自详情页，分片按需加载） */
+.lb .foot #lbDetail{width:100%;margin-top:10px;padding-top:10px;border-top:1px solid #2a2a2e;
+  max-height:30vh;overflow:auto;font-size:12.5px;line-height:1.65;color:#c9c9d2;
+  text-align:left;overscroll-behavior:contain}
+.lb .foot #lbDetail p{margin:0 0 8px}
+.lb .foot #lbDetail .about{color:#8f8f9b}
+.lb .foot #lbDetail .h{color:#8f8f9b;font-size:11px;letter-spacing:.08em;margin:0 0 4px}
+.lb .foot .terms{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0 0 10px}
+.lb .foot .tgrp{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
+.lb .foot .tgl{color:#8f8f9b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase}
+.lb .foot .tgrp a{color:#d8d8e0;text-decoration:none;border:1px solid #33333a;
+  border-radius:999px;padding:1px 8px;font-size:11.5px;white-space:nowrap}
+.lb .foot .tgrp a:hover{background:#22222a;border-color:#4a4a55}
+.lb .foot .tgrp i{color:#7c7c85;font-style:normal;font-size:10px;margin-left:4px}
+.lb .foot .cols{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0;padding:0;list-style:none}
+.lb .foot .cols li{display:flex;align-items:center;gap:5px;font-size:11.5px}
+.lb .foot .cols i{display:block;width:14px;height:14px;border-radius:3px;
+  border:1px solid rgba(255,255,255,.22);flex:0 0 auto}
+.lb .foot .cols a{color:#c9c9d2;text-decoration:none}
+.lb .foot .cols a:hover{color:#fff}
+.lb .foot .cols b{color:#7c7c85;font-weight:400;font-size:10.5px}
 .lb .foot .note{width:100%;font-size:11px;color:#7c7c85}
 html[data-lang=ja] .zh{display:none}
 html[data-lang=zh] .ja{display:none}
@@ -203,6 +224,13 @@ html[data-lang=zh] .ja{display:none}
     <span id="lbMeta"></span>
     <code id="lbSref" hidden></code>
     <code id="lbPrompt"></code>
+    <div id="lbDetail" hidden>
+      <p id="lbAbout" class="about" hidden></p>
+      <p id="lbObs" hidden></p>
+      <div id="lbTerms" class="terms"></div>
+      <p id="lbColourHead" class="h" hidden><span class="zh">配色</span><span class="ja">配色</span></p>
+      <ul id="lbColours" class="cols"></ul>
+    </div>
     <span class="note"><span class="zh">示例图与提示词来自 Midlibrary（原站）。本站是个人学习用途的索引镜像，署名并回链原站。</span><span class="ja">サンプル画像とプロンプトは Midlibrary（元サイト）由来です。本サイトは学習目的のインデックスミラーで、クレジットとリンクを併記します。</span></span>
   </div>
 </div>
@@ -214,6 +242,8 @@ const IDX = window.__GALLERY__;
 const T = {"eyebrow":"MIDJOURNEY STYLES · SREF CODES","lead":"Midjourney 风格名与风格参考码（SREF）的中文索引。每条都附一行可复制的提示词与示例图——先看图，再决定要不要把码粘进 Midjourney。","search":"搜索风格名、提示词或 SREF 码","searchEmpty":"没有匹配的条目","allKinds":"全部","allCats":"全部分类","count":"%s 条","copy":"复制","copied":"已复制","copyPrompt":"复制提示词","copySref":"复制 SREF 码","openOrigin":"打开原站 ↗","kind":"类型","cat":"分类","sref":"SREF 码","noImageNote":"示例图与提示词来自 Midlibrary（原站）。本站是个人学习用途的索引镜像，署名并回链原站。","emptyTitle":"这一类还没有条目","loadMore":"载入更多","end":"到底了","badgePick":"站方精选","badgePublic":"公有领域","badgeTested":"已实测"}, J = {"eyebrow":"MIDJOURNEY STYLES · SREF CODES","lead":"Midjourney のスタイル名とスタイル参照コード（SREF）の日本語索引。各項目にそのままコピーできる一命令とサンプル画像を掲載。","search":"スタイル名・プロンプト・SREF コードを検索","searchEmpty":"一致する項目がありません","allKinds":"すべて","allCats":"すべてのカテゴリ","count":"%s 件","copy":"コピー","copied":"コピーしました","copyPrompt":"プロンプトをコピー","copySref":"SREF コードをコピー","openOrigin":"元サイトを開く ↗","kind":"種類","cat":"カテゴリ","sref":"SREF コード","noImageNote":"サンプル画像とプロンプトは Midlibrary（元サイト）由来です。本サイトは学習目的のインデックスミラーで、クレジットとリンクを併記します。","emptyTitle":"このカテゴリにはまだ項目がありません","loadMore":"さらに読み込む","end":"ここまで","badgePick":"公式セレクト","badgePublic":"パブリックドメイン","badgeTested":"テスト済み"};
 const PAGE_SIZE = 240;
 const KEY = "mld";
+/* 分面词 / 配色这两块要链回上游的功能页与颜色页，需要一个源站根 */
+const SRC_ORIGIN = "https://midlibrary.io";
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c =>
@@ -377,6 +407,7 @@ function openLightbox(key){
     $('#lbCopySref').hidden = true;
   }
   $('#lbPrompt').textContent = it.p || "";
+  renderDetail(it);                          /* 描述 / 分面词 / 主色按需加载 */
   $('#lbOrigin').onclick = () => { window.open(it.u, "_blank", "noopener"); };
   /* 先显示缩略图，中图到达后淡入 */
   const pre = new Image();
@@ -398,6 +429,59 @@ function step(d){
   const pos = lbList.findIndex(it => it.i === lbKey);
   if (pos < 0 || !lbList.length) return;
   openLightbox(lbList[(pos + d + lbList.length) % lbList.length].i);
+}
+
+/* ── 富文本层（详情页的描述 / 分面词 / 主色）─────────
+   全量约 12 MB，所以按 250 条一片切外置（data/detail-<NN>.js，约 330 KB/片），
+   灯箱打开时才注入当前条目所属那一片；同一片只注入一次。 */
+const DL = {}, DL_WAIT = {};
+function pad2(n){ return (n < 10 ? "0" : "") + n; }
+function loadDetail(chunk, done){
+  if (DL[chunk]){ done(); return; }
+  (DL_WAIT[chunk] = DL_WAIT[chunk] || []).push(done);
+  if (DL[chunk] === 0) return;                 /* 正在加载，排进队列 */
+  DL[chunk] = 0;
+  const s = document.createElement("script");
+  s.src = "data/detail-" + pad2(chunk) + ".js";
+  s.onload = s.onerror = function(){
+    DL[chunk] = 1;
+    const q = DL_WAIT[chunk] || [];
+    DL_WAIT[chunk] = [];
+    q.forEach(f => f());
+  };
+  document.head.appendChild(s);
+}
+function renderDetail(it){
+  const box = $('#lbDetail');
+  box.hidden = true;
+  if (it.d === undefined) return;              /* 这条没抓到详情页 */
+  loadDetail(it.d, function(){
+    /* 分片是异步加载的：等它回来时用户可能已经翻到别的条目了，
+       这时把旧条目内容画上去就是串图 —— 用 lbKey 挡一下。 */
+    if (lbKey !== it.i) return;
+    const D = (window.__DETAIL__ || {})[it.i];
+    if (!D) return;
+    const a = D.a || "", o = D.o || "", t = D.t || [], c = D.c || [];
+    const pa = $('#lbAbout'), po = $('#lbObs');
+    pa.textContent = a; pa.hidden = !a;
+    po.textContent = o; po.hidden = !o;
+    $('#lbTerms').innerHTML = t.map(function(g){
+      return '<span class="tgrp"><span class="tgl">' + esc(g[0]) + '</span>' +
+        (g[1] || []).map(function(x){
+          return '<a href="' + esc(SRC_ORIGIN + "/feature/" + x[2]) +
+                 '" target="_blank" rel="noopener noreferrer">' + esc(x[0]) +
+                 '<i>' + esc(x[1]) + '</i></a>';
+        }).join('') + '</span>';
+    }).join('');
+    $('#lbColours').innerHTML = c.map(function(x){
+      return '<li><i style="background:' + esc(x[0]) + '"></i>' +
+        '<a href="' + esc(SRC_ORIGIN + "/library?colour=" + x[3]) +
+        '" target="_blank" rel="noopener noreferrer">' + esc(x[1]) + '</a>' +
+        '<b>' + esc(x[2]) + '</b></li>';
+    }).join('');
+    $('#lbColourHead').hidden = !c.length;
+    box.hidden = !(a || o || t.length || c.length);
+  });
 }
 
 /* ── 复制 ─────────────────────────────────────── */

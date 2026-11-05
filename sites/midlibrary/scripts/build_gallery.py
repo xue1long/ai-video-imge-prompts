@@ -91,6 +91,28 @@ def load_manifest():
     return rows
 
 
+# ── 富文本层（详情页：描述 / 分面词 / 主色）────────────
+# 数据来源是 scripts/extract_details.py 的产物 data/details.json。
+# 它**不是必需输入**：详情页还在抓、或者只抓了一部分时，站点照常构建，
+# 缺的条目在灯箱里就是没有那一段（不编造、不占位）。
+# 每条约 1.2 KB、全量约 12 MB（实测 10,140 条 / 11.9 MB），所以按 CHUNK 条一片切外置，
+# 灯箱打开时才注入那一片（250 条约 330 KB，够快）。
+DETAILS = os.path.join(SITE, "data", "details.json")
+CHUNK = 250
+
+
+def load_details():
+    """读富文本层，返回 {slug: {a,o,t,c}}；没有文件就是空表。"""
+    if not os.path.exists(DETAILS):
+        return {}
+    try:
+        with open(DETAILS, encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        sys.exit("data/details.json 读不了（%s）：%s" % (type(e).__name__, e))
+    return data if isinstance(data, dict) else {}
+
+
 def fmt(n):
     """千分位数字（10,142 这样）。"""
     return "{:,}".format(n)
@@ -103,16 +125,18 @@ def flags_of(r):
             | (4 if r.get("testedMark") else 0))
 
 
-def build_data(rows):
+def build_data(rows, details=None):
     """全站单一数据体：分类索引 + kind 索引 + 条目表。
 
-    记录键名刻意取短（i/n/p/k/c/t/m/u/s/f）—— 一万条要压进 2 MB 上下。
+    记录键名刻意取短（i/n/p/k/c/t/m/u/s/f/d）—— 一万条要压进 2 MB 上下。
     kind 与分类的显示名**不进每条记录**，页面按 id 到索引里查表。
+    d = 富文本分片号（灯箱按需加载 data/detail-<d>.js），没有详情页时不出这个键。
     """
+    details = details or {}
     cat_count = {}
     kind_count = {}
     items = []
-    for r in rows:
+    for idx, r in enumerate(rows):
         cat = r.get("category") or ""
         kind = r.get("kind") or ""
         cat_count[cat] = cat_count.get(cat, 0) + 1
@@ -129,6 +153,9 @@ def build_data(rows):
             "s": r.get("sref") or "",
             "f": flags_of(r),
         }
+        slug = rec["i"]
+        if slug in details:
+            rec["d"] = idx // CHUNK
         items.append(rec)
 
     cats = []
@@ -163,15 +190,35 @@ def build_data(rows):
     return data
 
 
-def write_data(data):
-    """写出 data/gallery.js（唯一数据文件）。"""
+def write_data(data, details=None):
+    """写出 data/gallery.js（主数据）+ data/detail-<NN>.js（富文本分片）。"""
+    details = details or {}
     data_dir = os.path.join(SITE, "data")
     os.makedirs(data_dir, exist_ok=True)
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     with open(os.path.join(data_dir, "gallery.js"), "w", encoding="utf-8", newline="\n") as f:
         f.write("window.__GALLERY__=JSON.parse(%s);\n"
                 % json.dumps(payload, ensure_ascii=False))
-    return len(payload)
+
+    # 富文本分片：第 k 片 = manifest 里 [k*CHUNK, (k+1)*CHUNK) 这一段里有详情的那些条目。
+    # 分片按需加载（灯箱打开时才注入），所以单个文件体积不影响首屏。
+    chunks = {}
+    for idx, rec in enumerate(data["items"]):
+        slug = rec["i"]
+        if slug in details:
+            chunks.setdefault(idx // CHUNK, {})[slug] = details[slug]
+    old = set(n for n in os.listdir(data_dir)
+              if n.startswith("detail-") and n.endswith(".js"))
+    written = set()
+    for k in sorted(chunks):
+        name = "detail-%02d.js" % k
+        written.add(name)
+        body = json.dumps(chunks[k], ensure_ascii=False, separators=(",", ":"))
+        with open(os.path.join(data_dir, name), "w", encoding="utf-8", newline="\n") as f:
+            f.write("window.__DETAIL__=Object.assign(window.__DETAIL__||{},%s);\n" % body)
+    for name in old - written:                      # 上一轮有、这一轮没有的分片要清掉
+        os.remove(os.path.join(data_dir, name))
+    return len(payload), len(written)
 
 
 # ── 落地页 ───────────────────────────────────────────
@@ -373,6 +420,27 @@ footer a{color:var(--tx2)}
 /* SREF 码单独配色，方便一眼认出、点一下就复制 */
 .lb .foot #lbSref{color:#e8c98a;border-color:#4a4028;cursor:copy}
 .lb .foot #lbSref:hover{background:#2a2418}
+/* 富文本层：描述 / 分面词 / 主色（来自详情页，分片按需加载） */
+.lb .foot #lbDetail{width:100%;margin-top:10px;padding-top:10px;border-top:1px solid #2a2a2e;
+  max-height:30vh;overflow:auto;font-size:12.5px;line-height:1.65;color:#c9c9d2;
+  text-align:left;overscroll-behavior:contain}
+.lb .foot #lbDetail p{margin:0 0 8px}
+.lb .foot #lbDetail .about{color:#8f8f9b}
+.lb .foot #lbDetail .h{color:#8f8f9b;font-size:11px;letter-spacing:.08em;margin:0 0 4px}
+.lb .foot .terms{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0 0 10px}
+.lb .foot .tgrp{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
+.lb .foot .tgl{color:#8f8f9b;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase}
+.lb .foot .tgrp a{color:#d8d8e0;text-decoration:none;border:1px solid #33333a;
+  border-radius:999px;padding:1px 8px;font-size:11.5px;white-space:nowrap}
+.lb .foot .tgrp a:hover{background:#22222a;border-color:#4a4a55}
+.lb .foot .tgrp i{color:#7c7c85;font-style:normal;font-size:10px;margin-left:4px}
+.lb .foot .cols{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0;padding:0;list-style:none}
+.lb .foot .cols li{display:flex;align-items:center;gap:5px;font-size:11.5px}
+.lb .foot .cols i{display:block;width:14px;height:14px;border-radius:3px;
+  border:1px solid rgba(255,255,255,.22);flex:0 0 auto}
+.lb .foot .cols a{color:#c9c9d2;text-decoration:none}
+.lb .foot .cols a:hover{color:#fff}
+.lb .foot .cols b{color:#7c7c85;font-weight:400;font-size:10.5px}
 .lb .foot .note{width:100%;font-size:11px;color:#7c7c85}
 html[data-lang=ja] .zh{display:none}
 html[data-lang=zh] .ja{display:none}
@@ -439,6 +507,13 @@ __SEO_INTRO__
     <span id="lbMeta"></span>
     <code id="lbSref" hidden></code>
     <code id="lbPrompt"></code>
+    <div id="lbDetail" hidden>
+      <p id="lbAbout" class="about" hidden></p>
+      <p id="lbObs" hidden></p>
+      <div id="lbTerms" class="terms"></div>
+      <p id="lbColourHead" class="h" hidden><span class="zh">配色</span><span class="ja">配色</span></p>
+      <ul id="lbColours" class="cols"></ul>
+    </div>
     <span class="note"><span class="zh">__NOTE_ZH__</span><span class="ja">__NOTE_JA__</span></span>
   </div>
 </div>
@@ -450,6 +525,8 @@ const IDX = window.__GALLERY__;
 const T = __UI_ZH__, J = __UI_JA__;
 const PAGE_SIZE = __PAGE_SIZE__;
 const KEY = "__KEY__";
+/* 分面词 / 配色这两块要链回上游的功能页与颜色页，需要一个源站根 */
+const SRC_ORIGIN = "__ORIGIN__";
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c =>
@@ -613,6 +690,7 @@ function openLightbox(key){
     $('#lbCopySref').hidden = true;
   }
   $('#lbPrompt').textContent = it.p || "";
+  renderDetail(it);                          /* 描述 / 分面词 / 主色按需加载 */
   $('#lbOrigin').onclick = () => { window.open(it.u, "_blank", "noopener"); };
   /* 先显示缩略图，中图到达后淡入 */
   const pre = new Image();
@@ -634,6 +712,59 @@ function step(d){
   const pos = lbList.findIndex(it => it.i === lbKey);
   if (pos < 0 || !lbList.length) return;
   openLightbox(lbList[(pos + d + lbList.length) % lbList.length].i);
+}
+
+/* ── 富文本层（详情页的描述 / 分面词 / 主色）─────────
+   全量约 12 MB，所以按 250 条一片切外置（data/detail-<NN>.js，约 330 KB/片），
+   灯箱打开时才注入当前条目所属那一片；同一片只注入一次。 */
+const DL = {}, DL_WAIT = {};
+function pad2(n){ return (n < 10 ? "0" : "") + n; }
+function loadDetail(chunk, done){
+  if (DL[chunk]){ done(); return; }
+  (DL_WAIT[chunk] = DL_WAIT[chunk] || []).push(done);
+  if (DL[chunk] === 0) return;                 /* 正在加载，排进队列 */
+  DL[chunk] = 0;
+  const s = document.createElement("script");
+  s.src = "data/detail-" + pad2(chunk) + ".js";
+  s.onload = s.onerror = function(){
+    DL[chunk] = 1;
+    const q = DL_WAIT[chunk] || [];
+    DL_WAIT[chunk] = [];
+    q.forEach(f => f());
+  };
+  document.head.appendChild(s);
+}
+function renderDetail(it){
+  const box = $('#lbDetail');
+  box.hidden = true;
+  if (it.d === undefined) return;              /* 这条没抓到详情页 */
+  loadDetail(it.d, function(){
+    /* 分片是异步加载的：等它回来时用户可能已经翻到别的条目了，
+       这时把旧条目内容画上去就是串图 —— 用 lbKey 挡一下。 */
+    if (lbKey !== it.i) return;
+    const D = (window.__DETAIL__ || {})[it.i];
+    if (!D) return;
+    const a = D.a || "", o = D.o || "", t = D.t || [], c = D.c || [];
+    const pa = $('#lbAbout'), po = $('#lbObs');
+    pa.textContent = a; pa.hidden = !a;
+    po.textContent = o; po.hidden = !o;
+    $('#lbTerms').innerHTML = t.map(function(g){
+      return '<span class="tgrp"><span class="tgl">' + esc(g[0]) + '</span>' +
+        (g[1] || []).map(function(x){
+          return '<a href="' + esc(SRC_ORIGIN + "/feature/" + x[2]) +
+                 '" target="_blank" rel="noopener noreferrer">' + esc(x[0]) +
+                 '<i>' + esc(x[1]) + '</i></a>';
+        }).join('') + '</span>';
+    }).join('');
+    $('#lbColours').innerHTML = c.map(function(x){
+      return '<li><i style="background:' + esc(x[0]) + '"></i>' +
+        '<a href="' + esc(SRC_ORIGIN + "/library?colour=" + x[3]) +
+        '" target="_blank" rel="noopener noreferrer">' + esc(x[1]) + '</a>' +
+        '<b>' + esc(x[2]) + '</b></li>';
+    }).join('');
+    $('#lbColourHead').hidden = !c.length;
+    box.hidden = !(a || o || t.length || c.length);
+  });
 }
 
 /* ── 复制 ─────────────────────────────────────── */
@@ -832,6 +963,7 @@ def page_html(data, cfg, facets, intro_html):
         ("__UI_ZH__", json.dumps(UI["zh"], ensure_ascii=False, separators=(",", ":"))),
         ("__UI_JA__", json.dumps(UI["ja"], ensure_ascii=False, separators=(",", ":"))),
         ("__KEY__", cfg["storageKey"]),
+        ("__ORIGIN__", CONFIG["origin"]),
         ("__SHORT__", CONFIG["short"]),
         ("__HOME__", "参考素材库"),
         ("__THEMEA__", "主题"),
@@ -947,11 +1079,19 @@ def make_og_cover(rows):
 def main():
     rows = load_manifest()
     print("manifest: %d 条（%s）" % (len(rows), MANIFEST))
+    details = load_details()
+    if details:
+        hit = sum(1 for r in rows if (r.get("slug") or r.get("id")) in details)
+        print("富文本层：%d 条有描述/分面/配色（%d / %d）"
+              % (hit, hit, len(rows)))
+    else:
+        print("富文本层：没有 data/details.json，站点照常构建（灯箱里就没有那一段）")
 
-    data = build_data(rows)
-    payload_len = write_data(data)
-    print("数据文件 gallery.js：%d 条 · 分类 %d · kind %d · 约 %.1f MB"
-          % (data["total"], len(data["cats"]), len(data["kinds"]), payload_len / 1048576.0))
+    data = build_data(rows, details)
+    payload_len, n_chunks = write_data(data, details)
+    print("数据文件 gallery.js：%d 条 · 分类 %d · kind %d · 约 %.1f MB · 富文本分片 %d 个"
+          % (data["total"], len(data["cats"]), len(data["kinds"]),
+             payload_len / 1048576.0, n_chunks))
 
     site, facets = build_facets(rows)
     page = page_html(data, CONFIG, facets, intro_html(data, facets))
