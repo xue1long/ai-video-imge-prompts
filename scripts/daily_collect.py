@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""每日采集流水线（midjourney-explore）：采集 → 累积索引 → 建站 → WebUI 索引 → 提交推送。
+"""每日采集流水线（midjourney-explore）：采集 → 累积索引 → 建站 → WebUI 索引 → 取图 → 提交推送。
 
 用法：
     python scripts/daily_collect.py            # 正常跑（默认当天批次）
@@ -523,13 +523,24 @@ def main():
     # sync.py 自带签名判断：manifest 没变就跳过（返回 skipped）
     run([PY, os.path.join("index", "sync.py")])
 
-    # ── 5. 图片下载（默认跳过）────────────────────────────────
-    # 为什么默认跳过：cdn.midjourney.com 挂在 Cloudflare 后面，
-    # 取图要带浏览器头 + __cf_bm 通行证 cookie —— 通行证能拿到，
-    # 但图片路径仍返回 403（CF 人机校验命中本机出口 IP）。
-    # full 档本来就是 CDN 直链、不落本地，所以站点展示不受影响。
-    # 等上游放行或换了出口 IP，把下面这行取消注释即可：
-    # run([PY, os.path.join("tools", "fetch.py"), "--site", SITE])
+    # ── 5. 图片下载 ──────────────────────────────────────────
+    # **必须下**：thumb/mid 两档是 local-only（sites.json）—— 站内没有副本，
+    # 页面也没有上游回落，本地缺文件 = 浏览器里直接裂图（404）。
+    #
+    # 2026-11-03/04 两个批次（1596 张）当初因为「CDN 取不到」被跳过，
+    # 结果页面里一半格子裂图 —— 页面产物是全的（3196 条），图只有一半在。
+    #
+    # 「CDN 取不到」这个前提已经不成立：cdn.midjourney.com 按**客户端指纹**
+    # 放行，Python urllib 一律 403，curl（浏览器 TLS 指纹）却是 200 ——
+    # 同一台机器、同一出口 IP、同一时刻实测。站点的 fetch_hook 现在走 curl 通道。
+    #
+    # 取图失败**不阻断流水线**：数据（批次 / 索引 / 产物）是好的，
+    # 缺的图随时可以用 tools/fetch.py --site <id> 幂等补齐。
+    rc, _ = run([PY, os.path.join("tools", "fetch.py"), "--site", SITE],
+                cwd=ROOT, allow_rc=(0, 1))
+    if rc != 0:
+        log("  ⚠ 图片下载未完全成功（rc=%d）—— 数据不受影响，"
+            "稍后可用 tools/fetch.py --site %s 补齐" % (rc, SITE))
 
     # ── 6. 统计 ──────────────────────────────────────────────
     mpath = os.path.join(SITE_DIR, "manifest.json")

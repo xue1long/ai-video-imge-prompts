@@ -171,8 +171,9 @@ SOURCES = {
         # 语义图（portrait / landscape / still_life），没有 prompt、没有作者，
         # 与本集合「一条作业四格成图」的素材结构不同源。此前用
         # facet="风格参考" 近似出来的「风格」视图，实际筛的是「挂了 sref 的
-        # 作业」，与原站那个 tab 同名不同义，已删除。风格实体由站点
-        # sites/midjourney-explore/styles/ 单独承载（码表 data/styles.json）。
+        # 作业」，与原站那个 tab 同名不同义，已删除。
+        # 2026-11-04：Styles 曾经拆成兄弟站 mj-styles，因价值不足已整站删除
+        # （见 docs/adr/0005-remove-mj-styles-site.md）。原站那个 tab 至今未镜像。
         "views": [
             {"k": "images", "name": "图像", "facet": None},
             {"k": "videos", "name": "视频", "facet": "类型"},
@@ -200,39 +201,7 @@ SOURCES = {
             "job_id": "jobId",
         },
     },
-    "mj-styles": {
-        "manifest": "sites/mj-styles/manifest.json",
-        # 标题就是那串数字：风格码没有别的名字。
-        # 但**不要**写 "title": "code" —— 写了 code 会进 _group_candidates 的
-        # skip 集，group_by 校验被跳过（cands 空 → continue）→ 假通过。
-        # title=None 时 sync_grouped 用 gid(=code) 当标题，显示不变但校验有效。
-        "title": None,
-        "title_alt": None,
-        # **没有分面**。构图（人像/风景/静物）是**图级**属性：329 个码全都
-        # 三张齐备（实测 ('landscape','portrait','still_life') × 329），
-        # 拿它做码级分面必然恒等——点了「构图/人像」还是全部 329 条。
-        # 原站也只有搜索框，没有分类标签：不要臆造分面。
-        "facets": {},
-        # kind / kindZh 只在站点页面与落地页用（按构图拆页），不进索引。
-        "ignored": ["kind", "kindZh"],
-        # 一个码三张图（人像 / 风景 / 静物）是**同一种视觉语言的三个场景**，
-        # 在 WebUI 里应是一条素材的三个资产，灯箱里能连着翻。
-        # group_order = index：组内顺序就是灯箱翻页顺序（人像 → 风景 → 静物）。
-        "group_by": "code",
-        "group_order": "index",
-        "files": [("thumb", "thumb_path"), ("full", "full_path")],
-        "size": ("width", "height"),
-        "bytes": None,
-        "keywords": None,
-        "prompt": None,
-        "extra": {
-            "source_url": "sourceUrl",
-            "published_at": "addedAt",
-            "style_ref": "code",
-            "grid_index": "index",
-        },
-    },
-    "prompthero-midjourney": {
+"prompthero-midjourney": {
         "manifest": "sites/prompthero-midjourney/manifest.json",
         # title 是提示词原文的前 80 字；title_alt 用上游的描述（含浏览/收藏数）
         "title": "title",

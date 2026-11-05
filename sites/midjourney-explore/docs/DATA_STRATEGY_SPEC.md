@@ -283,9 +283,12 @@ sync.py     →  重建检索索引（批次分面 + full 外链入库）
 - ~~**R4 未实测**~~：已消除。实测还额外暴露了灯箱横向溢出（stage 2658px > 视口 900px）——**布局类改动不实测就会漏到线上**。
 - **服务进程跑旧代码**：实测时曾出现「代码已修但 serve 进程未重启」，接口吐出 `/media/https://…` 这种必然 404 的地址。**实测前先确认进程已加载当前代码**。
 
-### 9.2 实测环境备注（2026-11-02）
+### 9.2 实测环境备注（2026-11-02，2026-11-05 复核）
 
-`cdn.midjourney.com` 从本机访问返回 **403**，已核实为 **Cloudflare 人机校验**（响应头 `Cf-Mitigated: challenge` + `CF-RAY: …-HKG` + 挑战页 body），非链接失效；同刻 `raw.githubusercontent.com` 正常 200。真实浏览器带正常指纹不受影响。
+`cdn.midjourney.com` 从本机访问返回 **403**，已核实是 **Cloudflare 拦的**（响应头 `Cf-Mitigated: challenge` + `CF-RAY: …-HKG` + 挑战页 body），非链接失效；同刻 `raw.githubusercontent.com` 正常 200。真实浏览器带正常指纹不受影响。
+
+**2026-11-05 复核：403 的成因是客户端指纹（TLS JA3），不是本机出口 IP。** 同一台机器、同一出口 IP、同一时刻：Python urllib（带浏览器化请求头 + 已拿到的 `__cf_bm` 通行证 cookie）取 `…/0_0_640_N.webp` / `…/0_0_1024_N.webp` 仍是 **403**（挑战页 5892 字节），Windows 自带 `curl.exe`（Schannel TLS，同样的浏览器请求头、**不带 cookie**）取同样两个地址是 **200**（105154 / 171840 / 186112 字节）。所以「出口 IP 被挑战导致整站不可取」不成立——仓库取图代码全 403 是因为走了 Python urllib 这条指纹被拦的通道；修复方向是给站点钩子加一条浏览器味的取图通道（`fetch_bytes(url, headers, timeout) -> bytes`，见 `docs/ADDING_A_SITE.md`）。`.png` 原图直链仍拿不到（403），但 `full` 档本来就是 online 直链、不落本地，与该成因无关。
+
 因此 `full` 档的验收口径是「**地址是纯 CDN URL + 媒体路由 302 直通**」，可达性由上游负责。
 
 ---

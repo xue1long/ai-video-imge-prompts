@@ -25,9 +25,12 @@ Explore 页是**两个维度的组合**，不是一个扁平的 tab 列表：
 top-right corner」。它的数据结构是「风格码 + 示例图组」，与本站现用的「作业 + 4 格成图」
 完全不同，不能塞进同一个 jobs 流程。
 
-> ✅ **2026-11-03 更新**：Styles 数据线**已实施，但拆成了兄弟站 `mj-styles`
-> （MJ-STYLES-01，路径 `/mj-styles/`）**，不是本站的附属数据集。
-> 两边的码表**完全不相交**（实测 329 vs 45，交集 0）——详见该站的 `NOTICE.md`。
+> 🗑️ **2026-11-03 / 2026-11-04 更新**：Styles 数据线曾于 2026-11-03 拆成兄弟站
+> `mj-styles`（MJ-STYLES-01，路径 `/mj-styles/`），**又于 2026-11-04 因价值不足
+> 被整站删除** —— 清单条目、站目录、索引映射、测试夹具、hub 产物全部清理，
+> 线上 `/mj-styles/` 从未上线（一直 404）。决策记录见
+> `docs/adr/0005-remove-mj-styles-site.md`。
+> 两边的码表**完全不相交**（实测 329 vs 45，交集 0）—— 这条线现已整条下线。
 > 本站自此不再承载风格码。
 
 > ⚠️ **2026-11-02 更正**：本节此前写「官网并没有一个独立于热门榜的风格榜数据源；
@@ -59,11 +62,13 @@ top-right corner」。它的数据结构是「风格码 + 示例图组」，与�
 > - **接口只能在浏览器页面上下文里调用**：把 cookie 导出后用 Python 直连，
 >   四组请求变体全部 `500`（含去掉 `cf_clearance` 的对照，证明是应用层拒绝，
 >   不是 CF 拦截）。因此取码脚本用 Playwright 在页面内 `fetch`。
-> - **收录范围的变化**：本站主榜单仍只收录 Images 内容类型；Styles 已拆成**兄弟站
->   `mj-styles`**（200 个码 / 600 张示例图起家，现 329 码 / 987 张），
->   不并入作业流、不参与本站分面。
-> - 实施脚本已迁到 `sites/mj-styles/scripts/`（`dump_styles.py` 取码、`fetch_styles.py` 下图）；
->   清单 `data/styles.json` 入库，图片在 `styles/` 且不入库。
+> - **收录范围的变化**：本站主榜单仍只收录 Images 内容类型；Styles 曾拆成**兄弟站
+>   `mj-styles`**（200 个码 / 600 张示例图起家，后累计到 329 码 / 987 张），
+>   不并入作业流、不参与本站分面 —— **该兄弟站已于 2026-11-04 整站删除**
+>   （见 `docs/adr/0005-remove-mj-styles-site.md`），这条线现已整条下线。
+> - 实施脚本曾迁到 `sites/mj-styles/scripts/`（`dump_styles.py` 取码、
+>   `fetch_styles.py` 下图）；清单 `data/styles.json` 与 `styles/` 图片目录
+>   已随该站一并删除。
 >   完整证据链见 `docs/STYLES_FEASIBILITY.md` §10、§11。
 >
 > - 端点不是 `/api/explore` 换 `feed` —— 实测 5 个 feed 取值返回**逐字节相同**
@@ -111,16 +116,27 @@ top-right corner」。它的数据结构是「风格码 + 示例图组」，与�
 原图每天约 2.3 GB，本地副本不产生展示价值；代价是**原图长期可达性取决于上游**
 （详见 `docs/DATA_STRATEGY_SPEC.md` §1.2）。
 
-### Cloudflare 的两道坎（实测）
+### Cloudflare 的三道坎（实测）
 
 1. **接口与图片都要浏览器化的请求头。** 只带 `User-Agent` / `Referer` 一律 403；
    需要完整的 `Accept` / `Sec-Fetch-*` / `Origin` 组合。
 2. **图片必须带 Cloudflare 通行证 cookie。** 访问 `www.midjourney.com` 任一页面会下发
    `__cf_bm`，把它放进 CookieJar 再访问 `cdn.midjourney.com` 才会返回图片；
    路径完全正确但没有 cookie 时同样是 403（返回的是 Cloudflare 的 HTML 错误页，不是图片）。
+3. **Python 客户端的 TLS 指纹会被判掉（2026-11-05 实测）。** 前两样都做到位了，Python
+   通道照样 403：同一台机器、同一出口 IP、同一时刻，Python urllib（带浏览器化请求头 +
+   已拿到的 `__cf_bm` cookie）取 `0_0_640_N.webp` / `0_0_1024_N.webp` 是 **403**
+   （Cloudflare 挑战页），Windows 自带 `curl.exe`（Schannel TLS、同样的请求头、
+   **不带 cookie**）取同样两个地址是 **200**（105154 / 171840 / 186112 字节）。
+   所以 403 的成因是**客户端指纹（JA3）**，不是出口 IP —— 「本机 IP 被挑战导致整站
+   不可取」的说法不成立，curl/浏览器通道能取到 640 与 1024 两档。
+   `.png` 原图直链仍然拿不到（403）：`full` 档本来就是 CDN 直链、不落本地。
+   （curl 通道仍会带上 `__cf_bm`：不带 cookie 时实测约 1/4 的请求会被挑战成 403，
+   带上则 12/12 全 200；通行证约 30 分钟过期，钩子会在失败时换一份新的重试。）
 
-这两点由 `scripts/fetch_hook.py` 封装，供仓库通用的 `tools/fetch.py` 调用
-（`shared/assets.py` 的站点级钩子机制）。
+这三点由 `scripts/fetch_hook.py` 封装，供仓库通用的 `tools/fetch.py` 调用
+（`shared/assets.py` 的站点级钩子机制；第三点对应钩子的第三个可选函数
+`fetch_bytes(url, headers, timeout) -> bytes` —— 站点自带浏览器味的取图通道）。
 
 ## 上游数据特征
 

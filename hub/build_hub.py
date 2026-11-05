@@ -407,10 +407,6 @@ def apply_manifest_stats(cfg):
         "作业": lambda rows: len({r.get("jobId") for r in rows if r.get("jobId")}),
         "作者": lambda rows: len({r.get("username") for r in rows if r.get("username")}),
         "宽高比": lambda rows: len({r.get("aspect") for r in rows if r.get("aspect")}),
-        # mj-styles：一条记录 = 一张示例图（987 行），一个码三张（329 个 code）
-        "风格码": lambda rows: len({r.get("code") for r in rows if r.get("code")}),
-        "示例图": lambda rows: len(rows),
-        "构图": lambda rows: len({r.get("kind") for r in rows if r.get("kind")}),
     }
     for s in cfg["sites"]:
         p = os.path.join(ROOT, "sites", s["id"], "manifest.json")

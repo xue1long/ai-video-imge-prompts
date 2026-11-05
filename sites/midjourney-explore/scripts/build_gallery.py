@@ -914,10 +914,10 @@ def inject_seo_intro(rows, urls, cfg):
     facts = [("成图", "%d 张" % n_images), ("作业", "%d 条" % n_jobs),
              ("作者", "%d 位" % len({r["username"] for r in rows})),
              ("授权", "禁止再分发")]
-    # 「风格码库」已拆成兄弟站 mj-styles（原站 Styles 是独立内容类型，
-    # 与本集的「一条作业四格成图」不同源，两边码表交集为 0）。
-    # 链接用站点间相对路径 ../mj-styles/。
-    links = [("browse/", "按宽高比浏览"), ("../mj-styles/", "风格码库")]
+    # 原站 Explore 的 Styles（风格码）曾拆成兄弟站 mj-styles，
+    # 2026-11-04 因价值不足已整站删除（docs/adr/0005-remove-mj-styles-site.md），
+    # 本页不再链向它。
+    links = [("browse/", "按宽高比浏览")]
     card = landing_mod.static_intro(sp["introParas"](n_jobs, n_images), facts, links, sp["faq"])
     # 插到 </footer> 之前
     marker = "</footer>"

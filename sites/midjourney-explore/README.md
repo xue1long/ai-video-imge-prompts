@@ -20,7 +20,7 @@ sites/midjourney-explore/
 ├── scripts/
 │   ├── extract.py          # 从官网接口采集元数据 → data/daily/<日期>/jobs.json
 │   ├── manifest.py         # data/daily/*/jobs.json → manifest.json（另出 manifest.csv，不入库）
-│   ├── fetch_hook.py       # 取图钩子：Cloudflare 通行证 + 浏览器化请求头
+│   ├── fetch_hook.py       # 取图钩子：curl 通道（浏览器 TLS 指纹）+ Cloudflare 通行证
 │   └── build_gallery.py    # 生成 index.html + 单一 gallery.js + 落地页 + SEO 文件
 ├── data/
 │   ├── daily/              # 批次目录（入库）：每天一份，历史批次不覆盖
@@ -102,24 +102,52 @@ FETCH_PROXY=http://127.0.0.1:7897 python tools/fetch.py --site midjourney-explor
 
 `tools/fetch.py` 走的是共用的 `shared/assets.py`，它会自动发现本站的
 `scripts/fetch_hook.py` 并调用它——钩子负责带上浏览器化请求头与通行证 cookie。
-没有这个钩子，CDN 会对所有请求返回 403。
 
-## 风格数据线（Styles）—— 已拆成兄弟站
+### 取图通道：为什么用 curl 而不是 urllib
+
+`cdn.midjourney.com` 按**客户端指纹**放行。2026-11-05 实测（同一台机器、
+同一出口 IP、同一时刻）：
+
+| 客户端 | 640 档 | 1024 档 | .png 原图 |
+| --- | --- | --- | --- |
+| Python urllib（浏览器头 + `__cf_bm` 通行证） | 403 | 403 | 403 |
+| curl.exe（同样浏览器头，不带 cookie） | **200** | **200** | 403 |
+
+⇒ 403 的成因是 Cloudflare 判 Python 的 TLS 指纹，**不是「出口 IP 被挑战」**
+（早先文档里那个结论是错的，已纠正）。所以钩子里加了第三条通道：
+`fetch_bytes(url, headers, timeout)` 用 curl 取（Windows 自带 `curl.exe` 走
+Schannel，TLS 指纹像浏览器），失败才回落 urllib + 通行证。
+
+`shared/assets.py` 默认仍走 urllib，其他站行为不变。
+
+### 每日采集也要取图
+
+`thumb`/`mid` 两档是 `local-only`（站内没有副本、页面也没有上游回落），
+**本地缺文件 = 浏览器里直接裂图**。2026-11-03/04 两个批次（1596 张）当初
+因为「CDN 取不到」被跳过，结果页面里一半格子裂图。现在
+`scripts/daily_collect.py` 第 5 步会跑 `tools/fetch.py --site midjourney-explore`
+（幂等，已有的文件跳过），取图失败只告警、不阻断流水线。
+
+## 风格数据线（Styles）—— 曾拆成兄弟站，现已整站下线
 
 原站右上角的 Styles 是**独立内容类型**，不在 `feed=top` 的返回里。
 
-> ✅ **2026-11-03：这条数据线已实施，但不再放在本目录。**
-> 它拆成了兄弟站 **`sites/mj-styles/`（MJ-STYLES-01，路径 `/mj-styles/`）**。
+> 🗑️ **2026-11-04：这条数据线已经整站下线。**
+> 它曾于 2026-11-03 拆成兄弟站 **`sites/mj-styles/`（MJ-STYLES-01，路径 `/mj-styles/`）**，
+> 同日（2026-11-04）该站因**价值不足**被整站删除 —— 清单条目、站目录、
+> 索引映射、测试夹具、hub 产物全部清理，线上 `/mj-styles/` 从未上线（一直 404）。
+> 决策记录见 `docs/adr/0005-remove-mj-styles-site.md`。
 >
-> 拆分的理由是**内容类型不同源**：Styles 是「一个风格码 + 三张语义示例图，
-> 没有提示词、没有作者」，本站是「一条社区作业 + 四格成图 + 提示词 + 作者」。
-> 实测两边的码表**完全不相交**（329 vs 45，交集 0）—— 作业里引用的
-> `prompt.styleRef` 与 Styles 榜单的码是两套东西。
+> 拆分与删除的理由是同一个：**内容类型不同源，且价值不足**。Styles 是
+> 「一个风格码 + 三张语义示例图，没有提示词、没有作者」，本站是
+> 「一条社区作业 + 四格成图 + 提示词 + 作者」；实测两边的码表**完全不相交**
+> （329 vs 45，交集 0）—— 作业里引用的 `prompt.styleRef` 与 Styles 榜单的码
+> 是两套东西。拼在一个站里对用户没有增量，单独占一个站也没有撑起它的价值。
 >
-> 原来的三个脚本（`dump_styles.py` / `fetch_styles.py` / `capture_session.py`）
-> 与页面生成器（`build_styles_page.py`）都已迁到新站，数据文件
-> `data/styles.json` / `data/styles_images.json` 一并迁走。
-> 完整说明见新站的 `README.md` 与 `NOTICE.md`。
+> 原先的三个脚本（`dump_styles.py` / `fetch_styles.py` / `capture_session.py`）
+> 与页面生成器（`build_styles_page.py`）连同数据文件已随该站一并删除。
+> 本节保留为**调研留档**：下面的采集方法与实测结论仍然有效，
+> 完整证据链见 `docs/STYLES_FEASIBILITY.md` §10、§11。
 
 **每个码有三张语义化单图**：`portrait` / `landscape` / `still_life`，
 同一风格的三个不同题材。CDN 上只有 128 / 384 / 640 / 1024 四档；缩略不额外下载，

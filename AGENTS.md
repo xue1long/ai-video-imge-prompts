@@ -6,7 +6,7 @@
 
 ## 项目是什么
 
-**一个仓库构建、构建九个 AI 绘画参考图库**：人像集 / 姿势集 / 深度姿势集 / 服装集 / Shisei CC0 姿势线稿 / 提示词生图集 / Midjourney 探索榜 / Midjourney 风格码库 / Midjourney 提示词集，共 **115,931 个图片文件**（同图多档各计一个），中日双语、浅色 / 深色双主题。
+**一个仓库构建、构建八个 AI 绘画参考图库**：人像集 / 姿势集 / 深度姿势集 / 服装集 / Shisei CC0 姿势线稿 / 提示词生图集 / Midjourney 探索榜 / Midjourney 提示词集，共 **113,957 个图片文件**（同图多档各计一个），中日双语、浅色 / 深色双主题。
 
 - 线上入口：<https://photoai.life/>
 - 仓库：<https://github.com/xue1long/ai-video-imge-prompts>
@@ -19,7 +19,7 @@
 - 静态站无 Node、无前端构建。**`index/`（本地素材管理器）是唯一的数据库应用**：SQLite 单文件 `gallery.db`（标准库 `sqlite3`），HTTP 用标准库 `http.server`，前端仍是单文件原生 JS。
 - **CI**：GitHub Actions（`.github/workflows/ci.yml`），ubuntu-24.04 + Python 3.8/3.13 + Node 22。
 
-## 九个站点（`sites.json` 是唯一配置源）
+## 八个站点（`sites.json` 是唯一配置源）
 
 | id | 名称 | 规模 | 素材授权 | imageDirs / tiers |
 | --- | --- | --- | :---: | --- |
@@ -31,7 +31,6 @@
 | `prompthero-midjourney` | Midjourney 提示词集 | 12,998 条提示词与成图（v1–v7 与 Niji 共 13 个版本；含成人内容 2,841 条，默认模糊且不生成落地页；**原图走 CDN 直链，本地只留 thumb + mid**） | 禁止再分发 | thumbs, mid / thumb, mid |
 | `prompts` | 提示词生图集 | 26,458 条提示词 / 41,261 张（两个模型：Imge-2 22,268 张 / Nano Banana 18,993 张，两者都有 41 个官方分类；一条提示词的全部成图归为一条素材；数据按模型分片 `data/gallery_<key>.js`，缩略图来自上游 CDN；另有站主自制图放 `userimg/`、灯箱标「自制」，**不在 CC BY 4.0 内**） | **CC BY 4.0**（须署名） | thumbs, img / thumb, full |
 | `midjourney-explore` | Midjourney 探索榜 | 400 条社区作业 / 1600 张成图（官网 Explore 榜共 4 页，每批次 200 作业；每条作业 4 格全收；全部为 v8.2；**按天累积采集**，批次目录 `data/daily/<日期>/`，历史不覆盖；**原图走 CDN 直链，本地只留 thumb + mid**） | 禁止再分发 | thumbs, mid / thumb, mid |
-| `mj-styles` | Midjourney 风格码库 | 329 个风格码 × 3 张语义示例图（人像 / 风景 / 静物）；**不生成落地页**（`sites.json` 声明 `"landing": false`） | 禁止再分发 | styles / thumb, full |
 
 来源：portrait ← ai-portrait-gallery.pages.dev；pose ← ai-pose-gallery.pages.dev；pose-depth ← ai-pose-depth-gallery.pages.dev；costume ← ai-costume-gallery.pages.dev；shisei ← shisei.indaloop.app（GitHub `wquguru/shisei` v0.3.0，raw 源）；prompts ← youmind.com（两条模型线：`gpt-image-2-prompts` / `nano-banana-pro-prompts`，YouMind 官方 API `youmarketing-api/prompts`，`cms-assets.youmind.com` 图源，`imageBase` 已声明；分类靠 `categories` 参数逐类反查，见 `sites/prompts/tag_categories.py`）；prompthero-midjourney ← prompthero.com/midjourney-prompts（前端 tRPC 接口 `/api/trpc/prompt.search`，匿名可调；衍生图在 `img.prompthero.com`、原图在 `cdn.prompthero.com`，故 `imageBases` 列为两个前缀）；midjourney-explore ← midjourney.com/explore（前端只读接口 `/api/explore?page=N&feed=top`，匿名可调；图源在 `cdn.midjourney.com`，**必须带 Cloudflare 的 `__cf_bm` 通行证 cookie，否则一律 403**，由 `sites/midjourney-explore/scripts/fetch_hook.py` 处理）。
 
@@ -78,7 +77,7 @@ ai-video-imge-prompts/
 ```bash
 python tools/fetch.py      # 下载全部图片（首次约 86 GB，之后只补缺失）
 python tools/mid.py        # 生成灯箱中图（约 290 MB）
-python tools/build.py      # 构建九个站 + 入口页
+python tools/build.py      # 构建八个站 + 入口页
 python tools/release.py    # 组装 dist/
 python tools/serve.py      # 预览 http://127.0.0.1:8080/
 python tests/run.py        # 不依赖图片的检查
@@ -124,7 +123,7 @@ python tests/test_manager.py  # 素材管理器测试（需 Pillow），只走 H
 15. **给提示词加自己的成图走覆盖层，不改上游数据**：素材管理器「添加图片」（`POST /api/items/{id}/attach`）把图存进 `library/`，`sites/prompts/sync_user_assets.py` 导出成 `userimg/` + `data/user_assets.json`（按 originId 归属，两者都入库），`build_gallery.py` 再把它们追加到该提示词的 `files[]` 末尾。**绝不写进 `data/prompts_<key>.json`** —— 那是 `import_youmind.py` 的产物，每次重抓整份重写。图片放 `userimg/` 而不是 `img/<key>/`：后者目录名就是模型分片键，混进去会被当成新模型，且 `fetch.py` 只认 manifest 里的文件。
 16. **数据量大到撑破页面体积上限时分片外置**：单页内嵌全部数据会撞上 450 KB 上限（`Pages.test_page_size_budget`）。做法见 `sites/prompthero-midjourney/`：页面只内嵌一份小索引 `data/gallery.js`，每个分类的数据写在 `data/gallery_<cat>.js`（`JSON.parse` 赋值），切换分类时才懒加载。**分片不入库**（`.gitignore` 已排除），但可由入库的 `manifest.json` 重建，所以 CI 构建该站**不需要** `--skip`（与 `prompts` 站不同：它的数据源本身不入库）。
 17. **有成人内容的站默认模糊，且不进落地页与 sitemap**：`prompthero-midjourney` 的 NSFW 条目在网格里默认 `blur(16px)`，点开单张或用页头开关才清晰；成人分类不生成静态落地页，也不出现在 `sitemap.xml` 与根 sitemap。实现参考 `shared/pose_gallery.py` 的 `blurRatings` 机制（`data-r="1"` + `html.blur-on` + `localStorage` 偏好）。
-18. **图源需要浏览器化请求头或 cookie 时，走站点级取图钩子**：在 `sites/<id>/scripts/fetch_hook.py` 里提供 `headers(url, referer)` 与 `prepare(opener, log)` 两个可选函数，`shared/assets.py` 会自动发现并调用（没有这个文件的站点行为不变）。`midjourney-explore` 用它带 Cloudflare 的 `__cf_bm` 通行证 —— `cdn.midjourney.com` 没有该 cookie 一律 403。**不要为此在 `tools/` 里加单站分支。**
+18. **图源需要浏览器化请求头或 cookie 时，走站点级取图钩子**：在 `sites/<id>/scripts/fetch_hook.py` 里提供 `headers(url, referer)` 与 `prepare(opener, log)` 两个可选函数，`shared/assets.py` 会自动发现并调用（没有这个文件的站点行为不变）。`midjourney-explore` 用它带 Cloudflare 的 `__cf_bm` 通行证。钩子还可提供第三个可选函数 `fetch_bytes(url, headers, timeout) -> bytes` 自带取图通道（`shared/assets.py` 优先用它，默认仍走 urllib，其他站行为不变）—— **有些图源按客户端指纹放行**：同一台机器同一出口 IP，Python `urllib` 一律 403（Cloudflare 判 TLS 指纹），curl 却是 200（`cdn.midjourney.com` 的 640/1024 两档 webp 即如此，2026-11-05 实测；`.png` 原图直链仍 403）。**不要为此在 `tools/` 里加单站分支。**
 
 19. **取图策略按档位声明在 `sites.json` 里**（`imagePolicy`），三种取值：`local-first`（站内优先、加载失败回落到上游地址）、`online`（直连上游，站内不再保留该档图片）、`local-only`（仅本地，无回落）。共享层 `shared/image_policy.py` 是唯一读取入口，构建脚本与索引同步共用。两条硬约束：**构建过程不探测本地文件是否存在**（策略是提交进仓库的静态配置，产物只取决于配置，因此在有图与无图的环境里逐字节一致）；**通用代码里不出现站点分支**，站点差异只通过声明表达。**编码约定（唯一编码约定，逐字以 `shared/image_policy.py` 的模块注释为准）**：`<字段>` 是展示地址——`online` 时是上游 URL，否则是站内相对路径；`<字段>Url` 是上游地址，仅 `local-first` 时写出，作加载失败的回落目标；`<字段>Path` 是站内相对路径，仅 `online` 时写出，供中图等按路径推导的规则使用。字段名各站不同（t/f、th/im/pg、s/m/g…），后缀约定一致，所以页面里的通用回落逻辑不需要知道每个站的具体字段名。`tests/run.py` 的 `ImagePolicy` 与 `ImageArtifacts` 守这条声明到产物的传导。
 

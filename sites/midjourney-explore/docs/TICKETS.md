@@ -180,7 +180,7 @@
 
 ### 4.3 403 的归属：环境，不是链接失效
 
-`cdn.midjourney.com` 全部返回 **403**，但响应头证明是 **Cloudflare 人机校验**而非链接失效：
+`cdn.midjourney.com` 全部返回 **403**，但响应头证明是 **Cloudflare 拦的**（人机校验挑战页）而非链接失效：
 
 ```
 Cf-Mitigated: challenge
@@ -190,7 +190,16 @@ body: <title>Just a moment...</title>   ← Cloudflare 挑战页
 ```
 
 对照证据：同一时刻 `raw.githubusercontent.com` → **200**，`www.midjourney.com` 同样 403（说明是**域级**规则命中）。
-结论：**本机出口 IP 被 Cloudflare 挑战**，与本站实现无关。真实用户浏览器带正常 Cookie/指纹时不受此限。
+
+**2026-11-05 复核：成因是客户端指纹（TLS JA3），不是出口 IP。** 同一台机器、同一出口 IP、同一时刻：
+
+| 客户端 | 目标 | 结果 |
+|---|---|---|
+| Python urllib（带浏览器化请求头 + 已拿到的 `__cf_bm` 通行证 cookie） | `…/0_0_640_N.webp` / `…/0_0_1024_N.webp` | **403**（Cloudflare 挑战页，5892 字节） |
+| Windows 自带 `curl.exe`（Schannel TLS，同样的浏览器请求头，**不带 cookie**） | 同上两个地址 | **200**（105154 / 171840 / 186112 字节） |
+| `curl.exe` | `…/0_0.png`（原图） | **403**（原图直链仍拿不到；`full` 档本来就是 online 直链、不落本地） |
+
+结论：**403 命中的是 Python 客户端的 TLS 指纹**，不是本机出口 IP —— 同一 IP 上 curl/浏览器通道能取到 640 与 1024 两档，「出口 IP 被挑战导致整站不可取」的说法不成立。仓库当前的取图代码（Python urllib）之所以全 403，是 Cloudflare 判 Python 的 TLS 指纹，与本站实现无关；真实用户浏览器带正常 Cookie/指纹时不受此限。修复方向是给站点钩子加一条浏览器味的取图通道（`fetch_bytes(url, headers, timeout) -> bytes`，见 `docs/ADDING_A_SITE.md`）。
 **不影响验收**：full 档的地址正确性由「地址是纯 CDN URL + 媒体路由 302 直通」证明，可达性由上游负责。
 
 ### 4.4 实测发现并修掉的缺陷（2 处）

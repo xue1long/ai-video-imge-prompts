@@ -7,14 +7,9 @@ sites/*/img/
 sites/*/png/
 sites/*/raw/
 sites/*/failed_*.json
-# 风格示例图（Styles 数据线，mj-styles 站）：一个码三张
-# （portrait/landscape/still_life），由 scripts/fetch_styles.py 幂等下载；
-# 入库的是 data/styles.json（清单）、data/styles_images.json（每码每类的
-# 命中状态）、data/styles_probe.json（探测批留档）与页面本身。
+# 通配的图片目录名：站点的 imageDirs 里若出现 styles/，图片同样不入库。
 # 注意这里用 styles/* 而不是 styles/：父目录被整体忽略后，下面的 ! 例外不会生效。
 sites/*/styles/*
-# 探测批的 35 个码（不属于榜单，未并入码表）：留作留证，不入库
-sites/mj-styles/.probe/
 
 # ── prompts 站的抓取与构建中间数据 ──────────────────────────
 # 这些都能由 sites/prompts/import_youmind.py + build_gallery.py 重新生成，

@@ -11,7 +11,7 @@ sites/<新站id>/
 │   ├── build_gallery.py    # 必填
 │   ├── extract.py          # 按需：从原站存档解析 data/
 │   ├── manifest.py         # 按需：data/ → manifest.json
-│   └── fetch_hook.py       # 按需：图源要浏览器化请求头或 cookie 时提供
+│   └── fetch_hook.py       # 按需：图源要浏览器化请求头、cookie 或自带取图通道时提供
 ├── data/                   # 结构化数据（入库）
 ├── index.html              # 构建产物（入库，便于直接预览）
 ├── LICENSE
@@ -23,7 +23,7 @@ sites/<新站id>/
 |---|---|
 | `scripts/build_gallery.py` | 读环境变量 `SITE_URL`，输出 `index.html`、`data/`、`robots.txt`、`sitemap.xml`、`404.html`。站点根用 `dirname(dirname(__file__))` 自己算，不依赖当前目录 |
 | `manifest.json` | 每条记录对 `sites.json` 里的每个档位 `<tier>` 都有 `<tier>_url` 和 `<tier>_path`（例如 `thumb_url` / `thumb_path`）。`tools/fetch.py` 和 `tools/verify.py` 只靠这条规则工作 |
-| `scripts/fetch_hook.py` | 图源要浏览器化请求头或 cookie 时提供（见下）。没有这个文件的站点行为完全不变 |
+| `scripts/fetch_hook.py` | 图源要浏览器化请求头、cookie 或自带取图通道时提供（见下）。没有这个文件的站点行为完全不变 |
 
 结构和姿势集相同的站，直接复用 `shared/pose_gallery.py` 与 `shared/pose_source.py`，只写一份 `config.py`（参考 `sites/pose/config.py`）。
 数据来自别的项目、系列和名称不同的，参考 `sites/shisei/config.py`：系列与视角顺序、中文名表、作者、`blurRatings`（默认模糊）都在配置里。
@@ -42,12 +42,27 @@ def headers(url, referer):
 def prepare(opener, log):
     """可选：预热。先访问页面拿 cookie，返回带 cookie 的 opener。"""
     ...
+
+def fetch_bytes(url, headers, timeout):
+    """可选：站点自带取图通道。返回图片字节，失败抛异常。"""
+    ...
 ```
 
-`shared/assets.py` 会自动发现并调用它；没有这个文件的站点走默认路径，行为不变。
+三个函数**都是可选的**，按需实现：
+
+| 钩子 | 什么时候需要 | `shared/assets.py` 怎么用 |
+|---|---|---|
+| `headers(url, referer)` | 图源要浏览器化的请求头 | 追加到默认请求头之后 |
+| `prepare(opener, log)` | 图源要先拿 cookie / 通行证 | 下载前调用一次，用返回的 opener |
+| `fetch_bytes(url, headers, timeout)` | **默认的 urllib 通道被上游按客户端指纹拦掉**，站点要自带一条浏览器味的取图通道 | **优先调用**它取图；没有这个函数就照旧走 urllib |
+
+`shared/assets.py` 会自动发现并调用它们；没有这个文件的站点走默认路径，行为不变。
 
 实例：`sites/midjourney-explore/scripts/fetch_hook.py` —— `cdn.midjourney.com`
-必须带 Cloudflare 下发的 `__cf_bm` 通行证 cookie，否则一律 403。
+要浏览器化的请求头与 Cloudflare 下发的 `__cf_bm` 通行证 cookie；
+2026-11-05 实测：Python urllib 这两样都带仍然被按 **TLS 指纹**（JA3）403，
+换 curl/浏览器通道同一出口 IP 却能取到 640/1024 两档 —— 这种站就该用第三个钩子
+`fetch_bytes` 自带一条浏览器味的取图通道，而不是改 `tools/`。
 
 ## 2. 在 `sites.json` 追加一条
 
@@ -88,7 +103,11 @@ def prepare(opener, log):
 > 清掉上次的落地页并写一份空 `landing.json`；hub 的 `browse/` 链接与
 > `llms.txt` 的分类索引按这个字段条件生成。`tests/run.py` 双向校验：
 > 声明 `false` 的站必须**没有**落地页，声明 `true` / 未声明的站必须**有**。
-> 现有例子：`mj-styles`（2026-11-04 起）。
+>
+> 典型场景：新站的内容没有可枚举的分类（上游只有一个搜索框），落地页只能是
+> 首页的子集视图 —— 那就声明 `false`，别硬造分面。
+> 2026-11-04：唯一用过它的站是 `mj-styles`（Midjourney 风格码库），同日该站
+> 因价值不足被整站删除；**机制本身保留**，但当前没有使用者。
 
 ## 3. 测试会强制的隐含约束
 
@@ -222,7 +241,7 @@ python tests/run.py                    # 含索引接线测试
 |---|---|---|
 | `local-first` | 站内相对路径优先，图片加载失败时回落到该档位的上游地址 | 缩略图这类**留在本地**、但偶尔会缺文件的档位（回落是保险） |
 | `online` | 直接用上游地址，站内不再保留该档的图片 | 原图档——占了绝大部分空间，切走后本地能省几十 GB |
-| `local-only` | 只用站内地址，不做上游回落（默认） | 上游对直连有防护（如 `cdn.midjourney.com` 要 Cloudflare 通行证）、或这一档本来就不从上游取 |
+| `local-only` | 只用站内地址，不做上游回落（默认） | 上游对直连有防护（如 `cdn.midjourney.com` 要 Cloudflare 通行证、裸请求过不去）、或这一档本来就不从上游取 |
 
 ```json
 "midjourney-explore": {
@@ -261,10 +280,15 @@ python index/verify.py           # 有上游地址的资产不再报缺图
 | 上游现在能不能访问 | 浏览器里 `new Image().src = 上游URL` | **浏览器能加载**才算数 |
 
 ⚠️ **用浏览器验，别用 Python 裸请求。** Python 直连会被代理策略、
-Cloudflare 人机校验挡住，得出「上游不通」的假结论；
-浏览器走系统代理，可能其实通着。实测：
+或被 Cloudflare 按 **TLS 指纹（JA3）** 判成非浏览器客户端挡住，得出「上游不通」的假结论；
+浏览器走系统代理、指纹也像浏览器，上游可能其实通着。实测：
 `cdn.prompthero.com` 用 Python 直连 TCP 超时（判「不通」），
-但浏览器里 `new Image()` **加载成功 3300×4200**。
+但浏览器里 `new Image()` **加载成功 3300×4200**；
+`cdn.midjourney.com` 同样是**客户端指纹**问题（2026-11-05）——同一出口 IP、同一时刻，
+Python urllib（带浏览器化请求头 + `__cf_bm` 通行证 cookie）取 `0_0_640_N.webp` /
+`0_0_1024_N.webp` 是 **403**，Windows 自带 `curl.exe`（Schannel TLS、**不带 cookie**）
+取同样两个地址是 **200**。
+所以「上游不通」多半是**本机通道**的问题（代理策略 / 客户端指纹），先换通道再下结论。
 
 **静态站没有服务端回落。** WebUI 的媒体路由（`serve.py` 的 `serve_media`）
 会在本地文件缺失时 302 到上游，静态站（部署到 nginx 的那些）没有这层 ——
@@ -280,8 +304,9 @@ Cloudflare 人机校验挡住，得出「上游不通」的假结论；
 | costume | `png/` | online | 1.3 GB | ✅（本地只剩 8 个） |
 | portrait | `img/`（full） | local-only | 4.6 GB | ❌ 删了永久裂图 |
 | prompthero-midjourney | `mid/`、`thumbs/` | local-only | 2.1 GB | ❌ |
-| midjourney-explore | `mid/`、`thumbs/` | local-only | 571 MB | ❌ 上游要 CF 通行证，裸请求过不去 |
-| mj-styles | `styles/` | 全 local-only | 252 MB | ❌ |
+| midjourney-explore | `mid/`、`thumbs/` | local-only | 571 MB | ❌ 无上游回落，删了裂图；上游只是对 Python 通道按 TLS 指纹拦截（curl/浏览器通道可通 640/1024 两档），裸请求过不去 |
+
+（此表只列还在的站。`mj-styles` 曾以 `styles/` 占 252 MB，2026-11-04 随整站删除一并清空。）
 
 `prompthero-midjourney` 原先是「策略说 online、磁盘上却留着全量」的状态 ——
 **37 GB 白占着**，页面行为零影响。2026-11-04 已删，并做了配套的三处改动：
@@ -352,7 +377,8 @@ python tools/verify.py
 以后切完 online 策略，顺手把对应目录清掉。
 
 ⚠️ 上游直连要**用浏览器验**。Python 裸请求 `cdn.prompthero.com` 会 TCP 超时
-（判「不通」），但浏览器走系统代理实际能加载。别被 Python 的假结论误导。
+（**误判为「上游不通」**），但浏览器走系统代理实际能加载。别被 Python 的假结论误导。
+——「上游不通」多半是**本机通道**的问题（代理策略 / 客户端指纹），先换通道再下结论。
 
 上线到已有服务器的步骤见 [DEPLOY.md](../deploy/DEPLOY.md) §6。
 

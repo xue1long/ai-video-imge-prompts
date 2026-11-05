@@ -1348,41 +1348,93 @@ class MidjourneyFacets(Base):
         self.assertEqual(all_items["total"], 2, "四格应聚合成一条素材（两条作业 = 2 条）")
 
 
-def styles_root(tmp):
-    """风格码站：一个码三张构图图，按 code 聚合成一条素材。"""
+def autosync_root(tmp):
+    """自动重同步测试用的数据根：portrait + midjourney-explore（一条作业四格）。
+
+    2026-11-04：这个夹具原先用的是 mj-styles 站（同样是 group_by 分组站）。
+    该站因价值不足被整站删除后，夹具改用 midjourney-explore —— 同样是分组站，
+    而且它的 full 档是 **online** 档（imagePolicy.full=online，manifest 只写
+    full_url 不写 full_path），顺手把「online 档不写本地路径」这条约定
+    也纳入了端到端覆盖。分组键是 jobId：两条作业 → 两条素材。
+    """
     r = portrait_root(tmp)
     rows = []
-    for i, code in enumerate(["1005826943", "1050544466"]):
-        for j, kind in enumerate(["portrait", "landscape", "still_life"]):
+    for order, job_id in enumerate(("jobA", "jobB")):
+        for index in range(4):
+            stem = f"{job_id}_{index}"
+            base = f"https://cdn.midjourney.com/{job_id}/0_{index}"
             rows.append(
                 {
-                    "id": f"{code}_{kind}",
-                    "code": code,
-                    "index": j,
-                    "kind": kind,
-                    "kindZh": {"portrait": "人像", "landscape": "风景", "still_life": "静物"}[kind],
-                    "addedAt": "2026-11-03T00:50:08+08:00",
-                    "sourceUrl": f"https://www.midjourney.com/styles/0_{code}",
-                    "width": 896,
-                    "height": 1344,
-                    "thumb_path": r.site_image("mj-styles", f"styles/{code}/s/{kind}.png"),
-                    "thumb_url": f"https://cdn.midjourney.com/styles/0_{code}/{kind}_384_N.webp",
-                    "full_path": r.site_image("mj-styles", f"styles/{code}/{kind}.png"),
-                    "full_url": f"https://cdn.midjourney.com/styles/0_{code}/{kind}_1024_N.webp",
+                    "id": stem,
+                    "jobId": job_id,
+                    "index": index,
+                    "batch": "2026-11-04",
+                    "prompt": "a cat on a chair",
+                    "title": "a cat on a chair",
+                    "aspect": "1:1",
+                    "version": "8.2",
+                    "username": "u1",
+                    "displayName": "U1",
+                    "enqueueTime": 1762000000 + order,
+                    "width": 1024,
+                    "height": 1024,
+                    "hasStyleRef": 0,
+                    "sref": "",
+                    "sourceUrl": "https://www.midjourney.com/jobs/" + job_id,
+                    "thumb_url": base + "_640_N.webp",
+                    "thumb_path": r.site_image("midjourney-explore", f"thumbs/{stem}.webp"),
+                    "mid_url": base + "_1024_N.webp",
+                    "mid_path": r.site_image("midjourney-explore", f"mid/{stem}.webp"),
+                    # full 档是 online 档：只有上游地址，没有本地路径
+                    "full_url": base + ".png",
                 }
             )
-    r.manifest("mj-styles", rows)
+    r.manifest("midjourney-explore", rows)
     write(
         r.rel("sites.json"),
         json.dumps(
             {"meta": {}, "sites": [
                 {"id": "portrait", "name": {"zh": "人像集"}},
-                {"id": "mj-styles", "name": {"zh": "Midjourney 风格码库"}},
+                {"id": "midjourney-explore", "name": {"zh": "Midjourney 探索榜"}},
             ]},
             ensure_ascii=False,
         ),
     )
     return r
+
+
+def autosync_job(job_id, title, index_base=0):
+    """一条作业的四格记录（给测试里追加用）。"""
+    rows = []
+    for index in range(4):
+        stem = f"{job_id}_{index}"
+        base = f"https://cdn.midjourney.com/{job_id}/0_{index}"
+        rows.append(
+            {
+                "id": stem,
+                "jobId": job_id,
+                "index": index,
+                "batch": "2026-11-04",
+                "prompt": title,
+                "title": title,
+                "aspect": "1:1",
+                "version": "8.2",
+                "username": "u1",
+                "displayName": "U1",
+                "enqueueTime": 1762000000,
+                "width": 1024,
+                "height": 1024,
+                "hasStyleRef": 0,
+                "sref": "",
+                "sourceUrl": "https://www.midjourney.com/jobs/" + job_id,
+                "thumb_url": base + "_640_N.webp",
+                "thumb_path": f"thumbs/{stem}.webp",
+                "mid_url": base + "_1024_N.webp",
+                "mid_path": f"mid/{stem}.webp",
+                "full_url": base + ".png",
+            }
+        )
+    return rows
 
 
 class AutoSync(Base):
@@ -1396,7 +1448,7 @@ class AutoSync(Base):
     这里盯的是「库建好之后，manifest 又变了」这条路径。
     """
 
-    make_root = staticmethod(styles_root)
+    make_root = staticmethod(autosync_root)
 
     def test_new_collection_appears_without_manual_resync(self):
         # 服务起来时库已经建好，集合只有 portrait
@@ -1410,23 +1462,26 @@ class AutoSync(Base):
             json.dumps(
                 {"meta": {}, "sites": [
                     {"id": "portrait", "name": {"zh": "人像集"}},
-                    {"id": "mj-styles", "name": {"zh": "Midjourney 风格码库"}},
+                    {"id": "midjourney-explore", "name": {"zh": "Midjourney 探索榜"}},
                 ]},
                 ensure_ascii=False,
             ),
         )
         self.root.manifest(
-            "mj-styles",
+            "midjourney-explore",
             [
                 {
-                    "id": "9001_portrait", "code": "9001", "index": 0, "kind": "portrait",
-                    "kindZh": "人像", "addedAt": "2026-11-03T00:50:08+08:00",
-                    "sourceUrl": "https://www.midjourney.com/styles/0_9001",
-                    "width": 896, "height": 1344,
-                    "thumb_path": self.root.site_image("mj-styles", "styles/9001/s/portrait.png"),
-                    "thumb_url": "https://cdn.midjourney.com/styles/0_9001/portrait_384_N.webp",
-                    "full_path": self.root.site_image("mj-styles", "styles/9001/portrait.png"),
-                    "full_url": "https://cdn.midjourney.com/styles/0_9001/portrait_1024_N.webp",
+                    "id": "9001_0", "jobId": "9001", "index": 0, "batch": "2026-11-04",
+                    "prompt": "a new job", "title": "a new job",
+                    "aspect": "1:1", "version": "8.2", "username": "u1", "displayName": "U1",
+                    "enqueueTime": 1762000000, "width": 1024, "height": 1024,
+                    "hasStyleRef": 0, "sref": "",
+                    "sourceUrl": "https://www.midjourney.com/jobs/9001",
+                    "thumb_path": self.root.site_image("midjourney-explore", "thumbs/9001_0.webp"),
+                    "thumb_url": "https://cdn.midjourney.com/9001/0_640_N.webp",
+                    "mid_path": self.root.site_image("midjourney-explore", "mid/9001_0.webp"),
+                    "mid_url": "https://cdn.midjourney.com/9001/0_1024_N.webp",
+                    "full_url": "https://cdn.midjourney.com/9001/0.png",
                 }
             ],
         )
@@ -1435,54 +1490,51 @@ class AutoSync(Base):
         _, body, _ = self.srv.get("/api/collections")
         counts = {c["slug"]: c["items"] for c in body["collections"]}
         self.assertIn(
-            "mj-styles", counts,
+            "midjourney-explore", counts,
             "manifest 变了却没重同步：WebUI 里查不到新加的集合（%s）" % sorted(counts),
         )
-        self.assertEqual(counts["mj-styles"], 1)
+        self.assertEqual(counts["midjourney-explore"], 1)
 
     def test_items_of_new_collection_are_reachable(self):
         self.root.manifest(
-            "mj-styles",
+            "midjourney-explore",
             [
                 {
-                    "id": "9001_portrait", "code": "9001", "index": 0, "kind": "portrait",
-                    "kindZh": "人像", "addedAt": "2026-11-03T00:50:08+08:00",
-                    "sourceUrl": "https://www.midjourney.com/styles/0_9001",
-                    "width": 896, "height": 1344,
-                    "thumb_path": self.root.site_image("mj-styles", "styles/9001/s/portrait.png"),
-                    "thumb_url": "https://cdn.midjourney.com/styles/0_9001/portrait_384_N.webp",
-                    "full_path": self.root.site_image("mj-styles", "styles/9001/portrait.png"),
-                    "full_url": "https://cdn.midjourney.com/styles/0_9001/portrait_1024_N.webp",
+                    "id": "9001_0", "jobId": "9001", "index": 0, "batch": "2026-11-04",
+                    "prompt": "a new job", "title": "a new job",
+                    "aspect": "1:1", "version": "8.2", "username": "u1", "displayName": "U1",
+                    "enqueueTime": 1762000000, "width": 1024, "height": 1024,
+                    "hasStyleRef": 0, "sref": "",
+                    "sourceUrl": "https://www.midjourney.com/jobs/9001",
+                    "thumb_path": self.root.site_image("midjourney-explore", "thumbs/9001_0.webp"),
+                    "thumb_url": "https://cdn.midjourney.com/9001/0_640_N.webp",
+                    "mid_path": self.root.site_image("midjourney-explore", "mid/9001_0.webp"),
+                    "mid_url": "https://cdn.midjourney.com/9001/0_1024_N.webp",
+                    "full_url": "https://cdn.midjourney.com/9001/0.png",
                 }
             ],
         )
-        _, body, _ = self.srv.get("/api/items", collection="mj-styles")
+        _, body, _ = self.srv.get("/api/items", collection="midjourney-explore")
         self.assertEqual(body["total"], 1)
-        self.assertEqual(body["items"][0]["title"], "9001")
+        self.assertEqual(body["items"][0]["title"], "a new job")
 
     def test_stale_index_is_refreshed_when_manifest_changes(self):
         """manifest 内容变了（条目数变了）也要跟着变，不只是「加站」。"""
-        _, body, _ = self.srv.get("/api/items", collection="mj-styles")
-        self.assertEqual(body["total"], 2, "起始应有 2 个码")
+        _, body, _ = self.srv.get("/api/items", collection="midjourney-explore")
+        self.assertEqual(body["total"], 2, "起始应有 2 条作业")
 
-        # 再加一个码
-        with open(self.root.rel("sites/mj-styles/manifest.json"), encoding="utf-8") as fh:
+        # 再加一条作业（四格聚合成一条素材）
+        with open(self.root.rel("sites/midjourney-explore/manifest.json"), encoding="utf-8") as fh:
             rows = json.load(fh)
-        rows.append(
-            {
-                "id": "7777_portrait", "code": "7777", "index": 0, "kind": "portrait",
-                "kindZh": "人像", "addedAt": "2026-11-03T00:50:08+08:00",
-                "sourceUrl": "https://www.midjourney.com/styles/0_7777",
-                "width": 896, "height": 1344,
-                "thumb_path": self.root.site_image("mj-styles", "styles/7777/s/portrait.png"),
-                "thumb_url": "https://cdn.midjourney.com/styles/0_7777/portrait_384_N.webp",
-                "full_path": self.root.site_image("mj-styles", "styles/7777/portrait.png"),
-                "full_url": "https://cdn.midjourney.com/styles/0_7777/portrait_1024_N.webp",
-            }
-        )
-        self.root.manifest("mj-styles", rows)
+        for rec in autosync_job("7777", "a third job"):
+            rec["thumb_path"] = self.root.site_image(
+                "midjourney-explore", rec["thumb_path"])
+            rec["mid_path"] = self.root.site_image(
+                "midjourney-explore", rec["mid_path"])
+            rows.append(rec)
+        self.root.manifest("midjourney-explore", rows)
 
-        _, body, _ = self.srv.get("/api/items", collection="mj-styles")
+        _, body, _ = self.srv.get("/api/items", collection="midjourney-explore")
         self.assertEqual(body["total"], 3, "manifest 加了一条，索引没跟上")
 
     def test_no_reload_disables_automatic_sync(self):
@@ -1490,21 +1542,26 @@ class AutoSync(Base):
         serve_mod.Handler.auto_sync = False
         try:
             self.root.manifest(
-                "mj-styles",
+                "midjourney-explore",
                 [
                     {
-                        "id": "9001_portrait", "code": "9001", "index": 0, "kind": "portrait",
-                        "kindZh": "人像", "addedAt": "2026-11-03T00:50:08+08:00",
-                        "sourceUrl": "https://www.midjourney.com/styles/0_9001",
-                        "width": 896, "height": 1344,
-                        "thumb_path": self.root.site_image("mj-styles", "styles/9001/s/portrait.png"),
-                        "thumb_url": "https://cdn.midjourney.com/styles/0_9001/portrait_384_N.webp",
-                        "full_path": self.root.site_image("mj-styles", "styles/9001/portrait.png"),
-                        "full_url": "https://cdn.midjourney.com/styles/0_9001/portrait_1024_N.webp",
+                        "id": "9001_0", "jobId": "9001", "index": 0, "batch": "2026-11-04",
+                        "prompt": "a new job", "title": "a new job",
+                        "aspect": "1:1", "version": "8.2", "username": "u1", "displayName": "U1",
+                        "enqueueTime": 1762000000, "width": 1024, "height": 1024,
+                        "hasStyleRef": 0, "sref": "",
+                        "sourceUrl": "https://www.midjourney.com/jobs/9001",
+                        "thumb_path": self.root.site_image(
+                            "midjourney-explore", "thumbs/9001_0.webp"),
+                        "thumb_url": "https://cdn.midjourney.com/9001/0_640_N.webp",
+                        "mid_path": self.root.site_image(
+                            "midjourney-explore", "mid/9001_0.webp"),
+                        "mid_url": "https://cdn.midjourney.com/9001/0_1024_N.webp",
+                        "full_url": "https://cdn.midjourney.com/9001/0.png",
                     }
                 ],
             )
-            _, body, _ = self.srv.get("/api/items", collection="mj-styles")
+            _, body, _ = self.srv.get("/api/items", collection="midjourney-explore")
             self.assertEqual(
                 body["total"], 2,
                 "--no-reload 开了却还是同步了：索引被偷偷重建",

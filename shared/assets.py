@@ -45,6 +45,10 @@ def site_fetcher(site_dir):
 
         def headers(url, referer) -> dict       # 追加到默认请求头
         def prepare(opener, log) -> opener      # 可选：预热（先访问页面拿 cookie）
+        def fetch_bytes(url, headers, timeout)  # 可选：自带取图通道，返回图片字节
+                                                #   （默认走 urllib；有些图源按**客户端
+                                                #     指纹**放行，钩子可以换成浏览器味的
+                                                #     通道，见 fetch_blob）
 
     没有这个文件的站点走默认路径，行为完全不变。
     """
@@ -65,6 +69,22 @@ def _headers(row, referer, hook):
         extra = hook.headers(row.get("thumb_url") or row.get("full_url") or "", referer) or {}
         hdr.update(extra)
     return hdr
+
+
+def fetch_blob(url, headers, timeout, hook=None, opener=None):
+    """取一张图的内容。
+
+    站点钩子若提供 fetch_bytes(url, headers, timeout) -> bytes，优先用它 ——
+    有些图源按**客户端指纹**放行：同一台机器、同一出口 IP，Python urllib 一律
+    403（Cloudflare 挑战页），换浏览器味的通道（curl / 真实浏览器 TLS 指纹）
+    却是 200。这种差异不是「IP 被封」，钩子自带通道才能取到。
+    没有提供 fetch_bytes 的站点走默认的 urllib 路径，行为不变。
+    """
+    if hook is not None and hasattr(hook, "fetch_bytes"):
+        return hook.fetch_bytes(url, headers, timeout)
+    req = urllib.request.Request(url, headers=headers)
+    with opener.open(req, timeout=timeout) as resp:
+        return resp.read()
 
 
 def download(site_dir, tier, referer, workers=12, log=print):
@@ -113,9 +133,8 @@ def download(site_dir, tier, referer, workers=12, log=print):
         last = None
         for attempt in range(RETRIES):
             try:
-                req = urllib.request.Request(r[url_key], headers=_headers(r, referer, hook))
-                with opener.open(req, timeout=60) as resp:
-                    blob = resp.read()
+                blob = fetch_blob(r[url_key], _headers(r, referer, hook), 60,
+                                  hook, opener)
                 if len(blob) < MIN_BYTES // 2:
                     raise IOError("响应过小: %d bytes" % len(blob))
                 with open(tmp, "wb") as f:

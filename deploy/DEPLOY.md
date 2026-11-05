@@ -70,10 +70,10 @@ python3 tools/build.py --skip prompts --base https://你的域名.com
 
 路 B 依赖构建机与服务器数据一致；只改了其他站时用它最省事。
 
-**预期输出**（release 阶段）：
+**预期输出**（release 阶段，格式示例；实际站数与体积以当前 `sites.json` 为准）：
 
 ```
-发布 · 5 个站点 → /srv/ai-image-gallery/dist
+发布 · 8 个站点 → /srv/ai-image-gallery/dist
   图片校验通过
   [portrait] 74 个站点文件  图片 4497 链接  → 4.8 GB
   [costume] 106 个站点文件  图片 4221 链接  → 1.4 GB
@@ -83,6 +83,9 @@ python3 tools/build.py --skip prompts --base https://你的域名.com
   [hub] 9 个根级文件已复制（index.html, sitemap.xml, robots.txt, og-cover.jpg, llms.txt, favicon.ico, …）
 其中 20751 个图片文件为硬链接，不额外占盘
 ```
+
+> 站数以 `sites.json` 的站数为准（当前 8 站），`release.py` 每次发布都会打印实际值。
+> 上面的文件数与体积是历史快照，仅用于说明输出格式。
 
 > `dist/` 报告 7.0 GB，但因为是硬链接，**实际磁盘增量接近 0**。
 > 若出现「退化为复制」警告，说明 `dist/` 与 `sites/` 不在同一文件系统。
@@ -298,7 +301,7 @@ python3 tools/release.py --out dist-stage
 
 ## 8. 授权提醒
 
-五个站授权不同，**公开部署前务必确认**：
+各站授权不同，**公开部署前务必确认**：
 
 | 站点 | 授权 | 可否公开 |
 |---|---|---|
@@ -307,6 +310,11 @@ python3 tools/release.py --out dist-stage
 | 深度姿势集 | 禁止再分发 + **禁止批量下载** | ⚠️ 同上，且 `fetch.py` 属被禁止行为 |
 | 服装集 | 禁止再分发 | ⚠️ 同姿势集 |
 | Shisei 姿势线稿 | 图片 CC0 1.0；姿势目录仅注明出处 | ✅ 图片可自由分发；suggestive 姿势默认模糊，不进落地页与 sitemap |
+| 提示词生图集 | 图片与提示词文本 CC BY 4.0（可商用、须署名）；站自制图归本站 | ⚠️ 须逐条保留作者与来源；成人内容分区默认模糊，不进落地页与 sitemap |
+| Midjourney 探索榜 | 禁止再分发（成图由社区用户生成） | ⚠️ 同姿势集；引用须回链原站 |
 | Midjourney 提示词集 | 素材由 PromptHero 用户上传，版权归各原作者 | ⚠️ 同姿势集；成人内容分区默认模糊，不进落地页与 sitemap |
+
+> 表的 `sites.json` `license` 取值只有三种：`cc0`（2 站）、`conditional`（1 站）、
+> `restricted`（5 站）。具体措辞以各站 `sites/<id>/NOTICE.md` 为准。
 
 建议：如需公开，至少加访问控制（`nginx.conf` 末尾有配置示例）。

@@ -156,47 +156,6 @@ class Pages(unittest.TestCase):
             size = os.path.getsize(os.path.join(ROOT, f"sites/{s}/index.html"))
             self.assertLess(size, 450 * 1024, f"{s}/index.html {size // 1024} KB，超出 450 KB")
 
-    def test_styles_page_matches_code_list(self):
-        """风格码库页面与 data/styles.json 必须同口径。
-
-        页面是生成物（scripts/build_styles_page.py），码表以 `var DB=` 内嵌。
-        少一个码等于发布一个看不见的残缺页，所以两边做集合比对。
-
-        2026-11-03：风格码库从 midjourney-explore 拆成兄弟站 mj-styles，
-        页面也从 sites/midjourney-explore/styles/index.html 挪到站点根 index.html。
-        """
-        sid = "mj-styles"
-        data = json.loads(read(f"sites/{sid}/data/styles.json"))
-        h = read(f"sites/{sid}/index.html")
-        m = re.search(r"var DB=(\{.*?\});", h, re.S)
-        self.assertIsNotNone(m, "页面里找不到内嵌的 DB= 数据块")
-        db = json.loads(m.group(1))
-        want = {str(it["code"]) for it in data["items"]}
-        self.assertEqual({str(c) for c, _ in db["codes"]}, want,
-                         "页面里的码与 data/styles.json 不一致，重跑 scripts/build_styles_page.py")
-        self.assertTrue(db.get("latest"), "页面缺 latest，「只看最近新增」会失效")
-        # 图片前缀：页面在站点根，图在 styles/<码>/ 下，路径前缀必须写对
-        self.assertEqual(db.get("imgPrefix"), "styles/",
-                         "页面缺 imgPrefix 或写错，图片路径会 404")
-
-    def test_styles_page_reads_kind_hash(self):
-        """首页必须读 #kind=…：全站构图切换器靠它定位到该构图。
-
-        2026-11-03：拆分后 build_gallery.py 写的是 gallery_hash="kind=<slug>"，
-        但首页 JS 原本完全不读 location.hash —— 点「在画廊中查看全部」会跳回
-        默认的人像视图，落地页与首页之间断链。其余 8 个站都有这段读取。
-
-        2026-11-04：mj-styles 的落地页已删除（用户裁决），不再有页面写
-        gallery_hash="kind="。但首页仍然读 location.hash —— 用户可以直接
-        在地址栏敲 #kind=still-life 切构图，这个能力保留，所以断言只查
-        首页这一侧，不再断言「有页面在写这个 hash」。
-        """
-        h = read("sites/mj-styles/index.html")
-        self.assertIn("location.hash", h, "首页不读 location.hash，#kind= 定位会失效")
-        self.assertIn("kindSeg", h, "首页缺全站构图切换器（#kind= 无处落地）")
-        # slug 取值：still_life → still-life
-        self.assertIn("still-life", h, "hash 的 slug 取值与 config.KIND_SLUG 不一致")
-
     def test_collection_switch_loads_facets(self):
         # 2026-11-03：带「视图」的集合（midjourney-explore）走 selectView 分支，
         # 那条路只刷网格不取分面，左栏永远停在「选一个集合后显示它自己的分面」。
@@ -241,8 +200,11 @@ class Landing(unittest.TestCase):
         """声明了落地页的站必须真的有落地页。
 
         2026-11-04：sites.json 新增 "landing": false 作为站能力声明。
-        mj-styles 不生成落地页（用户裁决），所以这里按声明分流：
-        声明 true / 未声明的站必须有落地页，声明 false 的站必须没有。
+        当时唯一的使用者是 mj-styles，同日该站因价值不足被整站删除
+        （见 docs/adr/0005-remove-mj-styles-site.md），但**机制保留** ——
+        将来新站若没有可枚举的分类，仍可用这个声明表达「本站不生成落地页」。
+        判据按声明分流：声明 true / 未声明的站必须有落地页，
+        声明 false 的站必须没有。
         """
         for s in SITES:
             if self.cfg_site(s).get("landing", True):
@@ -328,12 +290,14 @@ class Landing(unittest.TestCase):
     def test_gallery_hash_params_known(self):
         # 「在画廊中查看」带的 #参数必须是画廊能识别的
         # 各站的分面维度不同：cat（分类）、tag（标签）、series（系列）、
-        # sec（分区）、hair（发型）、ver（版本）、asp（宽高比）、kind（示例图构图）
+        # sec（分区）、hair（发型）、ver（版本）、asp（宽高比）
+        # 2026-11-04：kind（示例图构图）随 mj-styles 站删除而移除 ——
+        # 它是那个站独有的全站切换参数，其余 8 个站都不用它。
         for rel in self.pages:
             for hsh in re.findall(r'class="cta" href="[^"]*#([^"]+)"', read(rel)):
                 for kv in html.unescape(hsh).split("&"):
                     self.assertIn(kv.split("=")[0],
-                                  {"cat", "tag", "series", "sec", "hair", "ver", "asp", "kind"}, f"{rel}: {hsh}")
+                                  {"cat", "tag", "series", "sec", "hair", "ver", "asp"}, f"{rel}: {hsh}")
 
     def test_gallery_hash_params_are_read(self):
         """白名单上的参数必须在对应站的首页 JS 里真的被读取。
@@ -343,7 +307,7 @@ class Landing(unittest.TestCase):
         「在画廊中查看全部」点过去毫无反应（2026-11-03 mj-styles 就是这样）。
         这里反向查：落地页用了哪个参数，同站的首页就必须读这个参数。
         """
-        known = {"cat", "tag", "series", "sec", "hair", "ver", "asp", "kind"}
+        known = {"cat", "tag", "series", "sec", "hair", "ver", "asp"}
         for rel in self.pages:
             site = rel.split("/")[1]
             used = set()
@@ -1398,6 +1362,70 @@ class MjFullOnline(unittest.TestCase):
                if not r["p"].startswith("https://") or "/media/" in r["p"]
                or "/sites/" in r["p"]]
         self.assertEqual(bad, [], "full 档地址被污染了：%r" % (bad[:3],))
+
+
+class FetchHook(unittest.TestCase):
+    """取图钩子契约：站点可以自带取图通道（fetch_bytes），没有就照旧走 urllib。
+
+    为什么要有这条通道：有些图源按**客户端指纹**放行 —— 同一台机器、
+    同一出口 IP，Python urllib 一律 403（Cloudflare 判 TLS 指纹），
+    curl/浏览器通道却是 200。钩子不带通道，图就永远下不下来。
+    """
+
+    def test_hook_fetch_bytes_wins(self):
+        """钩子提供 fetch_bytes 时，下载走钩子。"""
+        import assets
+
+        class Hook:
+            def fetch_bytes(self, url, headers, timeout):
+                return b"HOOKBYTES"
+
+        blob = assets.fetch_blob("https://x/a.webp", {}, 5, Hook(), None)
+        self.assertEqual(blob, b"HOOKBYTES", "钩子的取图通道没有被优先使用")
+
+    def test_without_fetch_bytes_uses_urllib(self):
+        """钩子没有 fetch_bytes（或压根没有钩子）时，行为与从前一致：走 urllib。"""
+        import assets
+        seen = {}
+
+        class FakeResp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return b"URLLIB"
+
+        class FakeOpener:
+            def open(self, req, timeout=None):
+                seen["url"] = req.full_url
+                return FakeResp()
+
+        class HookNoChannel:
+            def headers(self, url, referer):
+                return {}
+
+        blob = assets.fetch_blob("https://x/a.webp", {}, 5, HookNoChannel(), FakeOpener())
+        self.assertEqual(blob, b"URLLIB")
+        self.assertEqual(seen.get("url"), "https://x/a.webp")
+
+    def test_mj_hook_provides_channel(self):
+        """midjourney-explore 的钩子必须自带通道（CDN 按 TLS 指纹拦 urllib）。"""
+        import importlib.util
+        import inspect
+        path = os.path.join(ROOT, "sites", "midjourney-explore", "scripts", "fetch_hook.py")
+        if not os.path.exists(path):
+            self.skipTest("没有 fetch_hook.py")
+        spec = importlib.util.spec_from_file_location("mj_fetch_hook", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        self.assertTrue(hasattr(mod, "fetch_bytes"),
+                        "钩子缺少 fetch_bytes —— 取图会退回 urllib，被 Cloudflare 拦成 403")
+        params = list(inspect.signature(mod.fetch_bytes).parameters)
+        self.assertEqual(params[:3], ["url", "headers", "timeout"],
+                         "fetch_bytes 签名与 shared/assets.py 的约定不一致：%r" % (params,))
 
 
 if __name__ == "__main__":
