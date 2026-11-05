@@ -2,14 +2,14 @@
 
 # AI 图片素材库 · 单仓多站
 
-**八个 AI 绘画参考图库，一个仓库构建，一个目录部署**
+**九个 AI 绘画参考图库，一个仓库构建，一个目录部署**
 
-人像 · 姿势 · 深度姿势 · 服装 · CC0 姿势线稿 · 提示词生图集 · Midjourney 探索榜 · 提示词集 · 114,709 个图片文件 · 中日双语 · 浅色 / 深色
+人像 · 姿势 · 深度姿势 · 服装 · CC0 姿势线稿 · 提示词生图集 · Midjourney 探索榜 · 提示词集 · Midlibrary 风格库 · 124,849 个图片文件 · 中日双语 · 浅色 / 深色
 
 [![CI](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml/badge.svg)](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml)
 [![online](https://img.shields.io/badge/online-photoai.life-2563eb?style=flat-square)](https://photoai.life/)
-[![sites](https://img.shields.io/badge/sites-8-0ea5e9?style=flat-square)](#八个站点)
-[![images](https://img.shields.io/badge/images-113%2C957-8b5cf6?style=flat-square)](#八个站点)
+[![sites](https://img.shields.io/badge/sites-9-0ea5e9?style=flat-square)](#九个站点)
+[![images](https://img.shields.io/badge/images-113%2C957-8b5cf6?style=flat-square)](#九个站点)
 [![Python](https://img.shields.io/badge/python-3.8%2B-3776ab?style=flat-square&logo=python&logoColor=white)](#快速开始)
 [![License](https://img.shields.io/badge/code-MIT-22c55e?style=flat-square)](#许可与致谢)
 
@@ -17,7 +17,7 @@
 
 **简体中文** · [English](README_en.md) · [日本語](README_ja.md)
 
-[八个站点](#八个站点) · [快速开始](#快速开始) · [图片加载](#图片加载) · [部署](#部署) · [文档](#文档)
+[九个站点](#九个站点) · [快速开始](#快速开始) · [图片加载](#图片加载) · [部署](#部署) · [文档](#文档)
 
 </div>
 
@@ -44,7 +44,7 @@
 
 </details>
 
-## 八个站点
+## 九个站点
 
 | 站点 | 内容 | 规模 | 素材授权 |
 | --- | --- | --- | :---: |
@@ -56,10 +56,11 @@
 | [提示词生图集](https://photoai.life/prompts/) | AI 生图成图与提示词对照，两个模型（Imge-2 / Nano Banana）、可按模型与 41 个官方分类筛选，一条提示词的多张成图归为一条素材 | 26,458 条 / 41,261 张 | **CC BY 4.0** |
 | [Midjourney 探索榜](https://photoai.life/midjourney-explore/) | Midjourney 官网 Explore 热门榜的镜像，每条社区作业附原始英文提示词，按采集日与画面宽高比筛选 | 987 条作业 / 3,948 张 | 禁止再分发 |
 | [Midjourney 提示词集](https://photoai.life/prompthero-midjourney/) | Midjourney 提示词与成图对照，v1–v7 与 Niji 共 13 个版本、14 个分类，含成人内容分区（默认模糊） | 12,998 条 | 禁止再分发 |
+| [Midlibrary 风格库](https://photoai.life/midlibrary/) | Midjourney 风格名与风格参考码（SREF）索引，每条附一行可复制的提示词与示例图，先看图再决定用不用这个码 | 10,140 条（16 个分类） | **有条件**（署名 + 回链） |
 
 每个站都有：网格分页加载、筛选与搜索、灯箱（`←` `→` 翻页，`Esc` 关闭，手机可滑动）、原图下载、主题与语言切换。页面是单个 `index.html`，数据内嵌，没有框架、CDN 和外部字体。
 
-> **人像集和 Shisei 是 CC0**，姿势、深度姿势、服装、Midjourney 探索榜、Midjourney 提示词集五站的素材禁止再分发，**提示词生图集为 CC BY 4.0（可商用、须署名，作者与来源逐条保留）**。Shisei 的姿势目录沿用 ai-pose-gallery，只注明出处。Midjourney 提示词集的素材由 PromptHero 用户上传、Midjourney 探索榜的成图由社区用户生成，引用须回链原站。详见各站的 `sites/<id>/NOTICE.md`。
+> **人像集和 Shisei 是 CC0**，姿势、深度姿势、服装、Midjourney 探索榜、Midjourney 提示词集五站的素材禁止再分发，**提示词生图集为 CC BY 4.0（可商用、须署名，作者与来源逐条保留）**。Shisei 的姿势目录沿用 ai-pose-gallery，只注明出处。Midjourney 提示词集的素材由 PromptHero 用户上传、Midjourney 探索榜的成图由社区用户生成，引用须回链原站。**Midlibrary 风格库为「有条件」授权**：已获站方书面许可，允许个人学习用途的镜像（含图片），条件是署名并回链原站；素材著作权归 Midlibrary 团队与各艺术家。详见各站的 `sites/<id>/NOTICE.md`。
 
 ## 快速开始
 
@@ -71,7 +72,7 @@ cd ai-video-imge-prompts
 
 python tools/fetch.py      # 下载全部图片（首次约 86 GB，之后只补缺失）
 python tools/mid.py        # 生成灯箱中图（约 290 MB）
-python tools/build.py      # 构建八个站 + 入口页
+python tools/build.py      # 构建九个站 + 入口页
 python tools/release.py    # 组装 dist/（图片硬链接，不额外占盘）
 python tools/serve.py      # 预览 http://127.0.0.1:8080/
 ```
@@ -156,7 +157,7 @@ ai-video-imge-prompts/
 
 | 命令 | 作用 |
 | --- | --- |
-| `python index/sync.py` | 把八个站点的 manifest 同步进 `gallery.db`；manifest 没变就跳过 |
+| `python index/sync.py` | 把九个站点的 manifest 同步进 `gallery.db`；manifest 没变就跳过 |
 | `python index/verify.py` | 探缺图：把盘上已不存在的资产标成 `missing` |
 | `python index/snapshot.py` | 给数据库留一个可回滚的快照，写到 `backups/` |
 

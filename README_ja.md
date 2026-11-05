@@ -2,13 +2,13 @@
 
 # AI 参照画像ライブラリ
 
-**AI イラスト向けの参照画像ギャラリー 8 つ、1 リポジトリでビルド、1 ディレクトリで公開**
+**AI イラスト向けの参照画像ギャラリー 9 つ、1 リポジトリでビルド、1 ディレクトリで公開**
 
-ポートレート · ポーズ · デプス ポーズ · 衣装 · CC0 ポーズ線画 · プロンプト生图集 · Midjourney 探索榜 · プロンプト集 · 114,709 枚 · 中国語 / 日本語 · ライト / ダーク
+ポートレート · ポーズ · デプス ポーズ · 衣装 · CC0 ポーズ線画 · プロンプト生图集 · Midjourney 探索榜 · プロンプト集 · Midlibrary スタイル集 · 124,849 枚 · 中国語 / 日本語 · ライト / ダーク
 
 [![CI](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml/badge.svg)](https://github.com/xue1long/ai-video-imge-prompts/actions/workflows/ci.yml)
 [![online](https://img.shields.io/badge/online-photoai.life-2563eb?style=flat-square)](https://photoai.life/)
-[![sites](https://img.shields.io/badge/sites-8-0ea5e9?style=flat-square)](#サイト)
+[![sites](https://img.shields.io/badge/sites-9-0ea5e9?style=flat-square)](#サイト)
 [![images](https://img.shields.io/badge/images-113%2C957-8b5cf6?style=flat-square)](#サイト)
 [![Python](https://img.shields.io/badge/python-3.8%2B-3776ab?style=flat-square&logo=python&logoColor=white)](#クイックスタート)
 [![License](https://img.shields.io/badge/code-MIT-22c55e?style=flat-square)](#ライセンスとクレジット)
@@ -56,10 +56,11 @@
 | [プロンプト生图集](https://photoai.life/prompts/) | AI 生成のプロンプトと成図の対照、2 モデル（Imge-2 / Nano Banana）、モデルと 41 の公式カテゴリで絞り込み | 26,458 件 / 41,261 枚 | **CC BY 4.0** |
 | [Midjourney 探索榜](https://photoai.life/midjourney-explore/) | Midjourney 公式 Explore 人気ランキングのミラー、各コミュニティ作業に原文プロンプト付き | 987 作業 / 3,948 枚 | 再配布禁止 |
 | [Midjourney プロンプト集](https://photoai.life/prompthero-midjourney/) | Midjourney プロンプトと成図の対照、v1〜v7 と Niji の 13 バージョン、14 カテゴリ。成人向けセクションはぼかし表示 | 12,998 件 | 再配布禁止 |
+| [Midlibrary スタイル集](https://photoai.life/midlibrary/) | Midjourney のスタイル名とスタイル参照コード（SREF）の索引。すぐコピーできる一命令とサンプル画像を併記 | 10,140 件（16 カテゴリ） | **条件付き**（出典表記 + リンク） |
 
 各サイト共通：ページ送り付きグリッド、絞り込みと検索、ライトボックス（`←` `→` で移動、`Esc` で閉じる、タッチでスワイプ）、原寸ダウンロード、テーマと言語の切り替え。ページは単一の `index.html` でデータを内蔵し、フレームワーク・CDN・Web フォントを使いません。
 
-> **CC0 はポートレート集と Shisei です。** ポーズ集・デプスポーズ集・衣装集・Midjourney 探索榜・プロンプト集の 5 サイトの素材は再配布禁止で、プロンプト生图集は **CC BY 4.0**（商用可、出典表記必須）です。Shisei のポーズ目録は ai-pose-gallery に基づき出典表記のみです。詳しくは `sites/<id>/NOTICE.md` を参照してください。
+> **CC0 はポートレート集と Shisei です。** ポーズ集・デプスポーズ集・衣装集・Midjourney 探索榜・プロンプト集の 5 サイトの素材は再配布禁止で、プロンプト生图集は **CC BY 4.0**（商用可、出典表記必須）です。Shisei のポーズ目録は ai-pose-gallery に基づき出典表記のみです。**Midlibrary スタイル集は条件付き**（上流からの書面許可あり。学習目的のミラー（画像を含む）。条件は出典表記と原サイトへのリンク）。詳しくは `sites/<id>/NOTICE.md` を参照してください。
 
 ## クイックスタート
 

@@ -6,7 +6,7 @@
 
 ## 项目是什么
 
-**一个仓库构建、构建八个 AI 绘画参考图库**：人像集 / 姿势集 / 深度姿势集 / 服装集 / Shisei CC0 姿势线稿 / 提示词生图集 / Midjourney 探索榜 / Midjourney 提示词集，共 **114,709 个图片文件**（同图多档各计一个），中日双语、浅色 / 深色双主题。
+**一个仓库构建、构建九个 AI 绘画参考图库**：人像集 / 姿势集 / 深度姿势集 / 服装集 / Shisei CC0 姿势线稿 / 提示词生图集 / Midjourney 探索榜 / Midjourney 提示词集 / Midlibrary 风格库，共 **124,849 个图片文件**（同图多档各计一个），中日双语、浅色 / 深色双主题。
 
 - 线上入口：<https://photoai.life/>
 - 仓库：<https://github.com/xue1long/ai-video-imge-prompts>
@@ -19,7 +19,7 @@
 - 静态站无 Node、无前端构建。**`index/`（本地素材管理器）是唯一的数据库应用**：SQLite 单文件 `gallery.db`（标准库 `sqlite3`），HTTP 用标准库 `http.server`，前端仍是单文件原生 JS。
 - **CI**：GitHub Actions（`.github/workflows/ci.yml`），ubuntu-24.04 + Python 3.8/3.13 + Node 22。
 
-## 八个站点（`sites.json` 是唯一配置源）
+## 九个站点（`sites.json` 是唯一配置源）
 
 | id | 名称 | 规模 | 素材授权 | imageDirs / tiers |
 | --- | --- | --- | :---: | --- |
@@ -31,8 +31,9 @@
 | `prompthero-midjourney` | Midjourney 提示词集 | 12,998 条提示词与成图（v1–v7 与 Niji 共 13 个版本；含成人内容 2,841 条，默认模糊且不生成落地页；**原图走 CDN 直链，本地只留 thumb + mid**） | 禁止再分发 | thumbs, mid / thumb, mid |
 | `prompts` | 提示词生图集 | 26,458 条提示词 / 41,261 张（两个模型：Imge-2 22,268 张 / Nano Banana 18,993 张，两者都有 41 个官方分类；一条提示词的全部成图归为一条素材；数据按模型分片 `data/gallery_<key>.js`，缩略图来自上游 CDN；另有站主自制图放 `userimg/`、灯箱标「自制」，**不在 CC BY 4.0 内**） | **CC BY 4.0**（须署名） | thumbs, img / thumb, full |
 | `midjourney-explore` | Midjourney 探索榜 | 987 条社区作业 / 3948 张成图（官网 Explore 榜共 4 页，每批次 200 作业；每条作业 4 格全收；全部为 v8.2；**按天累积采集**，批次目录 `data/daily/<日期>/`，历史不覆盖；**原图走 CDN 直链，本地只留 thumb + mid**） | 禁止再分发 | thumbs, mid / thumb, mid |
+| `midlibrary` | Midlibrary 风格库 | 10,140 条 = 5,502 个风格名 + 4,638 个风格参考码（上游共 10,142 条，其中 2 条没有 v8.2 样例表，不伪造图故未收；16 个分类、7 种类型；每条一行可复制的提示词 + 一张样例表；**图片必须存本地**——上游按 Referer 门放行，外站热链实测必 403） | **有条件**（站方书面许可：个人学习用途，署名 + 回链） | thumbs, mid / thumb, mid |
 
-来源：portrait ← ai-portrait-gallery.pages.dev；pose ← ai-pose-gallery.pages.dev；pose-depth ← ai-pose-depth-gallery.pages.dev；costume ← ai-costume-gallery.pages.dev；shisei ← shisei.indaloop.app（GitHub `wquguru/shisei` v0.3.0，raw 源）；prompts ← youmind.com（两条模型线：`gpt-image-2-prompts` / `nano-banana-pro-prompts`，YouMind 官方 API `youmarketing-api/prompts`，`cms-assets.youmind.com` 图源，`imageBase` 已声明；分类靠 `categories` 参数逐类反查，见 `sites/prompts/tag_categories.py`）；prompthero-midjourney ← prompthero.com/midjourney-prompts（前端 tRPC 接口 `/api/trpc/prompt.search`，匿名可调；衍生图在 `img.prompthero.com`、原图在 `cdn.prompthero.com`，故 `imageBases` 列为两个前缀）；midjourney-explore ← midjourney.com/explore（前端只读接口 `/api/explore?page=N&feed=top`，匿名可调；图源在 `cdn.midjourney.com`，**必须带 Cloudflare 的 `__cf_bm` 通行证 cookie，否则一律 403**，由 `sites/midjourney-explore/scripts/fetch_hook.py` 处理）。
+来源：portrait ← ai-portrait-gallery.pages.dev；pose ← ai-pose-gallery.pages.dev；pose-depth ← ai-pose-depth-gallery.pages.dev；costume ← ai-costume-gallery.pages.dev；shisei ← shisei.indaloop.app（GitHub `wquguru/shisei` v0.3.0，raw 源）；prompts ← youmind.com（两条模型线：`gpt-image-2-prompts` / `nano-banana-pro-prompts`，YouMind 官方 API `youmarketing-api/prompts`，`cms-assets.youmind.com` 图源，`imageBase` 已声明；分类靠 `categories` 参数逐类反查，见 `sites/prompts/tag_categories.py`）；prompthero-midjourney ← prompthero.com/midjourney-prompts（前端 tRPC 接口 `/api/trpc/prompt.search`，匿名可调；衍生图在 `img.prompthero.com`、原图在 `cdn.prompthero.com`，故 `imageBases` 列为两个前缀）；midjourney-explore ← midjourney.com/explore（前端只读接口 `/api/explore?page=N&feed=top`，匿名可调；图源在 `cdn.midjourney.com`，**必须带 Cloudflare 的 `__cf_bm` 通行证 cookie，否则一律 403**，由 `sites/midjourney-explore/scripts/fetch_hook.py` 处理）；midlibrary ← midlibrary.io/library（Next.js App Router，**没有公开 JSON 接口**，数据在服务端渲染进 RSC flight payload；只抓公开 HTML 页面、不碰 robots.txt 禁掉的 `/api/`；单页实测 20–60 秒且会截断，采集要带完整性校验与重试；图源在 `midlibrary.io/img/`，**Referer 必须是 midlibrary.io 才放行**，由 `sites/midlibrary/scripts/fetch_hook.py` 处理）。
 
 ## 目录结构
 
@@ -58,7 +59,7 @@ ai-video-imge-prompts/
 │   └── serve.py        #   以 dist/ 为站点根起本地 HTTP 服务
 ├── deploy/             # DEPLOY.md 部署手册 + nginx.conf
 ├── index/              # 本地素材管理器（唯一用数据库的部分）
-│   ├── catalog.py      #   ★ 唯一字段映射：9 份 manifest → 统一 CSV
+│   ├── catalog.py      #   ★ 唯一字段映射：10 份 manifest → 统一 CSV
 │   ├── sync.py         #   manifest → gallery.db（复用上表的映射，不重写）
 │   ├── store.py        #   唯一碰 SQL 的模块：建表、写入、查询
 │   ├── serve.py        #   11 个端点 + 静态页面（单进程同源，端口 8787）
@@ -77,7 +78,7 @@ ai-video-imge-prompts/
 ```bash
 python tools/fetch.py      # 下载全部图片（首次约 86 GB，之后只补缺失）
 python tools/mid.py        # 生成灯箱中图（约 290 MB）
-python tools/build.py      # 构建八个站 + 入口页
+python tools/build.py      # 构建九个站 + 入口页
 python tools/release.py    # 组装 dist/
 python tools/serve.py      # 预览 http://127.0.0.1:8080/
 python tests/run.py        # 不依赖图片的检查
@@ -98,7 +99,7 @@ python tests/test_manager.py  # 素材管理器测试（需 Pillow），只走 H
 
 1. `python3.13 tests/run.py` —— 测试。
 2. `python3.13 tests/test_manager.py`（先 `pip install pillow`）—— 素材管理器的 HTTP 接口测试。
-3. `python3.8 tools/build.py --skip prompts` 后 `git diff --exit-code -- hub sites` —— **最低版本 Python 构建产物必须与仓库一致**，不一致直接失败（这是防「忘记提交构建产物」的闸门）。**跳过 prompts 是因为它的数据源不入库**（`data/prompts_*.json` 132 MB + `data/gallery_*.js` 84 MB 都可由脚本重拉），干净检出上构建它必然失败；其余八站照常逐文件比对。
+3. `python3.8 tools/build.py --skip prompts` 后 `git diff --exit-code -- hub sites` —— **最低版本 Python 构建产物必须与仓库一致**，不一致直接失败（这是防「忘记提交构建产物」的闸门）。**跳过 prompts 是因为它的数据源不入库**（`data/prompts_*.json` 132 MB + `data/gallery_*.js` 84 MB 都可由脚本重拉），干净检出上构建它必然失败；其余九站照常逐文件比对。
 4. `python3.13 tools/release.py --no-images --out /tmp/dist-ci` —— 图片不入库，CI 只验证发布脚本能跑通。
 5. `python3.13 tools/update.py --check --no-fetch --ref HEAD` —— 干净检出下的更新检查。
 
@@ -112,7 +113,7 @@ python tests/test_manager.py  # 素材管理器测试（需 Pillow），只走 H
 4. **新增站点**按 `docs/ADDING_A_SITE.md`：建 `sites/<id>/`（`scripts/build_gallery.py` 必填、`extract.py`/`manifest.py` 按需、`data/`、`index.html`、`LICENSE`、`NOTICE.md`、`README.md`），在 `sites.json` 追加一条，然后跑 `tools/build.py`。**`tools/` 无需改动。**
 5. **构建脚本读环境变量 `SITE_URL`**，站点根用 `dirname(dirname(__file__))` 自算，不依赖当前工作目录。
 6. **姿势两站共用生成器**：结构相同直接复用 `shared/pose_gallery.py` + `shared/pose_source.py`，只写一份 `config.py`（参考 `sites/pose/config.py`）；数据来自别的项目、系列名不同时参考 `sites/shisei/config.py`（系列顺序、视角顺序、中文名表、作者、`blurRatings` 默认模糊都在配置里）。
-7. **授权逐站不同**，改任何站都要看该站的 `NOTICE.md`：`portrait` 与 `shisei` 是 CC0 可商用可再分发；`pose` / `pose-depth` / `costume` **禁止再分发**；`midjourney-explore` 同样**禁止再分发**（社区成图版权归各创作者）；`prompts` 是 **CC BY 4.0**（可商用、**必须署名**——灯箱逐条展示作者与来源，再分发时保留署名）。截图与素材不得从页面裁取另作他用。
+7. **授权逐站不同**，改任何站都要看该站的 `NOTICE.md`：`portrait` 与 `shisei` 是 CC0 可商用可再分发；`pose` / `pose-depth` / `costume` **禁止再分发**；`midjourney-explore` 同样**禁止再分发**（社区成图版权归各创作者）；`prompts` 是 **CC BY 4.0**（可商用、**必须署名**——灯箱逐条展示作者与来源，再分发时保留署名）；`midlibrary` 是**有条件**（站方书面许可：允许个人学习用途的镜像，**含图片**，条件是署名 + 回链原站）。截图与素材不得从页面裁取另作他用。
 8. **部署**：站点根 = `tools/release.py` 产出的 `dist/`（扁平结构：`index.html` + `portrait/` + `pose/` + …），nginx 不需要 `alias`。线上更新先发到暂存目录（`--out dist-stage`），检查后逐站原子换入 `dist/`。**git commit 即版本**，不用 `releases/<版本>/public` + `current` 软链。
 9. **`release.py` 发布前会校验图片，缺图就中止**（只下了部分档位时加 `--skip-verify`）；它会先删除再重建目标站点目录。`--no-images` 只放站点文件、不放图片，**不能用来保留线上旧图**。
 10. **素材管理器的边界写在目录结构里**：`sites/` 只读（采集素材永不物理删除，只做视图隐藏）；`library/` 可写（导入素材允许删除）。任何代码路径都不得删除 `volume=sites` 的文件。
@@ -143,6 +144,6 @@ python tests/test_manager.py  # 素材管理器测试（需 Pillow），只走 H
 
 - 素材著作权归各原作者，本项目为个人学习用途的镜像；**代码 MIT，素材按各原站条件使用**。
 - 仓库**不含素材图片**（thumbs / mid / img / png 全部不入库），克隆后必须先 `fetch.py` 才能看到内容；但仓库**含 25 个 UI 与文档图片**：`hub/` 的 og-cover / favicon / apple-touch-icon / icon-512、各站 `og-cover.jpg`、`docs/screenshots/` 11 张界面截图。
-- `sites/portrait/NOTICE.md` 中，原作者对「再分发图片数据本身」另有**请求**（CC0 许可与该请求需并读）；`pose` / `pose-depth` / `costume` / `prompthero-midjourney` / `midjourney-explore` 明确禁止再分发；`prompts` 为 CC BY 4.0，署名要求见 `sites/prompts/NOTICE.md`。
+- `sites/portrait/NOTICE.md` 中，原作者对「再分发图片数据本身」另有**请求**（CC0 许可与该请求需并读）；`pose` / `pose-depth` / `costume` / `prompthero-midjourney` / `midjourney-explore` 明确禁止再分发；`prompts` 为 CC BY 4.0，署名要求见 `sites/prompts/NOTICE.md`；`midlibrary` 为「有条件」（站方书面许可，含图片，条件是署名 + 回链 + 仅个人学习用途），详见 `sites/midlibrary/NOTICE.md`。
 - `hub/` 与 `sites/*/index.html` 都是生成产物。
 - **仓库不含素材**与**本地留哪些素材**是两件事：前者管版本库（图片永远不入库），后者管本机磁盘（按 `imagePolicy` 声明，原图档可整档删掉改走上游地址）。当前各站的本地占用：原图档合计约 45 GB / 5.9 万个文件已切直连上游（可删），缩略图与中图约 3.8 GB 留在本地。
