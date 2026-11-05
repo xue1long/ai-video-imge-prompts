@@ -36,13 +36,16 @@ sites/midlibrary/
 ├── scripts/
 │   ├── config.py             # 唯一契约：常量、16 个分类与 7 种 kind 的中文名、文案
 │   ├── extract.py            # 抓公开列表页 → data/items.json + data/meta.json
+│   ├── extract_details.py    # 抓详情页 → data/details.json（描述 / 分面词 / 主色）
 │   ├── manifest.py           # → manifest.json + manifest.csv（fetch/verify 契约，入库）
 │   ├── fetch_hook.py         # 取图钩子：Referer 门 + 长超时重试 + 限流
-│   └── build_gallery.py      # → index.html + data/gallery.js + 落地页 + robots/sitemap/404
+│   └── build_gallery.py      # → index.html + data/gallery.js + 富文本分片 + 落地页 + SEO 文件
 ├── data/
-│   ├── items.json            # 采集段产物：条目原样存（build_gallery.py 的输入）
+│   ├── items.json            # 采集段产物：条目原样存（manifest.py 的输入，不入库）
 │   ├── meta.json             # 统计信息与断点续抓的 resume 段
-│   ├── gallery.js            # 站点数据单一分片（入库）
+│   ├── details.json          # 详情层文本（入库，全量约 13.6 MB）
+│   ├── gallery.js            # 站点主数据（入库）
+│   ├── detail-<NN>.js        # 富文本分片（构建产物，不入库，灯箱按需加载）
 │   └── landing.json          # 落地页清单（入库）
 ├── manifest.json             # 图片清单（入库；fetch.py / verify.py 的契约）
 ├── manifest.csv              # manifest.json 的可读导出
@@ -55,14 +58,34 @@ sites/midlibrary/
 
 ```bash
 cd sites/midlibrary
-python scripts/extract.py        # 默认抓「站方精选」→ data/items.json + data/meta.json
-python scripts/extract.py --all  # 全量：212 页
-python scripts/manifest.py       # → manifest.json + manifest.csv
-python scripts/build_gallery.py  # → index.html + data/gallery.js + 落地页 + robots/sitemap/404
+python scripts/extract.py           # 默认抓「站方精选」→ data/items.json + data/meta.json
+python scripts/extract.py --all     # 全量：212 页 / 10,142 条
+python scripts/extract_details.py   # 详情页富文本层 → data/details.json（断点续跑）
+python scripts/manifest.py          # → manifest.json + manifest.csv
+python scripts/build_gallery.py     # → index.html + data/gallery.js + 富文本分片 + 落地页 + SEO 文件
 ```
 
 采集支持**断点续抓**（断点信息记在 `data/meta.json` 的 `resume` 段）：
 `--force` 忽略断点全部重抓，`--pages N` 只抓前 N 页（调试用）。
+
+### 详情页富文本层（`extract_details.py`）
+
+列表页的 flight payload 固定 13 个字段，**没有**描述、分面词与配色 —— 这三样只在详情页
+（`/library/<slug>`）的 SSR HTML 里，按 section 的 id 切出来：
+
+| section | 抽取内容 | 键 |
+| --- | --- | --- |
+| `#sp-about` | 简介 / 艺术家小传 | `a` |
+| `#sp-observations` | 站方对风格的观察描述 | `o` |
+| `#sp-terms` | Look terms：按上游分组 + 全站计数 + `/feature/<slug>` | `t` |
+| `#sp-colours` | 主色：hex + 色名 + 占比 + 颜色 slug | `c` |
+
+- 详情页 10,142 个，实测约 2.8 条/秒（4 并发），**约 1 小时**跑完；断点续跑，重跑只补缺的。
+- 完整性判据两条都要过：响应以 `</html>` 收尾 **且**页面里至少有一个 `sp-` section ——
+  上游会中途断流，只看其一都会把截断页当成正常页。
+- 站点体积：`data/details.json` 约 13.6 MB（入库）。构建时按 250 条一片切成
+  `data/detail-<NN>.js`（约 330 KB/片，**不入库**），灯箱打开时才注入那一片，
+  所以首屏不变（`index.html` 约 37 KB，主数据 2.2 MB）。
 
 全仓库的构建与发布（`tools/build.py` 会带上 `SITE_URL` 环境变量）：
 

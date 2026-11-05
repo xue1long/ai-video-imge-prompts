@@ -25,8 +25,9 @@ v8.2 样例表，不伪造图故未收），每条附一行可复制的提示词
 也就是说：**文本层本身可以随便用，但「把库镜像过来并把图存一份」正好是被禁止的那一侧。**
 
 **许可到手的时点与范围。** 站方已出具书面许可，出具时间记作 **2026-11-05**，
-范围是**个人学习用途**的镜像：文本层（名称 / 分类 / 提示词 / SREF 码）
-+ 图片层（缩略图与中图两档），条件为**署名 + 回链原站**。
+范围是**个人学习用途**的镜像，且**覆盖整个站点**（不只是列表页）：
+文本层（名称 / 分类 / 提示词 / SREF 码）+ 详情页文本（About / Observations /
+Look terms / Colours）+ 图片层（缩略图与中图两档），条件为**署名 + 回链原站**。
 许可原件由站方与本站维护者保存，详情可向上游或本站维护者索取。
 
 **许可到位之前的那一阶段**只跑了「站方精选」的 554 条小切片，用来先验证
@@ -45,6 +46,14 @@ v8.2 样例表，不伪造图故未收），每条附一行可复制的提示词
 - **图片存本地，不热链**：两档都是 `local-only`；
 - **采集只走公开 HTML 页面**：上游是 Next.js App Router（数据在 RSC flight payload 里，
   没有公开 JSON 接口），`robots.txt` 只禁 `/api/`，本站不碰接口。
+- **详情层文本单独一层**：列表页的 flight payload 固定 13 个字段，描述 / 分面词 / 主色
+  只在详情页的 SSR HTML 里。这一层放在**独立的 `data/details.json`**（约 13.6 MB），
+  不塞进 manifest —— manifest 是 `fetch.py` / `verify.py` / 测试共用的档位契约，
+  混进散文会让它涨到 20 MB 且语义混杂。
+- **富文本分片外置、按需加载**：每条约 1.3 KB，全量约 13.6 MB，直接内嵌会让首屏
+  从 2.2 MB 涨到 15 MB。做法是 `data/gallery.js` 每条只加一个分片号 `d`，
+  正文切进 `data/detail-<NN>.js`（每 250 条约 330 KB），灯箱打开时才注入那一片。
+  分片**不入库**（由入库的 `details.json` 重建，与 `prompthero-midjourney` 同一先例）。
 
 ## 理由
 
@@ -88,12 +97,21 @@ Referer 必须是 https 且 host 为 `midlibrary.io`；
 | **做成可下载的数据集** | 上游条款明令禁止（未经书面许可不得 build a dataset）；且许可只覆盖个人学习用途的索引镜像 |
 | **不做这个站**（像 `mj-styles` 那样删掉） | 前提不同：`mj-styles` 是无许可的灰色抓取、且只有「码 + 示例图」没有提示词；本站有书面许可，每条都带**可复制的提示词 + 示例图** |
 | **等条款放宽再抓，不申请许可** | 条款没有放宽的迹象（「We may limit or block automated access」），而且**码与提示词能用、图片不能存**这件事本身就是许可的正当理由 |
+| **富文本层塞进 `manifest.json`** | manifest 是 `fetch.py` / `verify.py` / 测试共用的档位契约，混进散文会从 6.4 MB 涨到约 20 MB、语义混杂；单独一份 `data/details.json` 各自职责清楚 |
+| **富文本层内嵌进 `data/gallery.js`** | 首屏会从 2.2 MB 涨到约 15 MB；分片按需加载能把首屏代价切到「打开灯箱时才付」 |
+| **不抓详情页、只用列表页字段** | 列表页固定 13 个字段，判断「这个风格适不适合我」时只剩图片可看；详情页的 Observations 与分面词正是上游为用户做的判断辅助 |
 
 ## 后果
 
 - **本地磁盘增加约 2.5 GB**（thumb + mid 两档）。图片按仓库惯例不入 git
   （`.gitignore` 排除 `sites/*/thumbs/`、`sites/*/mid/`），首次部署用
   `python tools/fetch.py --site midlibrary` 拉取，之后幂等跳过。
+  实测：缩略图全量 10,140 张 / 204.5 MB；中图一张约 150 KB。
+- **仓库增加约 13.6 MB**（`data/details.json`，详情层文本）。富文本分片是构建产物，
+  按仓库惯例不入 git（`.gitignore` 排除 `sites/midlibrary/data/detail-*.js`），
+  由入库的 `details.json` 重建 —— 与 `prompthero-midjourney` 的分片同一性质。
+- **首屏代价不变**：`index.html` 约 37 KB、主数据 2.2 MB；灯箱首次打开时才加载
+  当前条目所在的分片（250 条约 330 KB），之后命中缓存。
 - **取图必须带 Referer**，由站点级取图钩子 `sites/midlibrary/scripts/fetch_hook.py` 处理
   （钩子的第三个可选函数 `fetch_bytes`，自带 240 秒长超时与 4 次重试）——
   **不改 `tools/`**（`AGENTS.md` 规则 1：`tools/` 不写单站分支）。
